@@ -6,6 +6,7 @@ import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -15,14 +16,13 @@ public class NearbyService {
 
     private final StopRepository stopRepository;
     private final RouteStopRepository routeStopRepository;
-    private final RouteRepository routeRepository;
 
     public List<RouteSummaryResponse> findNearbyRoutes(double latitude, double longitude, double radiusMeters) {
         List<Stop> nearbyStops = stopRepository.findNearby(latitude, longitude, radiusMeters);
 
         return nearbyStops.stream()
                 .flatMap(stop -> routeStopRepository.findByStopId(stop.getId()).stream())
-                .map(RouteStop::getRoute)
+                .map(routeStop -> routeStop.getDirection().getRoute())
                 .distinct()
                 .map(DtoMapper::toRouteSummaryResponse)
                 .collect(Collectors.toList());

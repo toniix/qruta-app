@@ -1,7 +1,9 @@
 package com.anthony.rutas.dtos.response;
 
-import java.util.List;
 import lombok.*;
+
+import java.util.List;
+import java.util.UUID;
 
 @Getter
 @Setter
@@ -9,11 +11,13 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class RouteDetailResponse {
-    private Long id;
+    private UUID id;
+    private String code;
     private String name;
+    private String color;
     private String description;
-    private Long transportLineId;
+    private String status;
+    private UUID transportLineId;
     private String transportLineName;
-    private List<StopResponse> stops;
-    private List<RoutePointResponse> routePoints;
+    private List<RouteDirectionResponse> directions;
 }

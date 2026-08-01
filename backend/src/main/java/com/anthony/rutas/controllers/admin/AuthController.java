@@ -23,7 +23,7 @@ public class AuthController {
     @PostMapping("/admin/login")
     public ResponseEntity<AuthResponse> login(@Valid @RequestBody LoginRequest request) {
         Authentication authentication = authenticationManager.authenticate(
-                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+                new UsernamePasswordAuthenticationToken(request.getEmail(), request.getPassword())
         );
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
@@ -31,7 +31,7 @@ public class AuthController {
 
         return ResponseEntity.ok(AuthResponse.builder()
                 .token(token)
-                .username(userDetails.getUsername())
+                .email(userDetails.getUsername())
                 .build());
     }
 }

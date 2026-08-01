@@ -3,7 +3,6 @@ package com.anthony.rutas.services;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
-import com.anthony.rutas.repositories.TransportLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import java.util.List;

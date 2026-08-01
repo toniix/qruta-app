@@ -5,7 +5,9 @@ import com.anthony.rutas.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -20,7 +22,7 @@ public class TransportLineController {
     }
 
     @GetMapping("/lines/city/{cityId}")
-    public ResponseEntity<List<TransportLineResponse>> getLinesByCity(@PathVariable Long cityId) {
+    public ResponseEntity<List<TransportLineResponse>> getLinesByCity(@PathVariable UUID cityId) {
         return ResponseEntity.ok(transportLineService.findByCity(cityId));
     }
 }

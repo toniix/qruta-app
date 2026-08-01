@@ -34,3 +34,5 @@ build/
 .env
 .agents/*
 skills-lock.json
+
+application-local.properties

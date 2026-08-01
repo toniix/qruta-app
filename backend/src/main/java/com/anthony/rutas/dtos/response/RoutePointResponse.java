@@ -8,7 +8,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class RoutePointResponse {
-    private Integer sequence;
+    private Integer pointOrder;
     private Double latitude;
     private Double longitude;
 }

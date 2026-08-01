@@ -4,9 +4,12 @@ import com.anthony.rutas.entities.Stop;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
-import java.util.List;
 
-public interface StopRepository extends JpaRepository<Stop, Long> {
+import java.util.List;
+import java.util.UUID;
+
+public interface StopRepository extends JpaRepository<Stop, UUID> {
+
     List<Stop> findByNameContainingIgnoreCase(String name);
 
     @Query(value = "SELECT * FROM stops s " +

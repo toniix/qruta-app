@@ -7,38 +7,35 @@ import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
+import java.util.UUID;
 
 @Service
 @RequiredArgsConstructor
 public class RouteService {
 
     private final RouteRepository routeRepository;
-    private final RouteStopRepository routeStopRepository;
-    private final RoutePointRepository routePointRepository;
+    private final RouteDirectionRepository routeDirectionRepository;
 
     public List<RouteSummaryResponse> findAll() {
-        List<Route> routes = routeRepository.findAll();
-        return DtoMapper.toRouteSummaryList(routes);
+        return DtoMapper.toRouteSummaryList(routeRepository.findAll());
     }
 
-    public RouteDetailResponse findById(Long id) {
+    public RouteDetailResponse findById(UUID id) {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + id));
 
-        List<RouteStop> routeStops = routeStopRepository.findByRouteIdOrderBySequenceAsc(id);
-        List<RoutePoint> routePoints = routePointRepository.findByRouteIdOrderBySequenceAsc(id);
+        List<RouteDirection> directions = routeDirectionRepository.findByRouteId(id);
 
-        return DtoMapper.toRouteDetailResponse(route, routeStops, routePoints);
+        return DtoMapper.toRouteDetailResponse(route, directions);
     }
 
     public List<RouteSummaryResponse> search(String query) {
-        List<Route> routes = routeRepository.searchByQuery(query);
-        return DtoMapper.toRouteSummaryList(routes);
+        return DtoMapper.toRouteSummaryList(routeRepository.searchByQuery(query));
     }
 
-    public List<RouteSummaryResponse> findByTransportLine(Long transportLineId) {
-        List<Route> routes = routeRepository.findByTransportLineId(transportLineId);
-        return DtoMapper.toRouteSummaryList(routes);
+    public List<RouteSummaryResponse> findByTransportLine(UUID transportLineId) {
+        return DtoMapper.toRouteSummaryList(routeRepository.findByTransportLineId(transportLineId));
     }
 }

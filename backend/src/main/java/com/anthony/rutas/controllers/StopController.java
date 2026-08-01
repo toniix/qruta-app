@@ -5,7 +5,9 @@ import com.anthony.rutas.services.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api")
@@ -20,7 +22,7 @@ public class StopController {
     }
 
     @GetMapping("/stops/{id}")
-    public ResponseEntity<StopResponse> getStopById(@PathVariable Long id) {
+    public ResponseEntity<StopResponse> getStopById(@PathVariable UUID id) {
         return ResponseEntity.ok(stopService.findById(id));
     }
 

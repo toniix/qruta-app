@@ -5,7 +5,9 @@ import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.TransportLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
+
 import java.util.List;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 @Service
@@ -20,7 +22,7 @@ public class TransportLineService {
                 .collect(Collectors.toList());
     }
 
-    public List<TransportLineResponse> findByCity(Long cityId) {
+    public List<TransportLineResponse> findByCity(UUID cityId) {
         return transportLineRepository.findByCityId(cityId).stream()
                 .map(DtoMapper::toTransportLineResponse)
                 .collect(Collectors.toList());

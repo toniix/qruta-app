@@ -2,8 +2,11 @@ package com.anthony.rutas.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "routes")
@@ -15,25 +18,45 @@ import java.util.List;
 public class Route {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
-
-    @Column(nullable = false)
-    private String name;
-
-    private String description;
+    @GeneratedValue(strategy = GenerationType.UUID)
+    private UUID id;
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "transport_line_id", nullable = false)
     private TransportLine transportLine;
 
-    @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sequence ASC")
+    @Column(nullable = false, unique = true)
+    private String code;
+
+    @Column(nullable = false)
+    private String name;
+
+    private String color;
+
+    private String description;
+
+    @Column(nullable = false)
     @Builder.Default
-    private List<RouteStop> routeStops = new ArrayList<>();
+    private String status = "ACTIVE";
+
+    @Column(name = "created_at", nullable = false, updatable = false)
+    private LocalDateTime createdAt;
+
+    @Column(name = "updated_at")
+    private LocalDateTime updatedAt;
+
+    @PrePersist
+    protected void onCreate() {
+        createdAt = LocalDateTime.now();
+        updatedAt = LocalDateTime.now();
+    }
+
+    @PreUpdate
+    protected void onUpdate() {
+        updatedAt = LocalDateTime.now();
+    }
 
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
-    @OrderBy("sequence ASC")
     @Builder.Default
-    private List<RoutePoint> routePoints = new ArrayList<>();
+    private List<RouteDirection> directions = new ArrayList<>();
 }
