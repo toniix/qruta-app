@@ -1,0 +1,74 @@
+import { Bus, Navigation, ShieldCheck, MapPin, Sparkles } from 'lucide-react';
+import { Link, useLocation } from 'react-router-dom';
+import { useRoutes } from '../../contexts/RouteContext';
+
+export function Header() {
+  const location = useLocation();
+  const isAdmin = location.pathname.startsWith('/admin');
+  const { requestLocation, isLocating, hasCustomLocation } = useRoutes();
+
+  return (
+    <header className="sticky top-0 z-30 w-full glass-panel border-b border-slate-200/80 shadow-xs">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+        {/* Brand logo & tagline */}
+        <Link to="/" className="flex items-center gap-3 group">
+          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 to-indigo-600 flex items-center justify-center shadow-md shadow-blue-500/25 group-hover:scale-105 transition-transform duration-200">
+            <Bus className="w-5 h-5 text-white" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-extrabold text-xl tracking-tight text-slate-900">
+                Ruta<span className="text-blue-600">Ya</span>
+              </span>
+              <span className="text-[10px] font-bold tracking-wider uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200/70 flex items-center gap-1">
+                <Sparkles className="w-2.5 h-2.5 text-amber-500" /> Ica
+              </span>
+            </div>
+            <p className="text-xs font-medium text-slate-500 hidden sm:flex items-center gap-1">
+              ¿A dónde vamos hoy?
+            </p>
+          </div>
+        </Link>
+
+        {/* Header Action Buttons */}
+        <div className="flex items-center gap-2">
+          {!isAdmin && (
+            <button
+              onClick={requestLocation}
+              disabled={isLocating}
+              className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all ${
+                hasCustomLocation
+                  ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-2xs'
+                  : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
+              }`}
+              title="Obtener GPS actual"
+            >
+              <MapPin className={`w-3.5 h-3.5 ${isLocating ? 'animate-bounce text-blue-600' : ''}`} />
+              <span className="hidden xs:inline">
+                {isLocating ? 'Ubicando...' : hasCustomLocation ? 'GPS Activo' : 'Mi Ubicación'}
+              </span>
+            </button>
+          )}
+
+          {isAdmin ? (
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-xl transition-colors"
+            >
+              <Navigation className="w-3.5 h-3.5" />
+              <span>Modo Ciudadano</span>
+            </Link>
+          ) : (
+            <Link
+              to="/admin/login"
+              className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-2 rounded-xl transition-colors"
+            >
+              <ShieldCheck className="w-3.5 h-3.5 text-slate-400" />
+              <span className="hidden sm:inline">Acceso Admin</span>
+            </Link>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
