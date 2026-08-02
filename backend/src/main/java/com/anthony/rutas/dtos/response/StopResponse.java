@@ -15,4 +15,6 @@ public class StopResponse {
     private Double latitude;
     private Double longitude;
     private String reference;
+    private String address;
+    private boolean isAccessible;
 }

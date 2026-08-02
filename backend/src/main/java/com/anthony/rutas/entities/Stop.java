@@ -32,6 +32,11 @@ public class Stop {
 
     private String reference;
 
+    private String address;
+
+    @Builder.Default
+    private boolean isAccessible = true;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

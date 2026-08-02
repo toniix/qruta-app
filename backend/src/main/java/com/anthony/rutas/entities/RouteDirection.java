@@ -37,6 +37,12 @@ public class RouteDirection {
     @Column(name = "destination_name")
     private String destinationName;
 
+    @Column(name = "total_distance_km")
+    private Double totalDistanceKm;
+
+    @Column(name = "estimated_minutes")
+    private Integer estimatedMinutes;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

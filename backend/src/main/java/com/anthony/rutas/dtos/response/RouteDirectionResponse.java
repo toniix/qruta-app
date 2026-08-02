@@ -15,6 +15,8 @@ public class RouteDirectionResponse {
     private String direction;
     private String originName;
     private String destinationName;
+    private Double totalDistanceKm;
+    private Integer estimatedMinutes;
     private List<StopResponse> stops;
     private List<RoutePointResponse> routePoints;
 }

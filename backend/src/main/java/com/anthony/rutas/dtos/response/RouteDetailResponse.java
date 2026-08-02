@@ -17,6 +17,9 @@ public class RouteDetailResponse {
     private String color;
     private String description;
     private String status;
+    private String fare;
+    private String schedule;
+    private String frequency;
     private UUID transportLineId;
     private String transportLineName;
     private List<RouteDirectionResponse> directions;

@@ -22,6 +22,10 @@ public class DtoMapper {
                 .id(line.getId())
                 .cityId(line.getCity().getId())
                 .name(line.getName())
+                .code(line.getCode())
+                .color(line.getColor())
+                .company(line.getCompany())
+                .contact(line.getContact())
                 .description(line.getDescription())
                 .status(line.getStatus())
                 .build();
@@ -35,6 +39,9 @@ public class DtoMapper {
                 .color(route.getColor())
                 .description(route.getDescription())
                 .status(route.getStatus())
+                .fare(route.getFare())
+                .schedule(route.getSchedule())
+                .frequency(route.getFrequency())
                 .transportLineId(route.getTransportLine().getId())
                 .transportLineName(route.getTransportLine().getName())
                 .build();
@@ -52,6 +59,9 @@ public class DtoMapper {
                 .color(route.getColor())
                 .description(route.getDescription())
                 .status(route.getStatus())
+                .fare(route.getFare())
+                .schedule(route.getSchedule())
+                .frequency(route.getFrequency())
                 .transportLineId(route.getTransportLine().getId())
                 .transportLineName(route.getTransportLine().getName())
                 .directions(directionResponses)
@@ -76,6 +86,8 @@ public class DtoMapper {
                 .direction(direction.getDirection())
                 .originName(direction.getOriginName())
                 .destinationName(direction.getDestinationName())
+                .totalDistanceKm(direction.getTotalDistanceKm())
+                .estimatedMinutes(direction.getEstimatedMinutes())
                 .stops(stops)
                 .routePoints(points)
                 .build();
@@ -88,6 +100,8 @@ public class DtoMapper {
                 .latitude(stop.getLocation().getY())
                 .longitude(stop.getLocation().getX())
                 .reference(stop.getReference())
+                .address(stop.getAddress())
+                .isAccessible(stop.isAccessible())
                 .build();
     }
 

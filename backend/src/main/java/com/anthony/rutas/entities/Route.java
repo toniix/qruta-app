@@ -35,6 +35,12 @@ public class Route {
 
     private String description;
 
+    private String fare;
+
+    private String schedule;
+
+    private String frequency;
+
     @Column(nullable = false)
     @Builder.Default
     private String status = "ACTIVE";

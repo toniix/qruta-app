@@ -28,6 +28,15 @@ public class TransportLine {
     @Column(nullable = false)
     private String name;
 
+    @Column(length = 20)
+    private String code;
+
+    private String color;
+
+    private String company;
+
+    private String contact;
+
     private String description;
 
     @Column(nullable = false)
