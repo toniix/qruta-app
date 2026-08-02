@@ -13,16 +13,12 @@ export const lineService = {
     return response.data;
   },
 
-  async createLine(lineData) {
+  async getLinesByCity(cityId) {
     if (USE_MOCK) {
-      const newLine = {
-        id: `line-${Date.now()}`,
-        ...lineData,
-      };
-      MOCK_LINES.push(newLine);
-      return newLine;
+      await new Promise((r) => setTimeout(r, 200));
+      return MOCK_LINES;
     }
-    const response = await apiClient.post('/lines', lineData);
+    const response = await apiClient.get(`/lines/city/${cityId}`);
     return response.data;
   },
 };

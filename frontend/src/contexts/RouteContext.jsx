@@ -2,6 +2,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { routeService } from '../services/routeService';
 import { stopService } from '../services/stopService';
+import { nearbyService } from '../services/nearbyService';
 import { useGeolocation } from '../hooks/useGeolocation';
 
 export const RouteContext = createContext(null);
@@ -11,17 +12,18 @@ export function RouteProvider({ children }) {
   const [stops, setStops] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
-  const [searchedLocation, setSearchedLocation] = useState(null); // { name, latitude, longitude }
-  const [nearestMatchInfo, setNearestMatchInfo] = useState(null); // { route, stop, distanceKm }
+  const [searchedLocation, setSearchedLocation] = useState(null);
+  const [nearestMatchInfo, setNearestMatchInfo] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('featured'); // 'featured' | 'university' | 'commercial' | 'tourist' | 'all'
   const [onlyNearby, setOnlyNearby] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [filteredRoutes, setFilteredRoutes] = useState([]);
+  // Controls the GPS permission modal imperatively (e.g., from the Cercanas button)
+  const [showGpsModal, setShowGpsModal] = useState(false);
 
-  const { location: userLocation, isLocating, requestLocation, hasCustomLocation } = useGeolocation();
+  const { location: userLocation, isLocating, requestLocation, hasCustomLocation, gpsReady, gpsPermissionState } = useGeolocation();
 
-  // Load all routes & stops initially
   const loadData = useCallback(async () => {
     try {
       setLoading(true);
@@ -62,56 +64,44 @@ export function RouteProvider({ children }) {
       }
     }
     fetchData();
-    return () => {
-      isMounted = false;
-    };
+    return () => { isMounted = false; };
   }, []);
 
-  // Compute filtered routes based on search query, nearby toggle, and active category
-  const getFilteredRoutes = useCallback(() => {
-    let result = routes;
-
-    // If searching by text, filter across all routes
-    if (searchQuery.trim() !== '') {
-      const term = searchQuery.toLowerCase().trim();
-      return result.filter(
-        (r) =>
-          r.name.toLowerCase().includes(term) ||
-          r.code.toLowerCase().includes(term) ||
-          r.origin.toLowerCase().includes(term) ||
-          r.destination.toLowerCase().includes(term) ||
-          r.lineName.toLowerCase().includes(term) ||
-          r.stops.some((s) => s.name.toLowerCase().includes(term))
-      );
+  // Re-compute filtered routes whenever searchQuery, onlyNearby, or routes change
+  useEffect(() => {
+    let isMounted = true;
+    async function computeFiltered() {
+      try {
+        if (searchQuery.trim() !== '') {
+          const results = await routeService.searchRoutes(searchQuery);
+          if (isMounted) setFilteredRoutes(results);
+        } else if (onlyNearby && userLocation) {
+          const results = await nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500);
+          if (isMounted) {
+            const match = routeService.findNearestRouteAndStop(results, userLocation.lat, userLocation.lng);
+            if (match) {
+              setNearestMatchInfo(match);
+              // Sort nearest route first
+              const sorted = [...results].sort((a, b) => {
+                if (a.id === match.route?.id) return -1;
+                if (b.id === match.route?.id) return 1;
+                return 0;
+              });
+              setFilteredRoutes(sorted);
+            } else {
+              setFilteredRoutes(results);
+            }
+          }
+        } else {
+          if (isMounted) setFilteredRoutes(routes);
+        }
+      } catch (err) {
+        console.error('Error al filtrar rutas:', err);
+      }
     }
-
-    // If GPS Nearby filter is active
-    if (onlyNearby && userLocation) {
-      return result.filter((route) => {
-        return route.stops.some((stop) => {
-          const latDiff = Math.abs(stop.latitude - userLocation.lat);
-          const lngDiff = Math.abs(stop.longitude - userLocation.lng);
-          return latDiff < 0.03 && lngDiff < 0.03; // Approx ~2-3km
-        });
-      });
-    }
-
-    // Default category filtering
-    if (activeCategory === 'featured') {
-      return result.filter((r) => r.isFeatured);
-    }
-    if (activeCategory === 'university') {
-      return result.filter((r) => r.category === 'university');
-    }
-    if (activeCategory === 'commercial') {
-      return result.filter((r) => r.category === 'commercial');
-    }
-    if (activeCategory === 'tourist') {
-      return result.filter((r) => r.category === 'tourist');
-    }
-
-    return result; // 'all'
-  }, [routes, searchQuery, onlyNearby, activeCategory, userLocation]);
+    computeFiltered();
+    return () => { isMounted = false; };
+  }, [searchQuery, onlyNearby, userLocation, routes]);
 
   const selectRoute = (route) => {
     setSelectedRoute(route);
@@ -130,31 +120,107 @@ export function RouteProvider({ children }) {
     setOnlyNearby(false);
   };
 
-  const switchCategory = (category) => {
-    clearSelection();
-    setSearchQuery('');
-    setActiveCategory(category);
-  };
-
+  /**
+   * Activates/deactivates the "nearby routes" filter.
+   *
+   * Correct behaviour:
+   *   - If a route is currently selected  → clear the selected route and show nearby routes.
+   *   - If filter is ON (and no route selected) → toggle filter OFF.
+   *   - If filter is OFF → enable filter (using GPS if ready, or opening modal if not).
+   */
   const toggleNearby = () => {
-    if (!hasCustomLocation && !onlyNearby) {
-      requestLocation();
+    // If a route is currently selected, tapping "Cercanas" should clear the selected route
+    // and show all nearby routes instead of staying stuck on the selected route's detail view.
+    if (selectedRoute) {
+      setSelectedRoute(null);
+      setSelectedStop(null);
+      setSearchedLocation(null);
+      setNearestMatchInfo(null);
+
+      if (gpsReady) {
+        setOnlyNearby(true);
+      } else if (gpsPermissionState === 'granted') {
+        requestLocation().then(() => {
+          setOnlyNearby(true);
+        }).catch(() => {
+          setShowGpsModal(true);
+        });
+      } else {
+        setShowGpsModal(true);
+      }
+      return;
     }
-    clearSelection();
-    setOnlyNearby((prev) => !prev);
+
+    if (onlyNearby) {
+      // Turning the filter OFF — just reset, no GPS needed.
+      setOnlyNearby(false);
+      return;
+    }
+
+    // Turning the filter ON:
+    if (gpsReady) {
+      // Location already known — filter instantly without re-requesting GPS.
+      setSelectedRoute(null);
+      setSelectedStop(null);
+      setNearestMatchInfo(null);
+      setOnlyNearby(true);
+    } else if (gpsPermissionState === 'granted') {
+      // Granted but no fix yet (rare after auto-detect). Request once then enable.
+      requestLocation().then(() => {
+        setOnlyNearby(true);
+      }).catch(() => {
+        setShowGpsModal(true);
+      });
+    } else {
+      // Not granted (prompt / denied / unknown / unsupported) → show the GPS modal.
+      setShowGpsModal(true);
+    }
   };
 
-  // Find & select the single nearest route to the user
-  const locateNearestRoute = () => {
-    requestLocation();
-    setOnlyNearby(true);
-    if (userLocation && routes.length > 0) {
-      const match = routeService.findNearestRouteAndStop(routes, userLocation.lat, userLocation.lng);
+  /**
+   * Filters by nearby routes and identifies the nearest route/stop match without forcing a single route drawer selection.
+   */
+  const locateNearestRoute = async () => {
+    // Helper: given coords, find nearby routes and highlight nearest match.
+    const findAndShowNearby = async (coords) => {
+      setSelectedRoute(null);
+      setSelectedStop(null);
+      setOnlyNearby(true);
+      const nearbyRoutes = await nearbyService.findNearbyRoutes(coords.lat, coords.lng, 1500);
+      const match = routeService.findNearestRouteAndStop(nearbyRoutes, coords.lat, coords.lng);
       if (match) {
         setNearestMatchInfo(match);
-        selectRoute(match.route);
-        selectStop(match.stop);
+        // Sort nearest route first
+        const sorted = [...nearbyRoutes].sort((a, b) => {
+          if (a.id === match.route?.id) return -1;
+          if (b.id === match.route?.id) return 1;
+          return 0;
+        });
+        setFilteredRoutes(sorted);
+      } else {
+        setFilteredRoutes(nearbyRoutes);
       }
+    };
+
+    try {
+      if (gpsReady) {
+        // GPS is already active — use the location we already have. No re-request.
+        await findAndShowNearby(userLocation);
+      } else if (gpsPermissionState === 'granted') {
+        // Granted but no cached fix yet — request once, then search.
+        try {
+          const coords = await requestLocation();
+          await findAndShowNearby(coords);
+        } catch {
+          setShowGpsModal(true);
+        }
+      } else {
+        // GPS not available or not yet permitted — open the modal.
+        setShowGpsModal(true);
+      }
+    } catch (err) {
+      console.error('Error al buscar rutas cercanas:', err);
+      setShowGpsModal(true);
     }
   };
 
@@ -163,28 +229,30 @@ export function RouteProvider({ children }) {
       value={{
         routes,
         stops,
-        filteredRoutes: getFilteredRoutes(),
+        filteredRoutes,
         selectedRoute,
         selectedStop,
         searchedLocation,
         nearestMatchInfo,
         searchQuery,
-        activeCategory,
         onlyNearby,
         loading,
         error,
         userLocation,
         isLocating,
+        gpsReady,
+        gpsPermissionState,
         hasCustomLocation,
         setSearchQuery,
         setSearchedLocation,
-        setActiveCategory: switchCategory,
         selectRoute,
         selectStop,
         clearSelection,
         toggleNearby,
         locateNearestRoute,
         requestLocation,
+        showGpsModal,
+        setShowGpsModal,
         reload: loadData,
       }}
     >

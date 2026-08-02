@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
 export function AdminLoginPage() {
-  const [username, setUsername] = useState('admin');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
@@ -16,7 +16,7 @@ export function AdminLoginPage() {
     setLoading(true);
 
     try {
-      await authService.login(username, password);
+      await authService.login(email, password);
       navigate('/admin/dashboard');
     } catch (err) {
       setError(err.message || 'Error al iniciar sesión');
@@ -28,7 +28,6 @@ export function AdminLoginPage() {
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-100">
       <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200/80 p-6 sm:p-8 space-y-6">
-        {/* Header */}
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30">
             <ShieldCheck className="w-6 h-6" />
@@ -39,13 +38,6 @@ export function AdminLoginPage() {
           </p>
         </div>
 
-        {/* Demo Hint Banner */}
-        <div className="p-3 bg-blue-50 border border-blue-200/80 rounded-2xl text-xs text-blue-800 space-y-1">
-          <p className="font-semibold">Credenciales Modo Demo / MVP:</p>
-          <p className="text-blue-600 font-mono">Usuario: admin | Clave: admin123</p>
-        </div>
-
-        {/* Form Error */}
         {error && (
           <div className="p-3 bg-red-50 text-red-700 rounded-2xl text-xs flex items-center gap-2 border border-red-200">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -53,19 +45,19 @@ export function AdminLoginPage() {
           </div>
         )}
 
-        {/* Form */}
         <form onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-xs font-semibold text-slate-700 mb-1">
-              Nombre de Usuario
+              Correo electrónico
             </label>
             <div className="relative flex items-center">
               <User className="absolute left-3.5 w-4 h-4 text-slate-400" />
               <input
-                type="text"
+                type="email"
                 required
-                value={username}
-                onChange={(e) => setUsername(e.target.value)}
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="admin@ejemplo.com"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               />
             </div>

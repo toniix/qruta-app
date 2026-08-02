@@ -1,6 +1,5 @@
 import { apiClient } from './apiClient';
 import { MOCK_STOPS } from './mockData';
-import { calculateDistanceKm } from '../utils/geoUtils';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
@@ -25,28 +24,18 @@ export const stopService = {
     return response.data;
   },
 
-  async getNearbyStops(userLat, userLng, radiusKm = 1.0) {
-    const stops = await this.getAllStops();
-    return stops
-      .map((stop) => ({
-        ...stop,
-        distanceKm: calculateDistanceKm(userLat, userLng, stop.latitude, stop.longitude),
-      }))
-      .filter((stop) => stop.distanceKm <= radiusKm)
-      .sort((a, b) => a.distanceKm - b.distanceKm);
-  },
-
-  // Admin mutation
-  async createStop(stopData) {
+  async searchStops(query) {
     if (USE_MOCK) {
-      const newStop = {
-        id: `stop-${Date.now()}`,
-        ...stopData,
-      };
-      MOCK_STOPS.push(newStop);
-      return newStop;
+      if (!query || query.trim() === '') return MOCK_STOPS;
+      const term = query.toLowerCase().trim();
+      return MOCK_STOPS.filter(
+        (s) =>
+          s.name.toLowerCase().includes(term) ||
+          s.reference?.toLowerCase().includes(term) ||
+          s.address?.toLowerCase().includes(term)
+      );
     }
-    const response = await apiClient.post('/stops', stopData);
+    const response = await apiClient.get('/stops/search', { params: { query } });
     return response.data;
   },
 };

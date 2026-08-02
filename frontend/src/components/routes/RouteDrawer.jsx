@@ -10,24 +10,22 @@ import { useRoutes } from "../../contexts/RouteContext";
 export function RouteDrawer() {
   const { selectedRoute, selectedStop, selectStop, clearSelection } =
     useRoutes();
-  
-  // Default to minimized/collapsed so the map with pins is immediately hero
+
   const [isMinimized, setIsMinimized] = useState(true);
 
   if (!selectedRoute) return null;
 
   const handleStopSelect = (stop) => {
     selectStop(stop);
-    setIsMinimized(true); // Auto-minimize drawer so map occupies ~80% of screen height
+    setIsMinimized(true);
   };
 
   return (
     <div className="w-full glass-panel rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 max-h-[50vh] sm:max-h-[420px] animate-in slide-in-from-bottom duration-300">
-      {/* Drawer Header (Clickable to toggle expand/collapse) */}
       <div
         onClick={() => setIsMinimized((prev) => !prev)}
         className="p-3 sm:p-3.5 text-white relative flex items-center justify-between shadow-xs cursor-pointer select-none transition-colors"
-        style={{ backgroundColor: selectedRoute.lineColor || "#2563eb" }}
+        style={{ backgroundColor: selectedRoute.color || "#2563eb" }}
       >
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
@@ -39,7 +37,7 @@ export function RouteDrawer() {
                 {selectedRoute.code}
               </span>
               <span className="text-xs text-white/80 font-medium truncate">
-                {selectedRoute.lineName}
+                {selectedRoute.transportLineName}
               </span>
             </div>
             <h2 className="text-xs sm:text-sm font-bold leading-tight line-clamp-1">
@@ -48,7 +46,6 @@ export function RouteDrawer() {
           </div>
         </div>
 
-        {/* Action Controls: Close only (Header tap expands/collapses) */}
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <button
             type="button"
@@ -64,7 +61,6 @@ export function RouteDrawer() {
         </div>
       </div>
 
-      {/* Selected Key Point Banner (when focused) */}
       {selectedStop && (
         <div className="bg-amber-500 text-white px-3.5 py-2 text-xs flex items-center justify-between shadow-inner">
           <div className="flex items-center gap-1.5 truncate">
@@ -84,17 +80,15 @@ export function RouteDrawer() {
         </div>
       )}
 
-      {/* Expanded Content View */}
       {!isMinimized && (
         <>
-          {/* Quick Stats Grid */}
           <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 bg-slate-50/60 p-2.5 text-center text-xs">
             <div>
               <div className="text-slate-400 text-[10px] uppercase font-semibold">
                 Tarifa
               </div>
               <div className="font-bold text-slate-800 mt-0.5">
-                {selectedRoute.fare}
+                {selectedRoute.fare || '-'}
               </div>
             </div>
             <div>
@@ -102,7 +96,7 @@ export function RouteDrawer() {
                 Horario
               </div>
               <div className="font-bold text-slate-800 mt-0.5 line-clamp-1">
-                {selectedRoute.schedule}
+                {selectedRoute.schedule || '-'}
               </div>
             </div>
             <div>
@@ -110,26 +104,25 @@ export function RouteDrawer() {
                 Frecuencia
               </div>
               <div className="font-bold text-blue-600 mt-0.5 line-clamp-1">
-                {selectedRoute.frequency}
+                {selectedRoute.frequency || '-'}
               </div>
             </div>
           </div>
 
-          {/* Origin -> Destination Banner */}
           <div className="px-3.5 py-2 bg-blue-50/50 border-b border-blue-100/60 flex items-center justify-between text-xs">
             <div className="flex items-center gap-2">
               <Navigation className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
               <span className="text-slate-700 font-medium">
                 Recorrido total:{" "}
                 <strong className="text-slate-900">
-                  {selectedRoute.totalDistanceKm} km
-                </strong>{" "}
-                (~{selectedRoute.estimatedMinutes} min)
+                  {selectedRoute.origin && selectedRoute.destination
+                    ? `${selectedRoute.origin} → ${selectedRoute.destination}`
+                    : 'Ver direcciones'}
+                </strong>
               </span>
             </div>
           </div>
 
-          {/* Key Points Vertical Timeline */}
           <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
             <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
               <span>Puntos Clave ({selectedRoute.stops?.length || 0})</span>
@@ -151,7 +144,6 @@ export function RouteDrawer() {
                         : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50"
                     }`}
                   >
-                    {/* Timeline Dot */}
                     <div
                       className={`absolute -left-6 top-3 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold border-2 transition-transform ${
                         isStopSelected
@@ -168,7 +160,7 @@ export function RouteDrawer() {
                           {stop.name}
                         </h5>
                         <p className="text-[10px] text-slate-500 mt-0.5">
-                          {stop.address}
+                          {stop.address || stop.reference}
                         </p>
                       </div>
                       {stop.isAccessible && (

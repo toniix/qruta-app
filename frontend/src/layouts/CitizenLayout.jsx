@@ -1,5 +1,6 @@
 import { Header } from '../components/common/Header';
 import { BottomNav } from '../components/common/BottomNav';
+import { GpsPermissionModal } from '../components/common/GpsPermissionModal';
 import { Outlet } from 'react-router-dom';
 
 export function CitizenLayout() {
@@ -10,6 +11,8 @@ export function CitizenLayout() {
         <Outlet />
       </main>
       <BottomNav />
+      {/* GPS permission modal — shown once per session if needed */}
+      <GpsPermissionModal />
     </div>
   );
 }
