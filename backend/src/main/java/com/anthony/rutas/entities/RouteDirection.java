@@ -62,6 +62,7 @@ public class RouteDirection {
 
     @OneToMany(mappedBy = "direction", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("stopOrder ASC")
+    @org.hibernate.annotations.BatchSize(size = 25)
     @Builder.Default
     private List<RouteStop> routeStops = new ArrayList<>();
 

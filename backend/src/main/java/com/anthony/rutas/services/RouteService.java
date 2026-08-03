@@ -15,10 +15,8 @@ import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
-import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -34,6 +32,15 @@ public class RouteService {
 
     public List<RouteSummaryResponse> findAll() {
         return DtoMapper.toRouteSummaryList(routeRepository.findAll());
+    }
+
+    /**
+     * Returns a lightweight summary list for the public route cards endpoint.
+     * Maps key stops for each route within a read-only transaction.
+     */
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> findAllCards() {
+        return DtoMapper.toRouteSummaryList(routeRepository.findAllWithTransportLine());
     }
 
     public RouteDetailResponse findById(UUID id) {
@@ -54,7 +61,8 @@ public class RouteService {
     @Transactional
     public RouteDetailResponse create(CreateRouteRequest request) {
         TransportLine transportLine = transportLineRepository.findById(UUID.fromString(request.getTransportLineId()))
-                .orElseThrow(() -> new ResourceNotFoundException("Transport line not found with id: " + request.getTransportLineId()));
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "Transport line not found with id: " + request.getTransportLineId()));
 
         Route route = Route.builder()
                 .transportLine(transportLine)
@@ -86,7 +94,8 @@ public class RouteService {
                 if (dirReq.getStops() != null) {
                     for (CreateRouteRequest.RouteStopItemRequest stopReq : dirReq.getStops()) {
                         Stop stop = stopRepository.findById(UUID.fromString(stopReq.getStopId()))
-                                .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + stopReq.getStopId()));
+                                .orElseThrow(() -> new ResourceNotFoundException(
+                                        "Stop not found with id: " + stopReq.getStopId()));
                         RouteStop routeStop = RouteStop.builder()
                                 .direction(direction)
                                 .stop(stop)
@@ -99,7 +108,8 @@ public class RouteService {
 
                 if (dirReq.getRoutePoints() != null) {
                     for (CreateRouteRequest.RoutePointItemRequest pointReq : dirReq.getRoutePoints()) {
-                        Point location = geometryFactory.createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
+                        Point location = geometryFactory
+                                .createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
                         RoutePoint routePoint = RoutePoint.builder()
                                 .direction(direction)
                                 .pointOrder(pointReq.getPointOrder())
@@ -119,14 +129,22 @@ public class RouteService {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + id));
 
-        if (request.getCode() != null) route.setCode(request.getCode());
-        if (request.getName() != null) route.setName(request.getName());
-        if (request.getColor() != null) route.setColor(request.getColor());
-        if (request.getDescription() != null) route.setDescription(request.getDescription());
-        if (request.getFare() != null) route.setFare(request.getFare());
-        if (request.getSchedule() != null) route.setSchedule(request.getSchedule());
-        if (request.getFrequency() != null) route.setFrequency(request.getFrequency());
-        if (request.getStatus() != null) route.setStatus(request.getStatus());
+        if (request.getCode() != null)
+            route.setCode(request.getCode());
+        if (request.getName() != null)
+            route.setName(request.getName());
+        if (request.getColor() != null)
+            route.setColor(request.getColor());
+        if (request.getDescription() != null)
+            route.setDescription(request.getDescription());
+        if (request.getFare() != null)
+            route.setFare(request.getFare());
+        if (request.getSchedule() != null)
+            route.setSchedule(request.getSchedule());
+        if (request.getFrequency() != null)
+            route.setFrequency(request.getFrequency());
+        if (request.getStatus() != null)
+            route.setStatus(request.getStatus());
 
         return DtoMapper.toRouteSummaryResponse(routeRepository.save(route));
     }
@@ -160,7 +178,8 @@ public class RouteService {
             if (dirReq.getStops() != null) {
                 for (UpdateRouteDirectionsRequest.StopUpdateRequest stopReq : dirReq.getStops()) {
                     Stop stop = stopRepository.findById(UUID.fromString(stopReq.getStopId()))
-                            .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + stopReq.getStopId()));
+                            .orElseThrow(() -> new ResourceNotFoundException(
+                                    "Stop not found with id: " + stopReq.getStopId()));
                     RouteStop routeStop = RouteStop.builder()
                             .direction(direction)
                             .stop(stop)
@@ -173,7 +192,8 @@ public class RouteService {
 
             if (dirReq.getRoutePoints() != null) {
                 for (UpdateRouteDirectionsRequest.PointUpdateRequest pointReq : dirReq.getRoutePoints()) {
-                    Point location = geometryFactory.createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
+                    Point location = geometryFactory
+                            .createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
                     RoutePoint routePoint = RoutePoint.builder()
                             .direction(direction)
                             .pointOrder(pointReq.getPointOrder())

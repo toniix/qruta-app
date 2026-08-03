@@ -1,0 +1,984 @@
+{
+  "info": {
+    "_postman_id": "rutasya-api-collection-v1",
+    "name": "RutasYa API Collection",
+    "description": "Colección completa de endpoints para la API de RutasYa (Backend Spring Boot). Incluye endpoints públicos y de administración con autenticación JWT.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "auth_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "sample_city_id",
+      "value": "123e4567-e89b-12d3-a456-426614174000",
+      "type": "string"
+    },
+    {
+      "key": "sample_stop_id",
+      "value": "123e4567-e89b-12d3-a456-426614174001",
+      "type": "string"
+    },
+    {
+      "key": "sample_line_id",
+      "value": "123e4567-e89b-12d3-a456-426614174002",
+      "type": "string"
+    },
+    {
+      "key": "sample_route_id",
+      "value": "123e4567-e89b-12d3-a456-426614174003",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Autenticación",
+      "item": [
+        {
+          "name": "Iniciar Sesión (Admin Login)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('auth_token', jsonData.token);",
+                  "    console.log('Token JWT guardado automáticamente en la variable {{auth_token}}');",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@rutasya.com\",\n  \"password\": \"adminpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/admin/login",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "admin",
+                "login"
+              ]
+            },
+            "description": "Inicia sesión como administrador para obtener un token JWT. El token se guarda automáticamente en la variable de colección {{auth_token}}."
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Ciudades (Público)",
+      "item": [
+        {
+          "name": "Obtener todas las ciudades",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/cities",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "cities"
+              ]
+            },
+            "description": "Obtiene la lista de todas las ciudades registradas."
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Líneas de Transporte (Público)",
+      "item": [
+        {
+          "name": "Obtener todas las líneas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/lines",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "lines"
+              ]
+            },
+            "description": "Obtiene la lista de todas las líneas de transporte."
+          }
+        },
+        {
+          "name": "Obtener líneas por ID de Ciudad",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/lines/city/:cityId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "lines",
+                "city",
+                ":cityId"
+              ],
+              "variable": [
+                {
+                  "key": "cityId",
+                  "value": "{{sample_city_id}}",
+                  "description": "UUID de la ciudad"
+                }
+              ]
+            },
+            "description": "Obtiene las líneas de transporte pertenecientes a una ciudad específica."
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Paradas (Público)",
+      "item": [
+        {
+          "name": "Obtener todas las paradas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stops",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stops"
+              ]
+            },
+            "description": "Obtiene la lista completa de paradas."
+          }
+        },
+        {
+          "name": "Obtener parada por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stops/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stops",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_stop_id}}",
+                  "description": "UUID de la parada"
+                }
+              ]
+            },
+            "description": "Obtiene el detalle de una parada por su ID."
+          }
+        },
+        {
+          "name": "Buscar paradas por nombre",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/stops/search?query=Central",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stops",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "Central",
+                  "description": "Término de búsqueda"
+                }
+              ]
+            },
+            "description": "Busca paradas cuyo nombre contenga la palabra especificada."
+          }
+        },
+        {
+          "name": "Buscar paradas cercanas (Geolocalización)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": -12.046374,\n  \"longitude\": -77.042793,\n  \"radiusMeters\": 1000.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/stops/nearby",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "stops",
+                "nearby"
+              ]
+            },
+            "description": "Busca paradas cercanas dentro de un radio en metros desde unas coordenadas de latitud/longitud."
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Rutas (Público)",
+      "item": [
+        {
+          "name": "Obtener todas las rutas",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/routes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "routes"
+              ]
+            },
+            "description": "Obtiene un resumen de todas las rutas."
+          }
+        },
+        {
+          "name": "Obtener ruta por ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/routes/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_route_id}}",
+                  "description": "UUID de la ruta"
+                }
+              ]
+            },
+            "description": "Obtiene la información detallada de una ruta (incluyendo direcciones, paradas y puntos del recorrido)."
+          }
+        },
+        {
+          "name": "Buscar rutas por texto",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/routes/search?query=Express",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "search"
+              ],
+              "query": [
+                {
+                  "key": "query",
+                  "value": "Express",
+                  "description": "Término de búsqueda"
+                }
+              ]
+            },
+            "description": "Busca rutas por código, nombre o descripción."
+          }
+        },
+        {
+          "name": "Obtener rutas por ID de Línea",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/api/routes/line/:transportLineId",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "line",
+                ":transportLineId"
+              ],
+              "variable": [
+                {
+                  "key": "transportLineId",
+                  "value": "{{sample_line_id}}",
+                  "description": "UUID de la línea de transporte"
+                }
+              ]
+            },
+            "description": "Obtiene las rutas asociadas a una línea de transporte específica."
+          }
+        },
+        {
+          "name": "Buscar rutas cercanas (Geolocalización)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"latitude\": -12.046374,\n  \"longitude\": -77.042793,\n  \"radiusMeters\": 1000.0\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/routes/nearby",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "routes",
+                "nearby"
+              ]
+            },
+            "description": "Busca rutas que tengan paradas cercanas a una ubicación determinada."
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Admin - Ciudades",
+      "item": [
+        {
+          "name": "[Admin] Obtener todas las ciudades",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/cities",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "cities"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Crear ciudad",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lima\",\n  \"department\": \"Lima\",\n  \"country\": \"Per\\u00fa\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/cities",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "cities"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Actualizar ciudad",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Lima Metropolitana\",\n  \"department\": \"Lima\",\n  \"country\": \"Per\\u00fa\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/cities/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "cities",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_city_id}}",
+                  "description": "UUID de la ciudad"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Eliminar ciudad",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/cities/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "cities",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_city_id}}",
+                  "description": "UUID de la ciudad"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Admin - Líneas de Transporte",
+      "item": [
+        {
+          "name": "[Admin] Obtener todas las líneas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/lines",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "lines"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Crear línea de transporte",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityId\": \"{{sample_city_id}}\",\n  \"name\": \"L\\u00ednea 1 - El R\\u00e1pido\",\n  \"code\": \"L1\",\n  \"color\": \"#FF0000\",\n  \"company\": \"Empresa de Transportes El R\\u00e1pido S.A.\",\n  \"contact\": \"+51 987654321\",\n  \"description\": \"L\\u00ednea de transporte de Lima Norte a Lima Sur\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/lines",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "lines"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Actualizar línea de transporte",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"L\\u00ednea 1 - El R\\u00e1pido Actualizado\",\n  \"code\": \"L1-A\",\n  \"color\": \"#00FF00\",\n  \"company\": \"Empresa de Transportes El R\\u00e1pido S.A.\",\n  \"contact\": \"+51 987654321\",\n  \"description\": \"L\\u00ednea de transporte principal\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/lines/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "lines",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_line_id}}",
+                  "description": "UUID de la línea"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Eliminar línea de transporte",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/lines/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "lines",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_line_id}}",
+                  "description": "UUID de la línea"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "8. Admin - Paradas",
+      "item": [
+        {
+          "name": "[Admin] Obtener todas las paradas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/stops",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stops"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Crear parada",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"cityId\": \"{{sample_city_id}}\",\n  \"name\": \"Estaci\\u00f3n Central\",\n  \"latitude\": -12.046374,\n  \"longitude\": -77.042793,\n  \"reference\": \"Al frente del Parque Universitario\",\n  \"address\": \"Av. Grau 123\",\n  \"isAccessible\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/stops",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stops"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Actualizar parada",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Estaci\\u00f3n Central Modificada\",\n  \"latitude\": -12.046374,\n  \"longitude\": -77.042793,\n  \"reference\": \"Esquina Av. Grau\",\n  \"address\": \"Av. Grau 125\",\n  \"isAccessible\": true\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/stops/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stops",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_stop_id}}",
+                  "description": "UUID de la parada"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Eliminar parada",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/stops/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "stops",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_stop_id}}",
+                  "description": "UUID de la parada"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "9. Admin - Rutas",
+      "item": [
+        {
+          "name": "[Admin] Obtener todas las rutas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/routes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "routes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Obtener ruta por ID",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/routes/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "routes",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_route_id}}",
+                  "description": "UUID de la ruta"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Crear ruta",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"transportLineId\": \"{{sample_line_id}}\",\n  \"code\": \"R-101\",\n  \"name\": \"Ruta 101 Norte - Sur\",\n  \"color\": \"#0055FF\",\n  \"description\": \"Ruta principal de conexi\\u00f3n\",\n  \"fare\": \"S/ 2.50\",\n  \"schedule\": \"05:00 - 23:00\",\n  \"frequency\": \"Cada 5 minutos\",\n  \"status\": \"ACTIVE\",\n  \"directions\": [\n    {\n      \"direction\": \"IDA\",\n      \"originName\": \"Terminal Norte\",\n      \"destinationName\": \"Terminal Sur\",\n      \"totalDistanceKm\": 15.5,\n      \"estimatedMinutes\": 45,\n      \"stops\": [\n        {\n          \"stopId\": \"{{sample_stop_id}}\",\n          \"stopOrder\": 1,\n          \"distanceFromStart\": 0.0\n        }\n      ],\n      \"routePoints\": [\n        {\n          \"pointOrder\": 1,\n          \"latitude\": -12.046374,\n          \"longitude\": -77.042793\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/routes",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "routes"
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Actualizar datos de ruta",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"R-101B\",\n  \"name\": \"Ruta 101 Modificada\",\n  \"color\": \"#FF5500\",\n  \"description\": \"Ruta r\\u00e1pida\",\n  \"fare\": \"S/ 3.00\",\n  \"schedule\": \"05:30 - 22:30\",\n  \"frequency\": \"Cada 8 minutos\",\n  \"status\": \"ACTIVE\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/routes/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "routes",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_route_id}}",
+                  "description": "UUID de la ruta"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Actualizar direcciones de ruta",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"directions\": [\n    {\n      \"id\": \"123e4567-e89b-12d3-a456-426614174099\",\n      \"direction\": \"IDA\",\n      \"originName\": \"Terminal Norte\",\n      \"destinationName\": \"Terminal Sur\",\n      \"totalDistanceKm\": 16.0,\n      \"estimatedMinutes\": 50,\n      \"stops\": [\n        {\n          \"id\": \"123e4567-e89b-12d3-a456-426614174098\",\n          \"stopId\": \"{{sample_stop_id}}\",\n          \"stopOrder\": 1,\n          \"distanceFromStart\": 0.0\n        }\n      ],\n      \"routePoints\": [\n        {\n          \"id\": \"123e4567-e89b-12d3-a456-426614174097\",\n          \"pointOrder\": 1,\n          \"latitude\": -12.046374,\n          \"longitude\": -77.042793\n        }\n      ]\n    }\n  ]\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/admin/routes/:id/directions",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "routes",
+                ":id",
+                "directions"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_route_id}}",
+                  "description": "UUID de la ruta"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "[Admin] Eliminar ruta",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{auth_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/admin/routes/:id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "admin",
+                "routes",
+                ":id"
+              ],
+              "variable": [
+                {
+                  "key": "id",
+                  "value": "{{sample_route_id}}",
+                  "description": "UUID de la ruta"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

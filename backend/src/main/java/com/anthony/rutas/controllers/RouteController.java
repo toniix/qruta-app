@@ -16,9 +16,9 @@ public class RouteController {
 
     private final RouteService routeService;
 
-    @GetMapping("/routes")
-    public ResponseEntity<List<RouteSummaryResponse>> getAllRoutes() {
-        return ResponseEntity.ok(routeService.findAll());
+    @GetMapping("/routes/cards")
+    public ResponseEntity<List<RouteSummaryResponse>> getRouteCards() {
+        return ResponseEntity.ok(routeService.findAllCards());
     }
 
     @GetMapping("/routes/{id}")

@@ -63,6 +63,7 @@ public class Route {
     }
 
     @OneToMany(mappedBy = "route", cascade = CascadeType.ALL, orphanRemoval = true)
+    @org.hibernate.annotations.BatchSize(size = 25)
     @Builder.Default
     private List<RouteDirection> directions = new ArrayList<>();
 }

@@ -2,8 +2,14 @@ package com.anthony.rutas.dtos.response;
 
 import lombok.*;
 
+import java.util.List;
 import java.util.UUID;
 
+/**
+ * Lightweight summary of a Route for the public cards endpoint
+ * ({@code GET /api/routes/cards}).
+ * Contains only the fields required for the route card UI.
+ */
 @Getter
 @Setter
 @NoArgsConstructor
@@ -14,11 +20,7 @@ public class RouteSummaryResponse {
     private String code;
     private String name;
     private String color;
-    private String description;
-    private String status;
     private String fare;
-    private String schedule;
-    private String frequency;
-    private UUID transportLineId;
     private String transportLineName;
+    private List<KeyStopResponse> keyStops;
 }

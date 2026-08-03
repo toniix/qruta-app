@@ -18,4 +18,10 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "OR LOWER(r.code) LIKE LOWER(CONCAT('%', :query, '%')) " +
            "OR LOWER(r.transportLine.name) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Route> searchByQuery(@Param("query") String query);
+
+    /**
+     * Fetch all routes with transport line in a single query.
+     */
+    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine")
+    List<Route> findAllWithTransportLine();
 }
