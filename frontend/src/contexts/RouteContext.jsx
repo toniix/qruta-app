@@ -19,10 +19,8 @@ export function RouteProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filteredRoutes, setFilteredRoutes] = useState([]);
-  // Controls the GPS permission modal imperatively (e.g., from the Cercanas button)
-  const [showGpsModal, setShowGpsModal] = useState(false);
 
-  const { location: userLocation, isLocating, requestLocation, hasCustomLocation, gpsReady, gpsPermissionState } = useGeolocation();
+  const { location: userLocation, isLocating, requestLocation, hasCustomLocation } = useGeolocation();
 
   const loadData = useCallback(async () => {
     try {
@@ -67,7 +65,7 @@ export function RouteProvider({ children }) {
     return () => { isMounted = false; };
   }, []);
 
-  // Re-compute filtered routes whenever searchQuery, onlyNearby, or routes change
+  // Re-compute filtered routes when filters change
   useEffect(() => {
     let isMounted = true;
     async function computeFiltered() {
@@ -81,7 +79,6 @@ export function RouteProvider({ children }) {
             const match = routeService.findNearestRouteAndStop(results, userLocation.lat, userLocation.lng);
             if (match) {
               setNearestMatchInfo(match);
-              // Sort nearest route first
               const sorted = [...results].sort((a, b) => {
                 if (a.id === match.route?.id) return -1;
                 if (b.id === match.route?.id) return 1;
@@ -103,8 +100,20 @@ export function RouteProvider({ children }) {
     return () => { isMounted = false; };
   }, [searchQuery, onlyNearby, userLocation, routes]);
 
-  const selectRoute = (route) => {
-    setSelectedRoute(route);
+  const selectRoute = async (route) => {
+    // If we only have summary (no directions or empty directions), fetch full detail
+    const hasDirections = route.directions && route.directions.length > 0;
+    if (!hasDirections) {
+      try {
+        const detail = await routeService.getRouteDetail(route.id);
+        setSelectedRoute(detail);
+      } catch (err) {
+        console.error('Error al cargar detalle de ruta:', err);
+        setSelectedRoute(route);
+      }
+    } else {
+      setSelectedRoute(route);
+    }
     setSelectedStop(null);
   };
 
@@ -120,107 +129,35 @@ export function RouteProvider({ children }) {
     setOnlyNearby(false);
   };
 
-  /**
-   * Activates/deactivates the "nearby routes" filter.
-   *
-   * Correct behaviour:
-   *   - If a route is currently selected  → clear the selected route and show nearby routes.
-   *   - If filter is ON (and no route selected) → toggle filter OFF.
-   *   - If filter is OFF → enable filter (using GPS if ready, or opening modal if not).
-   */
   const toggleNearby = () => {
-    // If a route is currently selected, tapping "Cercanas" should clear the selected route
-    // and show all nearby routes instead of staying stuck on the selected route's detail view.
-    if (selectedRoute) {
-      setSelectedRoute(null);
-      setSelectedStop(null);
-      setSearchedLocation(null);
-      setNearestMatchInfo(null);
-
-      if (gpsReady) {
-        setOnlyNearby(true);
-      } else if (gpsPermissionState === 'granted') {
-        requestLocation().then(() => {
-          setOnlyNearby(true);
-        }).catch(() => {
-          setShowGpsModal(true);
-        });
-      } else {
-        setShowGpsModal(true);
-      }
-      return;
+    if (!hasCustomLocation && !onlyNearby) {
+      requestLocation();
     }
-
-    if (onlyNearby) {
-      // Turning the filter OFF — just reset, no GPS needed.
-      setOnlyNearby(false);
-      return;
-    }
-
-    // Turning the filter ON:
-    if (gpsReady) {
-      // Location already known — filter instantly without re-requesting GPS.
-      setSelectedRoute(null);
-      setSelectedStop(null);
-      setNearestMatchInfo(null);
-      setOnlyNearby(true);
-    } else if (gpsPermissionState === 'granted') {
-      // Granted but no fix yet (rare after auto-detect). Request once then enable.
-      requestLocation().then(() => {
-        setOnlyNearby(true);
-      }).catch(() => {
-        setShowGpsModal(true);
-      });
-    } else {
-      // Not granted (prompt / denied / unknown / unsupported) → show the GPS modal.
-      setShowGpsModal(true);
-    }
+    clearSelection();
+    setOnlyNearby((prev) => !prev);
   };
 
-  /**
-   * Filters by nearby routes and identifies the nearest route/stop match without forcing a single route drawer selection.
-   */
   const locateNearestRoute = async () => {
-    // Helper: given coords, find nearby routes and highlight nearest match.
-    const findAndShowNearby = async (coords) => {
-      setSelectedRoute(null);
-      setSelectedStop(null);
-      setOnlyNearby(true);
-      const nearbyRoutes = await nearbyService.findNearbyRoutes(coords.lat, coords.lng, 1500);
-      const match = routeService.findNearestRouteAndStop(nearbyRoutes, coords.lat, coords.lng);
-      if (match) {
-        setNearestMatchInfo(match);
-        // Sort nearest route first
-        const sorted = [...nearbyRoutes].sort((a, b) => {
-          if (a.id === match.route?.id) return -1;
-          if (b.id === match.route?.id) return 1;
-          return 0;
-        });
-        setFilteredRoutes(sorted);
-      } else {
-        setFilteredRoutes(nearbyRoutes);
-      }
-    };
-
-    try {
-      if (gpsReady) {
-        // GPS is already active — use the location we already have. No re-request.
-        await findAndShowNearby(userLocation);
-      } else if (gpsPermissionState === 'granted') {
-        // Granted but no cached fix yet — request once, then search.
-        try {
-          const coords = await requestLocation();
-          await findAndShowNearby(coords);
-        } catch {
-          setShowGpsModal(true);
+    requestLocation();
+    setOnlyNearby(true);
+    if (userLocation) {
+      try {
+        const nearbyRoutes = await nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500);
+        const match = routeService.findNearestRouteAndStop(nearbyRoutes, userLocation.lat, userLocation.lng);
+        if (match) {
+          setNearestMatchInfo(match);
+          const sorted = [...nearbyRoutes].sort((a, b) => {
+            if (a.id === match.route?.id) return -1;
+            if (b.id === match.route?.id) return 1;
+            return 0;
+          });
+          setFilteredRoutes(sorted);
+        } else {
+          setFilteredRoutes(nearbyRoutes);
         }
-      } else {
-        // GPS not available or not yet permitted — open the modal.
-        setShowGpsModal(true);
+      } catch (err) {
+        console.error('Error al buscar rutas cercanas:', err);
       }
-    } catch (err) {
-      console.error('Error al buscar rutas cercanas:', err);
-      setShowGpsModal(true);
     }
   };
 
@@ -240,8 +177,6 @@ export function RouteProvider({ children }) {
         error,
         userLocation,
         isLocating,
-        gpsReady,
-        gpsPermissionState,
         hasCustomLocation,
         setSearchQuery,
         setSearchedLocation,
@@ -251,8 +186,6 @@ export function RouteProvider({ children }) {
         toggleNearby,
         locateNearestRoute,
         requestLocation,
-        showGpsModal,
-        setShowGpsModal,
         reload: loadData,
       }}
     >

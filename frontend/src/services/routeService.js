@@ -4,34 +4,35 @@ import { calculateDistanceKm } from '../utils/geoUtils';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
 
-// Flatten route directions into a single stops/points array for compatibility with existing UI
-function flattenRoute(route) {
-  if (!route.directions || route.directions.length === 0) return route;
+// Extract flattened stops and points from route detail (with directions)
+function extractRouteData(route) {
+  if (!route) return route;
 
+  // If already flattened (has direct stops/points), return as-is
+  if (route.stops && route.points) return route;
+
+  // Extract from directions if available
   const allStops = [];
   const allPoints = [];
   let originName = '';
   let destinationName = '';
 
-    for (const dir of route.directions) {
-      for (const stop of dir.stops || []) {
-        if (!allStops.find((s) => s.id === stop.id)) {
-          allStops.push(stop);
-        }
-      }
-      for (const point of dir.routePoints || []) {
-        allPoints.push([point.latitude, point.longitude]);
-      }
-      if (!originName && dir.originName) originName = dir.originName;
-      if (dir.destinationName) destinationName = dir.destinationName;
+  if (route.directions && route.directions.length > 0) {
+    const firstDir = route.directions[0];
+    if (firstDir.stops) {
+      allStops.push(...firstDir.stops);
     }
+    if (firstDir.routePoints) {
+      allPoints.push(...firstDir.routePoints.map(p => [p.latitude, p.longitude]));
+    }
+    if (firstDir.originName) originName = firstDir.originName;
+    if (firstDir.destinationName) destinationName = firstDir.destinationName;
+  }
 
   return {
     ...route,
     stops: allStops,
     points: allPoints,
-    totalDistanceKm: allPoints.length > 0 ? null : (route.totalDistanceKm || null),
-    estimatedMinutes: allPoints.length > 0 ? null : (route.estimatedMinutes || null),
     origin: originName,
     destination: destinationName,
   };
@@ -44,10 +45,11 @@ export const routeService = {
       return MOCK_ROUTES;
     }
     const response = await apiClient.get('/routes');
-    return response.data.map(flattenRoute);
+    // Summaries don't have directions, so no stops/points yet
+    return response.data;
   },
 
-  async getRouteById(routeId) {
+  async getRouteDetail(routeId) {
     if (USE_MOCK) {
       await new Promise((resolve) => setTimeout(resolve, 200));
       const route = MOCK_ROUTES.find((r) => r.id === routeId || r.code === routeId);
@@ -55,7 +57,7 @@ export const routeService = {
       return route;
     }
     const response = await apiClient.get(`/routes/${routeId}`);
-    return flattenRoute(response.data);
+    return extractRouteData(response.data);
   },
 
   async searchRoutes(query) {
@@ -71,7 +73,7 @@ export const routeService = {
       );
     }
     const response = await apiClient.get('/routes/search', { params: { query } });
-    return response.data.map(flattenRoute);
+    return response.data;
   },
 
   async getRoutesByLine(transportLineId) {
@@ -80,7 +82,7 @@ export const routeService = {
       return all.filter((r) => r.transportLineId === transportLineId);
     }
     const response = await apiClient.get(`/routes/line/${transportLineId}`);
-    return response.data.map(flattenRoute);
+    return response.data;
   },
 
   async getNearbyRoutes(userLat, userLng, radiusMeters = 1500) {
@@ -103,7 +105,7 @@ export const routeService = {
       longitude: userLng,
       radiusMeters,
     });
-    return response.data.map(flattenRoute);
+    return response.data;
   },
 
   findNearestRouteAndStop(routes, userLat, userLng) {
@@ -113,7 +115,9 @@ export const routeService = {
     let minDistance = Infinity;
 
     routes.forEach((route) => {
-      route.stops?.forEach((stop) => {
+      // Try stops from direction or direct property
+      const stops = route.stops || [];
+      stops.forEach((stop) => {
         const dist = calculateDistanceKm(userLat, userLng, stop.latitude, stop.longitude);
         if (dist < minDistance) {
           minDistance = dist;

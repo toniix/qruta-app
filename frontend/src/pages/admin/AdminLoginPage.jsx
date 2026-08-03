@@ -38,6 +38,12 @@ export function AdminLoginPage() {
           </p>
         </div>
 
+        {/* Default Credentials Hint */}
+        <div className="p-3 bg-blue-50 border border-blue-200/80 rounded-2xl text-xs text-blue-800 space-y-1">
+          <p className="font-semibold">Credenciales por defecto:</p>
+          <p className="text-blue-600 font-mono">admin@rutasya.pe / admin123</p>
+        </div>
+
         {error && (
           <div className="p-3 bg-red-50 text-red-700 rounded-2xl text-xs flex items-center gap-2 border border-red-200">
             <AlertCircle className="w-4 h-4 flex-shrink-0" />

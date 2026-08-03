@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Route, MapPin, Bus, LogOut, Plus, Trash2, Edit2, Save } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Route, MapPin, Bus, LogOut, Plus, Trash2, Edit2, Save, Building2 } from 'lucide-react';
 import { authService } from '../../services/authService';
 import { adminLineService } from '../../services/adminLineService';
 import { adminStopService } from '../../services/adminStopService';
@@ -17,19 +17,48 @@ export function AdminDashboardPage() {
   const [error, setError] = useState(null);
 
   // Form states
+  const [showAddCity, setShowAddCity] = useState(false);
   const [showAddLine, setShowAddLine] = useState(false);
   const [showAddStop, setShowAddStop] = useState(false);
   const [showAddRoute, setShowAddRoute] = useState(false);
+  const [editCity, setEditCity] = useState(null);
   const [editLine, setEditLine] = useState(null);
   const [editStop, setEditStop] = useState(null);
   const [editRoute, setEditRoute] = useState(null);
 
   // Form fields
+  const [cityForm, setCityForm] = useState({ name: '', department: '', country: 'Peru' });
+  const [departmentSearch, setDepartmentSearch] = useState('');
+  const [showDepartmentDropdown, setShowDepartmentDropdown] = useState(false);
+
+  const PERU_DEPARTMENTS = [
+    'Amazonas', 'Ancash', 'Apurimac', 'Arequipa', 'Ayacucho',
+    'Cajamarca', 'Callao', 'Cusco', 'Huancavelica', 'Huanuco',
+    'Ica', 'Junin', 'La Libertad', 'Lambayeque', 'Lima',
+    'Loreto', 'Madre de Dios', 'Moquegua', 'Pasco', 'Piura',
+    'Puno', 'San Martin', 'Tacna', 'Tumbes', 'Ucayali'
+  ];
+
+  const filteredDepartments = PERU_DEPARTMENTS.filter(d =>
+    d.toLowerCase().includes(departmentSearch.toLowerCase())
+  );
   const [lineForm, setLineForm] = useState({ cityId: '', name: '', code: '', color: '#2563eb', company: '', contact: '', description: '' });
   const [stopForm, setStopForm] = useState({ cityId: '', name: '', latitude: '', longitude: '', reference: '', address: '', isAccessible: true });
   const [routeForm, setRouteForm] = useState({ transportLineId: '', code: '', name: '', color: '#2563eb', fare: '', schedule: '', frequency: '', description: '' });
 
   const navigate = useNavigate();
+  const deptDropdownRef = useRef(null);
+
+  // Cerrar dropdown de departamentos al hacer click fuera
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (deptDropdownRef.current && !deptDropdownRef.current.contains(event.target)) {
+        setShowDepartmentDropdown(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const loadAllData = async () => {
     setLoading(true);
@@ -39,7 +68,7 @@ export function AdminDashboardPage() {
         adminLineService.getAllLines(),
         adminRouteService.getAllRoutes(),
         adminStopService.getAllStops(),
-        cityService.getAllCities(),
+        cityService.getAdminCities(),
       ]);
       setLines(fetchedLines);
       setRoutes(fetchedRoutes);
@@ -66,6 +95,14 @@ export function AdminDashboardPage() {
     setLineForm({ cityId: cities[0]?.id || '', name: '', code: '', color: '#2563eb', company: '', contact: '', description: '' });
     setShowAddLine(false);
     setEditLine(null);
+  };
+
+  const resetCityForm = () => {
+    setCityForm({ name: '', department: '', country: 'Peru' });
+    setDepartmentSearch('');
+    setShowDepartmentDropdown(false);
+    setShowAddCity(false);
+    setEditCity(null);
   };
 
   const resetStopForm = () => {
@@ -109,6 +146,38 @@ export function AdminDashboardPage() {
       loadAllData();
     } catch (err) {
       setError(err.response?.data?.message || 'Error al eliminar línea');
+    }
+  };
+
+  const handleCreateCity = async (e) => {
+    e.preventDefault();
+    try {
+      await cityService.createCity(cityForm);
+      resetCityForm();
+      loadAllData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al crear ciudad');
+    }
+  };
+
+  const handleUpdateCity = async (e) => {
+    e.preventDefault();
+    try {
+      await cityService.updateCity(editCity.id, cityForm);
+      resetCityForm();
+      loadAllData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al actualizar ciudad');
+    }
+  };
+
+  const handleDeleteCity = async (id) => {
+    if (!confirm('¿Eliminar esta ciudad? Se eliminarán también sus líneas y paraderos.')) return;
+    try {
+      await cityService.deleteCity(id);
+      loadAllData();
+    } catch (err) {
+      setError(err.response?.data?.message || 'Error al eliminar ciudad');
     }
   };
 
@@ -205,6 +274,7 @@ export function AdminDashboardPage() {
               { id: 'routes', label: 'Rutas', count: routes.length, icon: Route },
               { id: 'lines', label: 'Líneas', count: lines.length, icon: Bus },
               { id: 'stops', label: 'Paraderos', count: stops.length, icon: MapPin },
+              { id: 'cities', label: 'Ciudades', count: cities.length, icon: Building2 },
             ].map(({ id, label, count, icon: Icon }) => (
               <button
                 key={id}
@@ -470,6 +540,136 @@ export function AdminDashboardPage() {
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => handleDeleteStop(s.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eliminar">
+                              <Trash2 className="w-3.5 h-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+
+          {/* CITIES TAB */}
+          {activeTab === 'cities' && (
+            <div className="space-y-4">
+              <div className="flex justify-between items-center">
+                <h2 className="text-sm font-bold text-slate-800">Ciudades Registradas</h2>
+                <button onClick={() => { resetCityForm(); setShowAddCity(true); }} className="flex items-center gap-1.5 bg-blue-600 text-white px-3 py-1.5 rounded-xl text-xs font-bold shadow-xs hover:bg-blue-700">
+                  <Plus className="w-4 h-4" /> Nueva Ciudad
+                </button>
+              </div>
+
+              {showAddCity && (
+                <form onSubmit={handleCreateCity} className="bg-blue-50 p-4 rounded-2xl border border-blue-200 space-y-3 text-xs">
+                  <h3 className="font-bold text-blue-900">Nueva Ciudad</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Nombre de la ciudad" required value={cityForm.name} onChange={(e) => setCityForm({ ...cityForm, name: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl" />
+                    <div className="relative" ref={deptDropdownRef}>
+                      <input
+                        type="text"
+                        placeholder="Buscar departamento..."
+                        required
+                        value={cityForm.department}
+                        onChange={(e) => { setCityForm({ ...cityForm, department: e.target.value }); setDepartmentSearch(e.target.value); setShowDepartmentDropdown(true); }}
+                        onFocus={() => setShowDepartmentDropdown(true)}
+                        className="p-2.5 bg-white border border-slate-200 rounded-xl w-full"
+                      />
+                      {showDepartmentDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
+                          {filteredDepartments.length === 0 ? (
+                            <div className="p-2 text-slate-400 text-center">Sin resultados</div>
+                          ) : (
+                            filteredDepartments.map((dept) => (
+                              <button
+                                key={dept}
+                                type="button"
+                                onClick={() => { setCityForm({ ...cityForm, department: dept }); setDepartmentSearch(dept); setShowDepartmentDropdown(false); }}
+                                className="w-full text-left px-3 py-2 hover:bg-blue-50 transition-colors"
+                              >
+                                {dept}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <input type="text" placeholder="País" value={cityForm.country} onChange={(e) => setCityForm({ ...cityForm, country: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl" readOnly />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={resetCityForm} className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-xl font-medium">Cancelar</button>
+                    <button type="submit" className="px-3 py-1.5 bg-blue-600 text-white rounded-xl font-bold flex items-center gap-1"><Save className="w-3.5 h-3.5" /> Guardar</button>
+                  </div>
+                </form>
+              )}
+
+              {editCity && (
+                <form onSubmit={handleUpdateCity} className="bg-amber-50 p-4 rounded-2xl border border-amber-200 space-y-3 text-xs">
+                  <h3 className="font-bold text-amber-900">Editar Ciudad</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                    <input type="text" placeholder="Nombre" required value={cityForm.name} onChange={(e) => setCityForm({ ...cityForm, name: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl" />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        placeholder="Buscar departamento..."
+                        required
+                        value={cityForm.department}
+                        onChange={(e) => { setCityForm({ ...cityForm, department: e.target.value }); setDepartmentSearch(e.target.value); setShowDepartmentDropdown(true); }}
+                        onFocus={() => setShowDepartmentDropdown(true)}
+                        className="p-2.5 bg-white border border-slate-200 rounded-xl w-full"
+                      />
+                      {showDepartmentDropdown && (
+                        <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
+                          {filteredDepartments.length === 0 ? (
+                            <div className="p-2 text-slate-400 text-center">Sin resultados</div>
+                          ) : (
+                            filteredDepartments.map((dept) => (
+                              <button
+                                key={dept}
+                                type="button"
+                                onClick={() => { setCityForm({ ...cityForm, department: dept }); setDepartmentSearch(dept); setShowDepartmentDropdown(false); }}
+                                className="w-full text-left px-3 py-2 hover:bg-amber-50 transition-colors"
+                              >
+                                {dept}
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    <input type="text" placeholder="País" value={cityForm.country} onChange={(e) => setCityForm({ ...cityForm, country: e.target.value })} className="p-2.5 bg-white border border-slate-200 rounded-xl" readOnly />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <button type="button" onClick={() => setEditCity(null)} className="px-3 py-1.5 bg-slate-200 text-slate-700 rounded-xl font-medium">Cancelar</button>
+                    <button type="submit" className="px-3 py-1.5 bg-amber-600 text-white rounded-xl font-bold flex items-center gap-1"><Save className="w-3.5 h-3.5" /> Guardar</button>
+                  </div>
+                </form>
+              )}
+
+              <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden shadow-xs">
+                <table className="w-full text-left text-xs text-slate-700">
+                  <thead className="bg-slate-50 border-b border-slate-200 text-slate-500 uppercase font-semibold">
+                    <tr>
+                      <th className="p-3">Nombre</th>
+                      <th className="p-3">Departamento</th>
+                      <th className="p-3">País</th>
+                      <th className="p-3">Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {cities.map((c) => (
+                      <tr key={c.id} className="hover:bg-slate-50">
+                        <td className="p-3 font-semibold text-slate-900">{c.name}</td>
+                        <td className="p-3 text-slate-600">{c.department}</td>
+                        <td className="p-3 text-slate-600">{c.country}</td>
+                        <td className="p-3">
+                          <div className="flex items-center gap-1">
+                            <button onClick={() => { setEditCity(c); setCityForm({ name: c.name, department: c.department, country: c.country }); }} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Editar">
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button onClick={() => handleDeleteCity(c.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eliminar">
                               <Trash2 className="w-3.5 h-3.5" />
                             </button>
                           </div>

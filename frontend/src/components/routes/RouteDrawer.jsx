@@ -15,6 +15,9 @@ export function RouteDrawer() {
 
   if (!selectedRoute) return null;
 
+  // Get stops from route (detail has them, summary might not)
+  const stops = selectedRoute.stops || [];
+
   const handleStopSelect = (stop) => {
     selectStop(stop);
     setIsMinimized(true);
@@ -113,66 +116,69 @@ export function RouteDrawer() {
             <div className="flex items-center gap-2">
               <Navigation className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
               <span className="text-slate-700 font-medium">
-                Recorrido total:{" "}
-                <strong className="text-slate-900">
-                  {selectedRoute.origin && selectedRoute.destination
-                    ? `${selectedRoute.origin} → ${selectedRoute.destination}`
-                    : 'Ver direcciones'}
-                </strong>
+                {selectedRoute.origin && selectedRoute.destination
+                  ? `${selectedRoute.origin} → ${selectedRoute.destination}`
+                  : 'Selecciona una ruta para ver el recorrido'}
               </span>
             </div>
           </div>
 
           <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
             <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Puntos Clave ({selectedRoute.stops?.length || 0})</span>
+              <span>Puntos Clave ({stops.length})</span>
               <span className="text-[11px] text-blue-600 normal-case font-normal">
                 Toca para volar en mapa
               </span>
             </h4>
 
-            <div className="relative pl-6 space-y-2.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-              {selectedRoute.stops?.map((stop, index) => {
-                const isStopSelected = selectedStop?.id === stop.id;
-                return (
-                  <div
-                    key={stop.id}
-                    onClick={() => handleStopSelect(stop)}
-                    className={`relative cursor-pointer group p-2 rounded-xl transition-all border ${
-                      isStopSelected
-                        ? "bg-amber-50 border-amber-400 shadow-2xs font-semibold text-slate-900"
-                        : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50"
-                    }`}
-                  >
+            {stops.length === 0 ? (
+              <div className="text-center py-4 text-slate-400 text-xs">
+                Cargando paraderos...
+              </div>
+            ) : (
+              <div className="relative pl-6 space-y-2.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+                {stops.map((stop, index) => {
+                  const isStopSelected = selectedStop?.id === stop.id;
+                  return (
                     <div
-                      className={`absolute -left-6 top-3 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold border-2 transition-transform ${
+                      key={stop.id}
+                      onClick={() => handleStopSelect(stop)}
+                      className={`relative cursor-pointer group p-2 rounded-xl transition-all border ${
                         isStopSelected
-                          ? "bg-amber-500 text-white border-white scale-110 shadow-sm"
-                          : "bg-white text-slate-600 border-slate-300 group-hover:border-blue-500"
+                          ? "bg-amber-50 border-amber-400 shadow-2xs font-semibold text-slate-900"
+                          : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50"
                       }`}
                     >
-                      {index + 1}
-                    </div>
-
-                    <div className="flex items-start justify-between gap-2 text-xs">
-                      <div>
-                        <h5 className="font-semibold text-xs text-slate-900 leading-snug">
-                          {stop.name}
-                        </h5>
-                        <p className="text-[10px] text-slate-500 mt-0.5">
-                          {stop.address || stop.reference}
-                        </p>
+                      <div
+                        className={`absolute -left-6 top-3 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold border-2 transition-transform ${
+                          isStopSelected
+                            ? "bg-amber-500 text-white border-white scale-110 shadow-sm"
+                            : "bg-white text-slate-600 border-slate-300 group-hover:border-blue-500"
+                        }`}
+                      >
+                        {index + 1}
                       </div>
-                      {stop.isAccessible && (
-                        <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex-shrink-0">
-                          ♿
-                        </span>
-                      )}
+
+                      <div className="flex items-start justify-between gap-2 text-xs">
+                        <div>
+                          <h5 className="font-semibold text-xs text-slate-900 leading-snug">
+                            {stop.name}
+                          </h5>
+                          <p className="text-[10px] text-slate-500 mt-0.5">
+                            {stop.address || stop.reference}
+                          </p>
+                        </div>
+                        {stop.isAccessible !== false && (
+                          <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex-shrink-0">
+                            ♿
+                          </span>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })}
-            </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
         </>
       )}
