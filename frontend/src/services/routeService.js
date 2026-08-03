@@ -44,7 +44,7 @@ export const routeService = {
       await new Promise((resolve) => setTimeout(resolve, 300));
       return MOCK_ROUTES;
     }
-    const response = await apiClient.get('/routes');
+    const response = await apiClient.get('/routes/cards');
     // Summaries don't have directions, so no stops/points yet
     return response.data;
   },

@@ -1,10 +1,11 @@
 import { useState } from "react";
 import {
   ArrowRight,
-  Clock,
+  DollarSign,
   MapPin,
   ChevronDown,
   ChevronUp,
+  ExternalLink,
 } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
 
@@ -13,10 +14,11 @@ export function RouteCard({ route }) {
   const [isStopsExpanded, setIsStopsExpanded] = useState(false);
 
   const isSelected = selectedRoute?.id === route.id;
-  console.log("route: ", route);
 
-  // Get stops and route info (summary has none, detail has from directions)
-  const stops = route.stops || [];
+  // Support both the new keyStops field (from /cards endpoint) and the
+  // legacy stops array (from full route detail). Falls back gracefully.
+  const keyStops = route.keyStops || [];
+  const stops = keyStops.length > 0 ? keyStops : route.stops || [];
   const origin = route.origin || route.directions?.[0]?.originName;
   const destination =
     route.destination || route.directions?.[0]?.destinationName;
@@ -31,6 +33,12 @@ export function RouteCard({ route }) {
     selectRoute(route);
     selectStop(stop);
   };
+
+  const handleViewMore = (e) => {
+    e.stopPropagation();
+    selectRoute(route);
+  };
+
   return (
     <div
       onClick={() => selectRoute(route)}
@@ -40,6 +48,7 @@ export function RouteCard({ route }) {
           : "bg-white border-slate-200/90 hover:border-blue-300 hover:shadow-xs"
       }`}
     >
+      {/* Header: color dot, code, transport line badge */}
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <span
@@ -51,53 +60,72 @@ export function RouteCard({ route }) {
             {route.transportLineName || "Línea"}
           </span>
         </div>
-
-        <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200">
-          {route.fare || "-"}
-        </span>
       </div>
 
+      {/* Route name */}
       <h3 className="font-semibold text-slate-900 text-sm mb-2.5 line-clamp-1">
         {route.name}
       </h3>
 
-      <div className="flex items-center gap-2 text-xs text-slate-600 mb-3 bg-slate-50/80 p-2 rounded-xl border border-slate-100">
-        <div className="flex items-center gap-1 font-medium truncate">
-          <MapPin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-          <span className="truncate">{origin || "Origen"}</span>
+      {/* Origin → Destination */}
+      {(origin || destination) && (
+        <div className="flex items-center gap-2 text-xs text-slate-600 mb-3 bg-slate-50/80 p-2 rounded-xl border border-slate-100">
+          <div className="flex items-center gap-1 font-medium truncate">
+            <MapPin className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
+            <span className="truncate">{origin || "Origen"}</span>
+          </div>
+          <ArrowRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+          <div className="flex items-center gap-1 font-medium truncate">
+            <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
+            <span className="truncate">{destination || "Destino"}</span>
+          </div>
         </div>
-        <ArrowRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
-        <div className="flex items-center gap-1 font-medium truncate">
-          <MapPin className="w-3.5 h-3.5 text-emerald-600 flex-shrink-0" />
-          <span className="truncate">{destination || "Destino"}</span>
-        </div>
-      </div>
+      )}
 
+      {/* Footer: fare on the left, Ver más on the right */}
       <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1 border-t border-slate-100">
+        {/* Fare */}
         <div className="flex items-center gap-1">
-          <Clock className="w-3 h-3 text-slate-400" />
-          <span>{route.schedule || "Horario no disponible"}</span>
+          <span className="font-bold text-emerald-700">
+            {route.fare || "Tarifa no disponible"}
+          </span>
         </div>
 
-        <button
-          type="button"
-          onClick={handleToggleStopsDropdown}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-xl font-bold transition-all ${
-            isStopsExpanded
-              ? "bg-blue-600 text-white shadow-2xs"
-              : "text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200/60"
-          }`}
-          title="Ver puntos clave del recorrido"
-        >
-          <span>{stops.length} puntos clave</span>
-          {isStopsExpanded ? (
-            <ChevronUp className="w-3.5 h-3.5" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5" />
+        {/* Key stops toggle + Ver más */}
+        <div className="flex items-center gap-1.5">
+          {stops.length > 0 && (
+            <button
+              type="button"
+              onClick={handleToggleStopsDropdown}
+              className={`flex items-center gap-1 px-2 py-1 rounded-xl font-bold transition-all ${
+                isStopsExpanded
+                  ? "bg-blue-600 text-white shadow-2xs"
+                  : "text-blue-600 bg-blue-50 hover:bg-blue-100 border border-blue-200/60"
+              }`}
+              title="Ver puntos clave del recorrido"
+            >
+              <span>{stops.length} puntos</span>
+              {isStopsExpanded ? (
+                <ChevronUp className="w-3 h-3" />
+              ) : (
+                <ChevronDown className="w-3 h-3" />
+              )}
+            </button>
           )}
-        </button>
+
+          <button
+            type="button"
+            onClick={handleViewMore}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-xl font-bold transition-all text-white bg-blue-600 hover:bg-blue-700 shadow-sm"
+            title="Ver detalle de la ruta"
+          >
+            <span>Ver más</span>
+            <ExternalLink className="w-3 h-3" />
+          </button>
+        </div>
       </div>
 
+      {/* Key stops dropdown */}
       {isStopsExpanded && (
         <div
           onClick={(e) => e.stopPropagation()}
@@ -110,47 +138,43 @@ export function RouteCard({ route }) {
             </span>
           </div>
 
-          {stops.length === 0 ? (
-            <div className="text-[11px] text-slate-400 italic py-2">
-              Toca la ruta para ver los paraderos
-            </div>
-          ) : (
-            <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
-              {stops.map((stop, idx) => {
-                const isStopActive = selectedStop?.id === stop.id;
-                return (
-                  <div
-                    key={`${stop.id}-${idx}`}
-                    onClick={(e) => handleStopClick(e, stop)}
-                    className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-all border ${
-                      isStopActive
-                        ? "bg-amber-50 border-amber-400 font-semibold text-slate-900 shadow-2xs"
-                        : "bg-slate-50/70 border-slate-100 hover:bg-blue-50 hover:border-blue-200 text-slate-700"
-                    }`}
-                  >
-                    <div className="flex items-center gap-2 truncate">
-                      <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
-                        {idx + 1}
-                      </span>
-                      <div className="truncate">
-                        <p className="font-semibold text-xs leading-snug truncate">
-                          {stop.name}
-                        </p>
+          <div className="space-y-1.5 max-h-48 overflow-y-auto pr-1">
+            {stops.map((stop, idx) => {
+              const isStopActive = selectedStop?.id === stop.id;
+              return (
+                <div
+                  key={`${stop.id}-${idx}`}
+                  onClick={(e) => handleStopClick(e, stop)}
+                  className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-all border ${
+                    isStopActive
+                      ? "bg-amber-50 border-amber-400 font-semibold text-slate-900 shadow-2xs"
+                      : "bg-slate-50/70 border-slate-100 hover:bg-blue-50 hover:border-blue-200 text-slate-700"
+                  }`}
+                >
+                  <div className="flex items-center gap-2 truncate">
+                    <span className="w-4 h-4 rounded-full bg-blue-100 text-blue-700 text-[10px] font-bold flex items-center justify-center flex-shrink-0">
+                      {idx + 1}
+                    </span>
+                    <div className="truncate">
+                      <p className="font-semibold text-xs leading-snug truncate">
+                        {stop.name}
+                      </p>
+                      {(stop.address || stop.reference) && (
                         <p className="text-[10px] text-slate-500 truncate">
                           {stop.address || stop.reference}
                         </p>
-                      </div>
+                      )}
                     </div>
-                    {stop.isAccessible !== false && (
-                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex-shrink-0 ml-1">
-                        ♿
-                      </span>
-                    )}
                   </div>
-                );
-              })}
-            </div>
-          )}
+                  {stop.isAccessible !== false && (
+                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex-shrink-0 ml-1">
+                      ♿
+                    </span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
     </div>

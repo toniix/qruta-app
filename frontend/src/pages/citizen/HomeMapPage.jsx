@@ -1,9 +1,9 @@
-import { useRef, useEffect } from 'react';
-import { SearchBar } from '../../components/search/SearchBar';
-import { RouteCard } from '../../components/routes/RouteCard';
-import { RouteDrawer } from '../../components/routes/RouteDrawer';
-import { InteractiveMap } from '../../components/map/InteractiveMap';
-import { useRoutes } from '../../contexts/RouteContext';
+import { useRef, useEffect } from "react";
+import { SearchBar } from "../../components/search/SearchBar";
+import { RouteCard } from "../../components/routes/RouteCard";
+import { RouteDrawer } from "../../components/routes/RouteDrawer";
+import { InteractiveMap } from "../../components/map/InteractiveMap";
+import { useRoutes } from "../../contexts/RouteContext";
 import {
   MapPin,
   AlertCircle,
@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Layers,
-} from 'lucide-react';
+} from "lucide-react";
 
 export function HomeMapPage() {
   const {
@@ -38,25 +38,27 @@ export function HomeMapPage() {
     gpsPermissionState,
   } = useRoutes();
 
+  console.log(filteredRoutes);
+
   const carouselRef = useRef(null);
 
   // Auto-scroll carousel to position 0 (the nearest route) when nearby filter is activated
   useEffect(() => {
     if (onlyNearby && carouselRef.current) {
-      carouselRef.current.scrollTo({ left: 0, behavior: 'smooth' });
+      carouselRef.current.scrollTo({ left: 0, behavior: "smooth" });
     }
   }, [onlyNearby, nearestMatchInfo]);
 
   const getCategoryTitle = () => {
     if (searchQuery) return `Resultados para "${searchQuery}"`;
-    if (onlyNearby) return 'Rutas Cercanas a tu Ubicación';
-    return 'Todas las Rutas Urbanas';
+    if (onlyNearby) return "Rutas Cercanas a tu Ubicación";
+    return "Todas las Rutas Urbanas";
   };
 
   const scrollCarousel = (direction) => {
     if (carouselRef.current) {
-      const scrollAmount = direction === 'left' ? -300 : 300;
-      carouselRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+      const scrollAmount = direction === "left" ? -300 : 300;
+      carouselRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
 
@@ -73,7 +75,9 @@ export function HomeMapPage() {
           isLocating={isLocating}
           onSelectRoute={selectRoute}
           onSelectStop={selectStop}
-          mapCenter={gpsReady ? [userLocation.lat, userLocation.lng] : undefined}
+          mapCenter={
+            gpsReady ? [userLocation.lat, userLocation.lng] : undefined
+          }
         />
       </div>
 
@@ -91,7 +95,8 @@ export function HomeMapPage() {
                   </span>
                 </div>
                 <p className="text-[11px] sm:text-xs text-amber-900/90 leading-relaxed whitespace-normal break-words">
-                  <strong>Puntos clave del recorrido:</strong> Toca un punto para ver su ubicación en el mapa.
+                  <strong>Puntos clave del recorrido:</strong> Toca un punto
+                  para ver su ubicación en el mapa.
                 </p>
               </div>
             </div>
@@ -119,11 +124,17 @@ export function HomeMapPage() {
           onClick={locateNearestRoute}
           disabled={isLocating}
           className="p-2.5 sm:p-3 bg-white/95 text-slate-800 hover:bg-slate-50 rounded-2xl shadow-xl border border-slate-200/80 backdrop-blur-md transition-all active:scale-95 flex items-center justify-center group"
-          title={gpsReady || gpsPermissionState === 'granted' ? 'Encontrar la ruta más cercana a mi ubicación' : 'Activar GPS y encontrar la ruta más cercana'}
+          title={
+            gpsReady || gpsPermissionState === "granted"
+              ? "Encontrar la ruta más cercana a mi ubicación"
+              : "Activar GPS y encontrar la ruta más cercana"
+          }
         >
           <Target
             className={`w-5 h-5 ${
-              isLocating ? 'animate-spin text-emerald-600' : 'text-emerald-600 group-hover:scale-110 transition-transform'
+              isLocating
+                ? "animate-spin text-emerald-600"
+                : "text-emerald-600 group-hover:scale-110 transition-transform"
             }`}
           />
         </button>
@@ -139,15 +150,21 @@ export function HomeMapPage() {
                 onClick={locateNearestRoute}
                 disabled={isLocating}
                 className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold whitespace-nowrap transition-all border bg-emerald-600 text-white border-emerald-600 shadow-xs hover:bg-emerald-700 active:scale-95 flex-shrink-0"
-                title={gpsReady || gpsPermissionState === 'granted' ? 'Encontrar la ruta más cercana a mi ubicación' : 'Activar GPS y encontrar la ruta más cercana'}
+                title={
+                  gpsReady || gpsPermissionState === "granted"
+                    ? "Encontrar la ruta más cercana a mi ubicación"
+                    : "Activar GPS y encontrar la ruta más cercana"
+                }
               >
-                <Target className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin' : ''}`} />
+                <Target
+                  className={`w-3.5 h-3.5 ${isLocating ? "animate-spin" : ""}`}
+                />
                 <span>
                   {isLocating
-                    ? 'Ubicando GPS...'
-                    : (gpsReady || gpsPermissionState === 'granted')
-                    ? '📍 Rutas Cercanas'
-                    : '📍 Activar GPS'}
+                    ? "Ubicando GPS..."
+                    : gpsReady || gpsPermissionState === "granted"
+                      ? "📍 Rutas Cercanas"
+                      : "📍 Activar GPS"}
                 </span>
               </button>
 
@@ -157,8 +174,8 @@ export function HomeMapPage() {
                 }}
                 className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-all border flex-shrink-0 ${
                   !onlyNearby && !searchQuery
-                    ? 'bg-slate-800 text-white border-slate-800 shadow-xs'
-                    : 'bg-white/90 backdrop-blur-md text-slate-600 border-slate-200 hover:bg-slate-50'
+                    ? "bg-slate-800 text-white border-slate-800 shadow-xs"
+                    : "bg-white/90 backdrop-blur-md text-slate-600 border-slate-200 hover:bg-slate-50"
                 }`}
               >
                 <Layers className="w-3.5 h-3.5" />
@@ -178,14 +195,14 @@ export function HomeMapPage() {
 
               <div className="hidden sm:flex items-center gap-1">
                 <button
-                  onClick={() => scrollCarousel('left')}
+                  onClick={() => scrollCarousel("left")}
                   className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                   title="Anterior"
                 >
                   <ChevronLeft className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => scrollCarousel('right')}
+                  onClick={() => scrollCarousel("right")}
                   className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                   title="Siguiente"
                 >
@@ -207,7 +224,10 @@ export function HomeMapPage() {
                   <AlertCircle className="w-4 h-4 text-red-600" />
                   <span>{error}</span>
                 </div>
-                <button onClick={reload} className="font-bold underline text-red-800">
+                <button
+                  onClick={reload}
+                  className="font-bold underline text-red-800"
+                >
                   Reintentar
                 </button>
               </div>
@@ -223,15 +243,21 @@ export function HomeMapPage() {
                     <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-1.5 text-slate-400">
                       <MapPin className="w-4 h-4" />
                     </div>
-                    <p className="text-xs font-semibold text-slate-700">No se encontraron rutas</p>
+                    <p className="text-xs font-semibold text-slate-700">
+                      No se encontraron rutas
+                    </p>
                     <p className="text-[11px] text-slate-400 mt-0.5">
                       Intenta cambiar la búsqueda o la ubicación.
                     </p>
                   </div>
                 ) : (
                   filteredRoutes?.map((route) => {
-                    const isNearest = Boolean(onlyNearby && nearestMatchInfo?.route?.id === route.id);
-                    const distanceKm = isNearest ? nearestMatchInfo?.distanceKm : null;
+                    const isNearest = Boolean(
+                      onlyNearby && nearestMatchInfo?.route?.id === route.id,
+                    );
+                    const distanceKm = isNearest
+                      ? nearestMatchInfo?.distanceKm
+                      : null;
                     return (
                       <div
                         key={route.id}
