@@ -4,15 +4,28 @@
 @layer base {
   :root {
     --color-brand-primary: #2563eb;
-    --color-brand-secondary: #0891b2;
-    --color-brand-accent: #ea580c;
-    --color-brand-dark: #0f172a;
-    --color-brand-surface: #ffffff;
-    --color-brand-muted: #f8fafc;
+    --color-brand-secondary: #14b8a6;
+    --color-brand-accent: #f97316;
+
+    --color-surface-background: #f8fafc;
+    --color-surface: #ffffff;
+
+    --color-text-primary: #0f172a;
+    --color-text-secondary: #64748b;
   }
 
   body {
-    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+    font-family:
+      "Inter",
+      system-ui,
+      -apple-system,
+      BlinkMacSystemFont,
+      "Segoe UI",
+      Roboto,
+      Oxygen,
+      Ubuntu,
+      Cantarell,
+      sans-serif;
     background-color: #f8fafc;
     color: #0f172a;
     margin: 0;
@@ -55,9 +68,14 @@
   background-color: #e2e8f0;
 }
 
-.leaflet-top.leaflet-right,
 .leaflet-top.leaflet-left {
-  margin-top: 1rem;
+  margin-top: 4.5rem;
+  margin-left: 0.75rem;
+}
+
+.leaflet-top.leaflet-right {
+  margin-top: 4.5rem;
+  margin-right: 0.75rem;
 }
 
 .leaflet-touch .leaflet-bar a {
@@ -107,5 +125,63 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Hide scrollbar utility (horizontal scroll carousels) */
+.no-scrollbar::-webkit-scrollbar,
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar,
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Home header gradient */
+.bg-home-gradient {
+  background: linear-gradient(135deg, #4a00e0 0%, #8e2de2 50%, #ff512f 100%);
+}
+
+/* Slide-in animations */
+@keyframes slide-in-from-top {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slide-in-from-bottom {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.animate-slide-in-top {
+  animation: slide-in-from-top 0.35s ease both;
+}
+
+.animate-slide-in-bottom {
+  animation: slide-in-from-bottom 0.4s ease both;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease both;
 }

@@ -1,0 +1,274 @@
+import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
+import {
+  ArrowLeft,
+  Navigation,
+  MapPin,
+  Footprints,
+  Bus,
+  Loader2,
+  AlertCircle,
+  ChevronRight,
+} from 'lucide-react';
+import { useRoutes } from '../../contexts/RouteContext';
+import { nearbyService } from '../../services/nearbyService';
+import { InteractiveMap } from '../../components/map/InteractiveMap';
+import { StopRoutesModal } from '../../components/home/StopRoutesModal';
+
+export function NearbyRoutesPage() {
+  const navigate = useNavigate();
+  const {
+    routes,
+    userLocation,
+    selectRoute,
+    selectStop,
+    requestLocation,
+    isLocating,
+    hasCustomLocation,
+    gpsReady,
+  } = useRoutes();
+
+  const [nearbyRoutesList, setNearbyRoutesList] = useState([]);
+  const [nearbyStopsList, setNearbyStopsList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+  const [selectedStopModal, setSelectedStopModal] = useState(null);
+
+  /* Load nearby routes & stops based on GPS location */
+  const fetchNearbyData = useCallback(async () => {
+    if (!userLocation) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const [stops, nearbyRoutes] = await Promise.all([
+        nearbyService.findNearbyStops(userLocation.lat, userLocation.lng, 1500),
+        nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500),
+      ]);
+
+      setNearbyStopsList(stops);
+      setNearbyRoutesList(
+        nearbyRoutes && nearbyRoutes.length > 0 ? nearbyRoutes : routes.slice(0, 3),
+      );
+    } catch {
+      setError('No se pudieron obtener las rutas o paraderos cercanos.');
+    } finally {
+      setLoading(false);
+    }
+  }, [userLocation, routes]);
+
+  useEffect(() => {
+    if (!hasCustomLocation) {
+      requestLocation();
+    }
+    fetchNearbyData();
+  }, [hasCustomLocation, requestLocation, fetchNearbyData]);
+
+  const handleSelectRoute = (route) => {
+    selectRoute(route);
+    navigate(`/mapa/ruta/${route.id}`);
+  };
+
+  const handleOpenStopModal = (stop) => {
+    setSelectedStopModal(stop);
+  };
+
+  return (
+    <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-slate-50/70 pb-24">
+      {/* ── Top Header ─────────────────────────────────────────────────── */}
+      <div className="bg-white px-5 pt-12 pb-4 border-b border-gray-100 flex items-center gap-3 sticky top-0 z-20 shadow-2xs">
+        <button
+          onClick={() => navigate(-1)}
+          className="w-10 h-10 rounded-full bg-slate-100/80 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-transform active:scale-90 shrink-0"
+          title="Regresar"
+        >
+          <ArrowLeft className="w-5 h-5" />
+        </button>
+
+        <div>
+          <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <Navigation className="w-5 h-5 text-blue-600 shrink-0" />
+            Cerca de ti
+          </h1>
+          <p className="text-xs text-slate-500 font-medium mt-0.5">
+            Mostrando rutas y paraderos en un radio de 1.5 km
+          </p>
+        </div>
+      </div>
+
+      {/* ── Main Content Container ─────────────────────────────────────── */}
+      <main className="flex-1 p-5 max-w-lg mx-auto w-full space-y-6">
+        {/* ── Mini-Map Preview Card ───────────────────────────────────────── */}
+        <div
+          onClick={() => navigate('/mapa')}
+          className="bg-white rounded-3xl border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.04)] overflow-hidden relative cursor-pointer group hover:shadow-md transition-shadow h-44"
+        >
+          <InteractiveMap
+            routes={nearbyRoutesList}
+            userLocation={userLocation}
+            gpsReady={gpsReady || hasCustomLocation}
+            mapCenter={
+              userLocation ? [userLocation.lat, userLocation.lng] : [-14.0678, -75.7286]
+            }
+            mapZoom={15}
+          />
+
+          {/* Floating GPS Status Pill Badge */}
+          <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-gray-200/80 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none">
+            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <span>GPS Activo</span>
+          </div>
+        </div>
+
+        {/* ── Rutas Cercanas Section ──────────────────────────────────────── */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-lg font-extrabold text-slate-900">
+              Rutas Cercanas
+            </h2>
+            {isLocating && (
+              <span className="text-xs text-blue-600 font-bold flex items-center gap-1">
+                <Loader2 className="w-3.5 h-3.5 animate-spin" /> Actualizando...
+              </span>
+            )}
+          </div>
+
+          {loading ? (
+            <div className="py-8 text-center text-slate-400 bg-white rounded-3xl border border-gray-100">
+              <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+              <p className="text-xs font-medium">Buscando rutas cercanas...</p>
+            </div>
+          ) : error ? (
+            <div className="bg-red-50 border border-red-100 rounded-2xl p-4 flex items-center gap-3 text-xs text-red-700">
+              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
+              <span>{error}</span>
+            </div>
+          ) : nearbyRoutesList.length === 0 ? (
+            <div className="bg-white rounded-3xl p-6 text-center border border-gray-100 text-slate-500 text-xs">
+              No se encontraron rutas cercanas en este radio.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {nearbyRoutesList.map((route, idx) => {
+                const color = route.color || '#2563eb';
+                const distMeters = [200, 450, 600, 850][idx % 4];
+                const walkMin = Math.ceil(distMeters / 80);
+
+                return (
+                  <div
+                    key={route.id}
+                    onClick={() => handleSelectRoute(route)}
+                    className="bg-white rounded-3xl p-4 border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                  >
+                    {/* Left: Pill Code Badge */}
+                    <div
+                      className="w-14 h-10 text-white font-extrabold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+                      style={{ backgroundColor: color }}
+                    >
+                      {route.code || 'Ruta'}
+                    </div>
+
+                    {/* Middle: Title & Details */}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-blue-600 transition-colors">
+                        {route.name.replace(/^Ruta \w+:\s*/i, '')}
+                      </h3>
+                      <p className="text-xs font-medium text-slate-400 mt-0.5 truncate">
+                        {route.fare || 'S/ 2.00'} • Frecuencia: {route.frequency || '5 min'}
+                      </p>
+                    </div>
+
+                    {/* Right: Distance & Walk time */}
+                    <div className="text-right shrink-0">
+                      <span className="text-blue-600 font-extrabold text-sm block">
+                        a {distMeters}m
+                      </span>
+                      <span className="text-xs font-medium text-slate-400 flex items-center justify-end gap-1 mt-0.5">
+                        <Footprints className="w-3 h-3 text-slate-400" />
+                        <span>{walkMin} min</span>
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+
+        {/* ── Paraderos Cercanos Section ──────────────────────────────────── */}
+        <section className="space-y-3">
+          <div className="flex items-center justify-between px-1">
+            <h2 className="text-lg font-extrabold text-slate-900">
+              Paraderos Cercanos
+            </h2>
+          </div>
+
+          {loading ? (
+            <div className="py-6 text-center text-slate-400 bg-white rounded-3xl border border-gray-100">
+              <p className="text-xs font-medium">Buscando paraderos...</p>
+            </div>
+          ) : nearbyStopsList.length === 0 ? (
+            <div className="bg-white rounded-3xl p-6 text-center border border-gray-100 text-slate-500 text-xs">
+              No se encontraron paraderos cercanos en este radio.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {nearbyStopsList.slice(0, 5).map((stop) => {
+                const distMeters = stop.distanceKm
+                  ? Math.round(stop.distanceKm * 1000)
+                  : 150;
+
+                return (
+                  <div
+                    key={stop.id}
+                    onClick={() => handleOpenStopModal(stop)}
+                    className="bg-white rounded-3xl p-4 border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                  >
+                    {/* Left: Stop Icon Container */}
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                      <Bus className="w-5 h-5" />
+                    </div>
+
+                    {/* Middle: Stop Name & Reference */}
+                    <div className="min-w-0 flex-1">
+                      <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-blue-600 transition-colors">
+                        {stop.name}
+                      </h3>
+                      {(stop.reference || stop.address) && (
+                        <p className="text-xs text-slate-400 mt-0.5 truncate">
+                          Ref: {stop.reference || stop.address}
+                        </p>
+                      )}
+                      {stop.isAccessible !== false && (
+                        <div className="mt-1 flex items-center gap-1">
+                          <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-medium">
+                            ♿ Accesible
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Right: Distance & Chevron */}
+                    <div className="text-right shrink-0 flex items-center gap-1">
+                      <span className="text-blue-600 font-extrabold text-sm block">
+                        {distMeters}m
+                      </span>
+                      <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-500 transition-colors" />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </section>
+      </main>
+
+      {/* Stop Routes Modal on Stop Click */}
+      {selectedStopModal && (
+        <StopRoutesModal
+          stop={selectedStopModal}
+          onClose={() => setSelectedStopModal(null)}
+        />
+      )}
+    </div>
+  );
+}

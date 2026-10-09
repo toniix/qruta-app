@@ -1,12 +1,13 @@
-import axios from 'axios';
+import axios from "axios";
 
 // Base API Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8080/api";
 
 export const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   timeout: 10000,
 });
@@ -14,13 +15,13 @@ export const apiClient = axios.create({
 // Request interceptor to attach JWT token for admin routes if available
 apiClient.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('rutasya_admin_token');
+    const token = localStorage.getItem("rutasya_admin_token");
     if (token) {
       config.headers.Authorization = `Bearer ${token}`;
     }
     return config;
   },
-  (error) => Promise.reject(error)
+  (error) => Promise.reject(error),
 );
 
 // Response interceptor to handle errors gracefully
@@ -29,8 +30,8 @@ apiClient.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       // Clear token on authentication failure
-      localStorage.removeItem('rutasya_admin_token');
+      localStorage.removeItem("rutasya_admin_token");
     }
     return Promise.reject(error);
-  }
+  },
 );

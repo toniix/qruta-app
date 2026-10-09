@@ -1,9 +1,9 @@
-import { apiClient } from './apiClient';
-import { routeService } from './routeService';
-import { stopService } from './stopService';
-import { calculateDistanceKm } from '../utils/geoUtils';
+import { apiClient } from "./apiClient";
+import { routeService } from "./routeService";
+import { stopService } from "./stopService";
+import { calculateDistanceKm } from "../utils/geoUtils";
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === "true";
 
 export const nearbyService = {
   async findNearbyRoutes(latitude, longitude, radiusMeters = 1000) {
@@ -11,12 +11,17 @@ export const nearbyService = {
       const allRoutes = await routeService.getAllRoutes();
       return allRoutes.filter((route) => {
         return route.stops?.some((stop) => {
-          const dist = calculateDistanceKm(latitude, longitude, stop.latitude, stop.longitude);
+          const dist = calculateDistanceKm(
+            latitude,
+            longitude,
+            stop.latitude,
+            stop.longitude,
+          );
           return dist <= radiusMeters / 1000;
         });
       });
     }
-    const response = await apiClient.post('/routes/nearby', {
+    const response = await apiClient.post("/routes/nearby", {
       latitude,
       longitude,
       radiusMeters,
@@ -25,17 +30,25 @@ export const nearbyService = {
   },
 
   async findNearbyStops(latitude, longitude, radiusMeters = 1000) {
+    console.log("latitude", latitude);
+    console.log("longitude", longitude);
+
     if (USE_MOCK) {
       const allStops = await stopService.getAllStops();
       return allStops
         .map((stop) => ({
           ...stop,
-          distanceKm: calculateDistanceKm(latitude, longitude, stop.latitude, stop.longitude),
+          distanceKm: calculateDistanceKm(
+            latitude,
+            longitude,
+            stop.latitude,
+            stop.longitude,
+          ),
         }))
         .filter((stop) => stop.distanceKm <= radiusMeters / 1000)
         .sort((a, b) => a.distanceKm - b.distanceKm);
     }
-    const response = await apiClient.post('/stops/nearby', {
+    const response = await apiClient.post("/stops/nearby", {
       latitude,
       longitude,
       radiusMeters,

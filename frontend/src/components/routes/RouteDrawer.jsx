@@ -1,187 +1,404 @@
-import { useState } from "react";
 import {
-  X,
-  Bus,
-  Navigation,
+  Clock,
+  Calendar,
+  RotateCw,
   MapPin,
-} from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+  Info,
+  Route as RouteIcon,
+} from 'lucide-react';
+import { useRoutes } from '../../contexts/RouteContext';
+import { formatDistance } from '../../utils/geoUtils';
 
-export function RouteDrawer() {
-  const { selectedRoute, selectedStop, selectStop, clearSelection } =
-    useRoutes();
-
-  const [isMinimized, setIsMinimized] = useState(true);
-
-  if (!selectedRoute) return null;
-
-  // Get stops from route (detail has them, summary might not)
-  const stops = selectedRoute.stops || [];
-
-  const handleStopSelect = (stop) => {
-    selectStop(stop);
-    setIsMinimized(true);
-  };
+export function RouteDrawerSkeleton({ route }) {
+  const code = route?.code || 'Ruta';
+  const color = route?.color || '#2563eb';
+  const name = (route?.name || '').replace(/^Ruta \w+:\s*/i, '');
+  const fare = route?.fare || 'S/ 2.00';
 
   return (
-    <div className="w-full glass-panel rounded-3xl border border-slate-200/90 shadow-2xl overflow-hidden flex flex-col transition-all duration-300 max-h-[50vh] sm:max-h-[420px] animate-in slide-in-from-bottom duration-300">
-      <div
-        onClick={() => setIsMinimized((prev) => !prev)}
-        className="p-3 sm:p-3.5 text-white relative flex items-center justify-between shadow-xs cursor-pointer select-none transition-colors"
-        style={{ backgroundColor: selectedRoute.color || "#2563eb" }}
-      >
-        <div className="flex items-center gap-2.5 min-w-0">
-          <div className="w-8 h-8 rounded-xl bg-white/20 backdrop-blur-md flex items-center justify-center flex-shrink-0">
-            <Bus className="w-4 h-4 text-white" />
-          </div>
-          <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="bg-white/20 backdrop-blur-md px-2 py-0.5 rounded text-[11px] font-bold uppercase tracking-wider">
-                {selectedRoute.code}
-              </span>
-              <span className="text-xs text-white/80 font-medium truncate">
-                {selectedRoute.transportLineName}
-              </span>
-            </div>
-            <h2 className="text-xs sm:text-sm font-bold leading-tight line-clamp-1">
-              {selectedRoute.name}
-            </h2>
-          </div>
+    <div className="bg-white/98 backdrop-blur-xl rounded-3xl border border-gray-100/90 shadow-[0_-8px_35px_rgba(0,0,0,0.12)] p-4 sm:p-5 flex flex-col space-y-3.5 max-h-[46vh] overflow-y-auto hide-scrollbar animate-slide-in-bottom pb-8">
+      {/* Drag Handle */}
+      <div className="w-12 h-1.5 bg-gray-200/90 rounded-full mx-auto shrink-0 mb-1" />
+
+      {/* Header */}
+      <div className="flex items-center gap-3">
+        <div
+          className="w-14 h-9 text-white font-extrabold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+          style={{ backgroundColor: color }}
+        >
+          {code}
         </div>
 
-        <div className="flex items-center gap-1.5 flex-shrink-0">
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              clearSelection();
-            }}
-            className="p-1.5 rounded-xl bg-white/20 hover:bg-white/30 text-white transition-colors"
-            title="Cerrar detalle"
-          >
-            <X className="w-4 h-4" />
-          </button>
+        <div className="min-w-0 flex-1 space-y-1.5">
+          <h2 className="font-bold text-slate-900 text-base leading-tight truncate">
+            {name || <div className="h-4 bg-slate-200 rounded-md w-3/4 animate-pulse" />}
+          </h2>
+          <div className="h-3 bg-slate-100 rounded-md w-1/2 animate-pulse" />
+        </div>
+
+        <div className="text-right shrink-0">
+          <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200/70">
+            {fare}
+          </span>
+          <p className="text-[10px] text-slate-400 mt-0.5">tarifa</p>
         </div>
       </div>
 
-      {selectedStop && (
-        <div className="bg-amber-500 text-white px-3.5 py-2 text-xs flex items-center justify-between shadow-inner">
-          <div className="flex items-center gap-1.5 truncate">
-            <MapPin className="w-4 h-4 flex-shrink-0 animate-bounce" />
-            <span className="truncate">
-              Enfocado: <strong>{selectedStop.name}</strong>
-            </span>
+      {/* 2 Grid Boxes Skeleton (Horario & Frecuencia) */}
+      <div className="grid grid-cols-2 gap-3 animate-pulse">
+        <div className="bg-slate-100/70 p-3.5 rounded-2xl border border-slate-200/50 space-y-1.5">
+          <div className="h-3 bg-slate-300/60 rounded w-14" />
+          <div className="h-4 bg-slate-200 rounded w-24" />
+        </div>
+        <div className="bg-slate-100/70 p-3.5 rounded-2xl border border-slate-200/50 space-y-1.5">
+          <div className="h-3 bg-slate-300/60 rounded w-16" />
+          <div className="h-4 bg-slate-200 rounded w-20" />
+        </div>
+      </div>
+
+      {/* Segmented Control Tabs Skeleton (Ida / Vuelta) */}
+      <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center justify-between text-xs font-semibold gap-2 animate-pulse">
+        <div className="flex-1 h-9 bg-white rounded-xl shadow-2xs" />
+        <div className="flex-1 h-9 bg-slate-200/60 rounded-xl" />
+      </div>
+
+      {/* Main Timeline Card Skeleton */}
+      <div className="border border-gray-100 rounded-2xl p-4 bg-white shadow-2xs space-y-3.5 animate-pulse">
+        <div className="relative pl-6 space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full border-2 border-blue-400 bg-white shrink-0 -ml-6" />
+            <div className="h-4 bg-slate-200 rounded-md w-2/3" />
           </div>
-          {isMinimized && (
-            <button
-              onClick={() => setIsMinimized(false)}
-              className="text-[11px] font-bold underline bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded transition-colors whitespace-nowrap ml-2"
-            >
-              Ver puntos clave
-            </button>
-          )}
+
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-red-400 shrink-0 -ml-6" />
+            <div className="h-4 bg-slate-200 rounded-md w-1/2" />
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100" />
+
+        {/* Stats Row Skeleton */}
+        <div className="grid grid-cols-3 divide-x divide-gray-100 text-center">
+          <div className="flex justify-center items-center">
+            <div className="h-4 bg-slate-200 rounded-md w-14" />
+          </div>
+          <div className="flex justify-center items-center">
+            <div className="h-4 bg-slate-200 rounded-md w-14" />
+          </div>
+          <div className="flex justify-center items-center">
+            <div className="h-4 bg-slate-200 rounded-md w-16" />
+          </div>
+        </div>
+      </div>
+
+      {/* Puntos Frecuentes Skeleton */}
+      <div className="pt-2 space-y-3 animate-pulse pb-6">
+        <div className="h-4 bg-slate-300/80 rounded w-32" />
+        <div className="relative pl-6 space-y-3 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="flex items-center justify-between p-2">
+              <div className="space-y-1.5 flex-1">
+                <div className="h-3.5 bg-slate-200 rounded w-2/3" />
+                <div className="h-2.5 bg-slate-100 rounded w-1/3" />
+              </div>
+              <div className="h-3.5 bg-slate-200 rounded w-10 shrink-0" />
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export function RouteDrawer() {
+  const {
+    selectedRoute,
+    selectedStop,
+    selectStop,
+    activeDirection,
+    setActiveDirection,
+    loadingRouteDetail,
+  } = useRoutes();
+
+  if (!selectedRoute) return null;
+
+  // Directions come from the route detail (already normalized in routeService)
+  const directions = selectedRoute.directions || [];
+  const loading = loadingRouteDetail || directions.length === 0;
+
+  if (loading) {
+    return <RouteDrawerSkeleton route={selectedRoute} />;
+  }
+
+  const outbound =
+    directions.find((d) => d.direction === 'OUTBOUND') || directions[0];
+  const inbound = directions.find((d) => d.direction === 'INBOUND');
+  const hasVuelta = Boolean(inbound);
+
+  const activeDir =
+    activeDirection === 'INBOUND' && inbound ? inbound : outbound;
+
+  const stops = [...(activeDir?.stops || [])].sort(
+    (a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0),
+  );
+
+  const origin = activeDir?.originName || stops[0]?.name || 'Origen';
+  const destination =
+    activeDir?.destinationName || stops[stops.length - 1]?.name || 'Destino';
+
+  const estimatedMinutes = activeDir?.estimatedMinutes;
+  const totalDistanceKm = activeDir?.totalDistanceKm;
+
+  const code = selectedRoute.code || 'Ruta';
+  const color = selectedRoute.color || '#2563eb';
+  const name = (selectedRoute.name || '').replace(/^Ruta \w+:\s*/i, '');
+  const transportLine =
+    selectedRoute.transportLine?.name || selectedRoute.transportLineName || '';
+  const scheduleHours =
+    selectedRoute.schedule?.hours || selectedRoute.schedule || '—';
+  const frequency =
+    selectedRoute.schedule?.frequency || selectedRoute.frequency || '—';
+
+  const handleDirectionChange = (dir) => {
+    if (dir === 'INBOUND' && !inbound) return;
+    setActiveDirection(dir);
+    selectStop(null); // Clear selected stop when changing direction
+  };
+
+  const handleStopClick = (stop) => {
+    if (selectedStop?.id === stop.id) {
+      selectStop(null);
+    } else {
+      selectStop(stop);
+    }
+  };
+
+  return (
+    <div className="bg-white/98 backdrop-blur-xl rounded-3xl border border-gray-100/90 shadow-[0_-8px_35px_rgba(0,0,0,0.12)] p-4 sm:p-5 flex flex-col space-y-3.5 max-h-[46vh] overflow-y-auto hide-scrollbar animate-slide-in-bottom pb-8">
+      {/* Drag Handle */}
+      <div className="w-12 h-1.5 bg-gray-300/80 rounded-full mx-auto shrink-0 mb-1" />
+
+      {/* ── Route Header: Badge + Name + Line + Fare ─────────────────────── */}
+      <div className="flex items-center gap-3">
+        <div
+          className="w-14 h-9 text-white font-extrabold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+          style={{ backgroundColor: color }}
+        >
+          {code}
+        </div>
+
+        <div className="min-w-0 flex-1">
+          <h2 className="font-bold text-slate-900 text-base leading-tight truncate">
+            {name}
+          </h2>
+          <p className="text-xs font-medium text-slate-400 truncate">
+            {transportLine || 'Línea de transporte'}
+          </p>
+        </div>
+
+        <div className="text-right shrink-0">
+          <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200/70">
+            {selectedRoute.fare || 'S/ 2.00'}
+          </span>
+          <p className="text-[10px] text-slate-400 mt-0.5">tarifa</p>
+        </div>
+      </div>
+
+      {/* Description (if any) */}
+      {selectedRoute.description && (
+        <div className="flex items-start gap-2 bg-slate-50/80 border border-slate-100 rounded-xl p-2.5 text-xs text-slate-600">
+          <Info className="w-3.5 h-3.5 text-blue-500 shrink-0 mt-0.5" />
+          <p className="leading-snug">{selectedRoute.description}</p>
         </div>
       )}
 
-      {!isMinimized && (
-        <>
-          <div className="grid grid-cols-3 divide-x divide-slate-100 border-b border-slate-100 bg-slate-50/60 p-2.5 text-center text-xs">
-            <div>
-              <div className="text-slate-400 text-[10px] uppercase font-semibold">
-                Tarifa
-              </div>
-              <div className="font-bold text-slate-800 mt-0.5">
-                {selectedRoute.fare || '-'}
-              </div>
-            </div>
-            <div>
-              <div className="text-slate-400 text-[10px] uppercase font-semibold">
-                Horario
-              </div>
-              <div className="font-bold text-slate-800 mt-0.5 line-clamp-1">
-                {selectedRoute.schedule || '-'}
-              </div>
-            </div>
-            <div>
-              <div className="text-slate-400 text-[10px] uppercase font-semibold">
-                Frecuencia
-              </div>
-              <div className="font-bold text-blue-600 mt-0.5 line-clamp-1">
-                {selectedRoute.frequency || '-'}
-              </div>
-            </div>
+      {/* ── Informative Reference Note ────────────────────────────────────── */}
+      <div className="flex items-start gap-2.5 bg-blue-50/90 border border-blue-100 rounded-2xl p-3 text-xs text-blue-900 shadow-2xs">
+        <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+        <p className="leading-relaxed font-medium">
+          <strong className="font-extrabold">Nota informativa:</strong> Los puntos y el trayecto mostrados son <span className="underline decoration-blue-300 font-bold">referenciales</span>. No existen paraderos fijos u obligatorios; puedes solicitar subir o bajar en cualquier tramo del recorrido.
+        </p>
+      </div>
+
+      {/* ── 2 Grid Boxes: General Route Info (Horario & Frecuencia) ───────── */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="bg-slate-100/70 p-3.5 rounded-2xl border border-slate-200/50">
+          <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium">
+            <Calendar className="w-3.5 h-3.5 text-slate-400" />
+            <span>Horario</span>
+          </div>
+          <p className="font-bold text-slate-900 text-sm mt-1">
+            {scheduleHours}
+          </p>
+        </div>
+
+        <div className="bg-slate-100/70 p-3.5 rounded-2xl border border-slate-200/50">
+          <div className="flex items-center gap-1.5 text-slate-500 text-xs font-medium">
+            <RotateCw className="w-3.5 h-3.5 text-slate-400" />
+            <span>Frecuencia</span>
+          </div>
+          <p className="font-bold text-slate-900 text-sm mt-1">{frequency}</p>
+        </div>
+      </div>
+
+      {/* ── Segmented Control Tabs (Ida / Vuelta) ─────────────────────────── */}
+      <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center justify-between text-xs font-semibold">
+        <button
+          type="button"
+          onClick={() => handleDirectionChange('OUTBOUND')}
+          className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
+            activeDirection === 'OUTBOUND'
+              ? 'bg-white text-blue-600 font-bold shadow-sm'
+              : 'text-slate-500 hover:text-slate-800'
+          }`}
+        >
+          Ida
+        </button>
+        <button
+          type="button"
+          onClick={() => handleDirectionChange('INBOUND')}
+          disabled={!hasVuelta}
+          className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
+            activeDirection === 'INBOUND'
+              ? 'bg-white text-blue-600 font-bold shadow-sm'
+              : 'text-slate-500'
+          } ${!hasVuelta ? 'opacity-40 cursor-not-allowed' : 'hover:text-slate-800'}`}
+        >
+          Vuelta
+        </button>
+      </div>
+
+      {/* ── Main Card: Origin-Destination & Quick Stats ───────────────────── */}
+      <div className="border border-gray-100 rounded-2xl p-4 bg-white shadow-2xs space-y-3.5">
+        {/* Origin / Destination timeline */}
+        <div className="relative pl-6 space-y-2.5 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-gray-200">
+          <div className="relative flex items-center gap-2 text-xs">
+            <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full border-2 border-blue-600 bg-white shrink-0" />
+            <span className="font-bold text-slate-900 text-sm truncate">
+              {origin}
+            </span>
           </div>
 
-          <div className="px-3.5 py-2 bg-blue-50/50 border-b border-blue-100/60 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-2">
-              <Navigation className="w-3.5 h-3.5 text-blue-600 flex-shrink-0" />
-              <span className="text-slate-700 font-medium">
-                {selectedRoute.origin && selectedRoute.destination
-                  ? `${selectedRoute.origin} → ${selectedRoute.destination}`
-                  : 'Selecciona una ruta para ver el recorrido'}
+          <div className="relative flex items-center gap-2 text-xs">
+            <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-3 h-3 rounded-full bg-red-500 shrink-0" />
+            <span className="font-bold text-slate-900 text-sm truncate">
+              {destination}
+            </span>
+          </div>
+        </div>
+
+        <div className="border-t border-gray-100" />
+
+        {/* Stats Row (Time, Distance, Puntos frecuentes) */}
+        <div className="grid grid-cols-3 divide-x divide-gray-100 text-center text-xs pt-0.5">
+          <div className="flex flex-col items-center justify-center gap-1 px-1">
+            <div className="flex items-center gap-1 text-slate-500">
+              <Clock className="w-3.5 h-3.5 text-slate-400" />
+              <span className="font-medium">
+                {estimatedMinutes != null ? `~${estimatedMinutes} min` : '—'}
               </span>
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto p-3.5 space-y-2.5">
-            <h4 className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2 flex items-center justify-between">
-              <span>Puntos Clave ({stops.length})</span>
-              <span className="text-[11px] text-blue-600 normal-case font-normal">
-                Toca para volar en mapa
+          <div className="flex flex-col items-center justify-center gap-1 px-1">
+            <div className="flex items-center gap-1 text-slate-500">
+              <RouteIcon className="w-3.5 h-3.5 text-slate-400" />
+              <span className="font-medium">
+                {totalDistanceKm != null
+                  ? formatDistance(totalDistanceKm)
+                  : '—'}
               </span>
-            </h4>
-
-            {stops.length === 0 ? (
-              <div className="text-center py-4 text-slate-400 text-xs">
-                Cargando paraderos...
-              </div>
-            ) : (
-              <div className="relative pl-6 space-y-2.5 before:absolute before:left-2.5 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200">
-                {stops.map((stop, index) => {
-                  const isStopSelected = selectedStop?.id === stop.id;
-                  return (
-                    <div
-                      key={stop.id}
-                      onClick={() => handleStopSelect(stop)}
-                      className={`relative cursor-pointer group p-2 rounded-xl transition-all border ${
-                        isStopSelected
-                          ? "bg-amber-50 border-amber-400 shadow-2xs font-semibold text-slate-900"
-                          : "bg-white border-slate-100 hover:border-blue-200 hover:bg-slate-50"
-                      }`}
-                    >
-                      <div
-                        className={`absolute -left-6 top-3 w-4 h-4 rounded-full flex items-center justify-center text-[9px] font-bold border-2 transition-transform ${
-                          isStopSelected
-                            ? "bg-amber-500 text-white border-white scale-110 shadow-sm"
-                            : "bg-white text-slate-600 border-slate-300 group-hover:border-blue-500"
-                        }`}
-                      >
-                        {index + 1}
-                      </div>
-
-                      <div className="flex items-start justify-between gap-2 text-xs">
-                        <div>
-                          <h5 className="font-semibold text-xs text-slate-900 leading-snug">
-                            {stop.name}
-                          </h5>
-                          <p className="text-[10px] text-slate-500 mt-0.5">
-                            {stop.address || stop.reference}
-                          </p>
-                        </div>
-                        {stop.isAccessible !== false && (
-                          <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 flex-shrink-0">
-                            ♿
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            </div>
           </div>
-        </>
-      )}
+
+          <div className="flex flex-col items-center justify-center gap-1 px-1">
+            <div className="flex items-center gap-1 text-slate-500">
+              <MapPin className="w-3.5 h-3.5 text-slate-400" />
+              <span className="font-medium">{stops.length} pts. frecuentes</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Puntos Frecuentes Section ──────────────────────────────────────── */}
+      <div className="pt-2 space-y-3 pb-6">
+        <div className="flex items-center justify-between">
+          <h3 className="text-base font-bold text-slate-900">Puntos frecuentes</h3>
+          <span className="text-xs text-slate-400 font-medium">Lugares concurridos</span>
+        </div>
+
+        <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-gray-200">
+          {stops.map((stop, idx) => {
+            const isSelectedStop = selectedStop?.id === stop.id;
+            const isFirst = idx === 0;
+            const isLast = idx === stops.length - 1;
+            const distance = stop.distanceFromStart;
+
+            return (
+              <div
+                key={`${stop.id}-${idx}`}
+                onClick={() => handleStopClick(stop)}
+                className={`relative cursor-pointer group transition-all rounded-xl p-2 -ml-2 border ${
+                  isSelectedStop
+                    ? 'bg-amber-50/90 border-amber-300 shadow-xs'
+                    : 'border-transparent hover:bg-slate-50'
+                }`}
+              >
+                {/* Dot */}
+                <div
+                  className={`absolute -left-4 top-3.5 w-3 h-3 rounded-full border-2 transition-transform ${
+                    isSelectedStop
+                      ? 'bg-amber-500 border-white scale-125 shadow-sm'
+                      : isFirst
+                        ? 'bg-white border-blue-600'
+                        : isLast
+                          ? 'bg-red-500 border-red-500'
+                          : 'bg-white border-slate-300 group-hover:border-blue-500'
+                  }`}
+                />
+
+                {/* Info */}
+                <div className="flex items-start justify-between gap-2 pl-2">
+                  <div className="min-w-0">
+                    <h4 className="font-bold text-slate-900 text-sm leading-tight flex items-center gap-1.5">
+                      <span className="truncate">{stop.name}</span>
+                      {stop.stopOrder != null && (
+                        <span className="text-[10px] bg-slate-100 text-slate-500 font-bold px-1.5 py-0.2 rounded-full shrink-0">
+                          #{stop.stopOrder}
+                        </span>
+                      )}
+                      {isSelectedStop && (
+                        <span className="text-[10px] bg-amber-500 text-white font-bold px-1.5 py-0.2 rounded-full shrink-0">
+                          Enfocado
+                        </span>
+                      )}
+                    </h4>
+                    {(stop.reference || stop.address) && (
+                      <p className="text-xs text-slate-500 mt-0.5 truncate">
+                        Ref: {stop.reference || stop.address}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {distance != null && (
+                      <span className="text-[10px] font-semibold text-slate-400 bg-slate-100 px-1.5 py-0.5 rounded border border-slate-200/60">
+                        {formatDistance(distance)}
+                      </span>
+                    )}
+                    {stop.accessible && (
+                      <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200">
+                        ♿
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

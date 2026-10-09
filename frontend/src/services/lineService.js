@@ -1,7 +1,7 @@
 import { apiClient } from "./apiClient";
 import { MOCK_LINES } from "./mockData";
 
-const USE_MOCK = import.meta.env.VITE_USE_MOCK !== 'false';
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export const lineService = {
   async getAllLines() {

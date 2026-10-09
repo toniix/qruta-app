@@ -6,27 +6,81 @@ import {
   Marker,
   Popup,
   useMap,
+  useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
 import { getBoundsFromPoints } from "../../utils/geoUtils";
 import { routingService } from "../../services/routingService";
 
-function MapAutoRecenter({ bounds, center, selectedStop }) {
+// Lighten (positive) or darken (negative) a hex color by a percentage (0..100).
+function shadeColor(color, percent) {
+  const clean = (color || "#2563eb").replace("#", "");
+  let num = parseInt(clean, 16);
+  let r = num >> 16;
+  let g = (num >> 8) & 0xff;
+  let b = num & 0xff;
+  const target = percent < 0 ? 0 : 255;
+  const p = Math.abs(percent) / 100;
+  r = Math.round((target - r) * p + r);
+  g = Math.round((target - g) * p + g);
+  b = Math.round((target - b) * p + b);
+  return `#${(0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
+
+function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected }) {
   const map = useMap();
 
   useEffect(() => {
-    if (selectedStop && selectedStop.latitude && selectedStop.longitude) {
-      map.flyTo([selectedStop.latitude, selectedStop.longitude], 16, {
+    const lat = selectedStop?.location?.latitude ?? selectedStop?.latitude;
+    const lng = selectedStop?.location?.longitude ?? selectedStop?.longitude;
+    if (selectedStop && lat && lng) {
+      // Shift stop center upward into the visible top 50% of screen
+      const zoom = 16;
+      const targetPoint = map.project([lat, lng], zoom);
+      const offsetY = window.innerHeight * 0.20; // Shift focus point up
+      const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
+      const targetLatLng = map.unproject(offsetPoint, zoom);
+
+      map.flyTo(targetLatLng, zoom, {
         animate: true,
         duration: 1.2,
       });
     } else if (bounds) {
-      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16, animate: true });
+      // Reserve the bottom ~50% for the RouteDrawer bottom sheet immediately
+      const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
+      map.fitBounds(bounds, {
+        paddingTopLeft: [40, 90],
+        paddingBottomRight: [40, bottomSheetPadding + 20],
+        maxZoom: 16,
+        animate: true,
+      });
+    } else if (isRouteSelected && center) {
+      // If a route is selected but bounds aren't ready yet, shift map center upward into top 50% immediately!
+      const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
+      const zoom = map.getZoom() || 14;
+      const targetPoint = map.project(center, zoom);
+      const offsetY = bottomSheetPadding * 0.4;
+      const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
+      const targetLatLng = map.unproject(offsetPoint, zoom);
+
+      map.panTo(targetLatLng, { animate: true });
     } else if (center) {
       map.flyTo(center, 15, { animate: true });
     }
-  }, [map, bounds, center, selectedStop]);
+  }, [map, bounds, center, selectedStop, isRouteSelected]);
 
+  return null;
+}
+
+/* MapClickHandler captures click events on the map canvas background */
+function MapClickHandler({ onMapClick }) {
+  useMapEvents({
+    click: (e) => {
+      if (onMapClick) {
+        onMapClick(e);
+      }
+    },
+  });
   return null;
 }
 
@@ -95,8 +149,8 @@ const createStopIcon = (stopName, isSelected, showLabel = false) =>
         </div>
       </div>
     `,
-    iconSize: showLabel ? [140, 52] : [28, 28],
-    iconAnchor: showLabel ? [70, 46] : [14, 14],
+    iconSize: showLabel ? [140, 52] : [70, 46],
+    iconAnchor: showLabel ? [70, 46] : [35, 35],
   });
 
 export function InteractiveMap({
@@ -107,20 +161,35 @@ export function InteractiveMap({
   userLocation = null,
   onSelectRoute,
   onSelectStop,
+  onMapClick,
   mapCenter = [-14.0678, -75.7286],
   mapZoom = 14,
+  activeDirection = "OUTBOUND",
 }) {
   const [snappedPointsMap, setSnappedPointsMap] = useState({});
+  const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
 
-  // Fetch street-polylines for routes that have points
+  // Fetch street-polylines (OSRM snapping) for the active route directions
+  // and for the summary routes that expose points.
   useEffect(() => {
     let isMounted = true;
     async function fetchStreetRoutes() {
       const newMap = {};
+      const newDirMap = {};
       const routesToSnap = selectedRoute ? [selectedRoute] : routes;
 
       for (const route of routesToSnap) {
-        if (route.points && route.points.length >= 2) {
+        if (route.id === selectedRoute?.id) {
+          // Selected route (detail): snap each direction's route points
+          for (const dir of route.directions || []) {
+            const points = dir.routePoints;
+            if (points && points.length >= 2) {
+              const snapped = await routingService.getRoadPolyline(points);
+              newDirMap[`${route.id}:${dir.direction || dir.id}`] = snapped;
+            }
+          }
+        } else if (route.points && route.points.length >= 2) {
+          // Summary routes: snap their direct points
           const snapped = await routingService.getRoadPolyline(route.points);
           newMap[route.id] = snapped;
         }
@@ -128,6 +197,7 @@ export function InteractiveMap({
 
       if (isMounted) {
         setSnappedPointsMap((prev) => ({ ...prev, ...newMap }));
+        setSnappedDirectionMap((prev) => ({ ...prev, ...newDirMap }));
       }
     }
 
@@ -137,10 +207,40 @@ export function InteractiveMap({
     };
   }, [routes, selectedRoute]);
 
+  // Pull points/stops for the active direction of the selected route
+  const activeDirectionMeta = useMemo(() => {
+    if (!selectedRoute) return null;
+    const dirs = selectedRoute.directions || [];
+    const dir =
+      dirs.find((d) => d.direction === activeDirection) || dirs[0];
+    return dir || null;
+  }, [selectedRoute, activeDirection]);
+
+  // Extract all points for the selected route (from active direction, flat points, or stops/keyStops)
+  const activePoints = useMemo(() => {
+    if (!selectedRoute) return null;
+    if (activeDirectionMeta?.routePoints?.length > 0) {
+      return activeDirectionMeta.routePoints;
+    }
+    if (selectedRoute.points?.length > 0) {
+      return selectedRoute.points;
+    }
+    // Fallback to stops or keyStops coordinates from summary route
+    const rawStops = selectedRoute.stops || selectedRoute.keyStops || [];
+    const extracted = rawStops
+      .map((s) => {
+        const lat = s.latitude ?? s.location?.latitude;
+        const lng = s.longitude ?? s.location?.longitude;
+        return lat != null && lng != null ? [lat, lng] : null;
+      })
+      .filter(Boolean);
+    return extracted.length > 0 ? extracted : null;
+  }, [selectedRoute, activeDirectionMeta]);
+
   // Extract all stops from selected route or all routes
   const allStops = useMemo(() => {
     if (selectedRoute) {
-      return selectedRoute.stops || [];
+      return activeDirectionMeta?.stops || selectedRoute.stops || [];
     }
     // For summaries without stops, try to get from directions
     return routes
@@ -148,16 +248,15 @@ export function InteractiveMap({
       .filter(
         (stop, idx, arr) => arr.findIndex((s) => s.id === stop.id) === idx,
       );
-  }, [selectedRoute, routes]);
+  }, [selectedRoute, activeDirectionMeta, routes]);
 
-  // Get the bounds of the active route
+  // Get the bounds of the active route immediately
   const activeBounds = useMemo(() => {
-    if (selectedRoute && selectedRoute.points?.length > 0) {
-      const poly = snappedPointsMap[selectedRoute.id] || selectedRoute.points;
-      return getBoundsFromPoints(poly);
+    if (selectedRoute && activePoints?.length > 0) {
+      return getBoundsFromPoints(activePoints);
     }
     return null;
-  }, [selectedRoute, snappedPointsMap]);
+  }, [selectedRoute, activePoints]);
 
   const currentCenter = useMemo(() => {
     if (searchedLocation)
@@ -165,6 +264,15 @@ export function InteractiveMap({
     if (userLocation) return [userLocation.lat, userLocation.lng];
     return mapCenter;
   }, [searchedLocation, userLocation, mapCenter]);
+
+  /* Handle map canvas background click */
+  const handleMapBackgroundClick = (e) => {
+    if (onMapClick) {
+      onMapClick(e);
+    } else if (onSelectStop) {
+      onSelectStop(null);
+    }
+  };
 
   return (
     <div className="relative w-full h-full min-h-[350px] overflow-hidden rounded-2xl border border-slate-200/90 shadow-inner">
@@ -181,10 +289,13 @@ export function InteractiveMap({
           maxZoom={19}
         />
 
+        <MapClickHandler onMapClick={handleMapBackgroundClick} />
+
         <MapAutoRecenter
           bounds={activeBounds}
           center={selectedRoute ? null : currentCenter}
           selectedStop={selectedStop}
+          isRouteSelected={Boolean(selectedRoute)}
         />
 
         {userLocation &&
@@ -225,52 +336,129 @@ export function InteractiveMap({
           </Marker>
         )}
 
-        {routes.map((route) => {
-          const isSelected = selectedRoute?.id === route.id;
-          const strokeColor = route.color || "#2563eb";
-          const positions = snappedPointsMap[route.id] || route.points;
+        {/* Other routes (summaries) — single polyline */}
+        {routes
+          .filter((r) => r.id !== selectedRoute?.id)
+          .map((route) => {
+            const positions = snappedPointsMap[route.id] || route.points;
+            if (!positions || positions.length < 2) return null;
 
-          // Skip polyline if no points
-          if (!positions || positions.length < 2) return null;
+            return (
+              <Polyline
+                key={route.id}
+                positions={positions}
+                pathOptions={{
+                  color: route.color || "#2563eb",
+                  weight: 4,
+                  opacity: selectedRoute ? 0.25 : 0.75,
+                  lineCap: "round",
+                  lineJoin: "round",
+                }}
+                eventHandlers={{
+                  click: (e) => {
+                    L.DomEvent.stopPropagation(e);
+                    if (onSelectRoute) onSelectRoute(route);
+                  },
+                }}
+              />
+            );
+          })}
 
-          return (
-            <Polyline
-              key={route.id}
-              positions={positions}
-              pathOptions={{
-                color: strokeColor,
-                weight: isSelected ? 6 : 4,
-                opacity: selectedRoute ? (isSelected ? 0.95 : 0.25) : 0.75,
-                lineCap: "round",
-                lineJoin: "round",
-              }}
-              eventHandlers={{
-                click: () => onSelectRoute && onSelectRoute(route),
-              }}
-            />
-          );
-        })}
+        {/* Selected route — one polyline per direction (IDA/VUELTA) */}
+        {selectedRoute &&
+          (selectedRoute.directions?.length > 0
+            ? selectedRoute.directions.map((dir) => {
+                const dirKey = `${selectedRoute.id}:${dir.direction || dir.id}`;
+                const points =
+                  snappedDirectionMap[dirKey] || dir.routePoints || [];
+                if (!points || points.length < 2) return null;
+
+                const hasBoth =
+                  selectedRoute.directions.some(
+                    (d) => d.direction === "OUTBOUND",
+                  ) &&
+                  selectedRoute.directions.some(
+                    (d) => d.direction === "INBOUND",
+                  );
+                const isOutbound =
+                  dir.direction === "OUTBOUND" ||
+                  (!hasBoth && dir.direction !== "INBOUND");
+                const isActive =
+                  dir.direction === activeDirection ||
+                  (!hasBoth && dir.direction !== "INBOUND");
+                const baseColor = selectedRoute.color || "#2563eb";
+
+                return (
+                  <Polyline
+                    key={dir.id || dir.direction}
+                    positions={points}
+                    pathOptions={{
+                      color: isOutbound ? baseColor : shadeColor(baseColor, 45),
+                      weight: isActive ? 6 : 4,
+                      opacity: isActive ? 0.95 : 0.5,
+                      dashArray: isOutbound ? undefined : "7 7",
+                      lineCap: "round",
+                      lineJoin: "round",
+                    }}
+                    eventHandlers={{
+                      click: (e) => {
+                        L.DomEvent.stopPropagation(e);
+                        if (onSelectRoute) onSelectRoute(selectedRoute);
+                      },
+                    }}
+                  />
+                );
+              })
+            : selectedRoute.points &&
+              selectedRoute.points.length >= 2 && (
+                <Polyline
+                  key={`${selectedRoute.id}-flat`}
+                  positions={
+                    snappedPointsMap[selectedRoute.id] ||
+                    selectedRoute.points
+                  }
+                  pathOptions={{
+                    color: selectedRoute.color || "#2563eb",
+                    weight: 6,
+                    opacity: 0.95,
+                    lineCap: "round",
+                    lineJoin: "round",
+                  }}
+                  eventHandlers={{
+                    click: (e) => {
+                      L.DomEvent.stopPropagation(e);
+                      if (onSelectRoute) onSelectRoute(selectedRoute);
+                    },
+                  }}
+                />
+              ))}
 
         {allStops.map((stop, idx) => {
           const isSelected = selectedStop?.id === stop.id;
+          const lat = stop.location?.latitude ?? stop.latitude;
+          const lng = stop.location?.longitude ?? stop.longitude;
+          if (lat == null || lng == null) return null;
 
           return (
             <Marker
               key={`${stop.id}-${idx}`}
-              position={[stop.latitude, stop.longitude]}
+              position={[lat, lng]}
               icon={createStopIcon(
                 stop.name,
                 isSelected,
                 Boolean(selectedRoute),
               )}
               eventHandlers={{
-                click: () => onSelectStop && onSelectStop(stop),
+                click: (e) => {
+                  L.DomEvent.stopPropagation(e);
+                  if (onSelectStop) onSelectStop(stop);
+                },
               }}
             >
               <Popup>
                 <div className="p-1 max-w-[200px]">
                   <div className="text-[10px] uppercase font-bold text-blue-600">
-                    Punto Clave
+                    Punto frecuente
                   </div>
                   <div className="text-xs font-bold text-slate-900">
                     {stop.name}
@@ -278,7 +466,7 @@ export function InteractiveMap({
                   <div className="text-[11px] text-slate-500">
                     {stop.address || stop.reference}
                   </div>
-                  {stop.isAccessible !== false && (
+                  {stop.accessible != null && stop.accessible && (
                     <span className="inline-block mt-1 text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
                       ♿ Acceso Accesible
                     </span>

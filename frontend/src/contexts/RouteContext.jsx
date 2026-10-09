@@ -1,9 +1,15 @@
 /* eslint-disable react-refresh/only-export-components */
-import { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { routeService } from '../services/routeService';
-import { stopService } from '../services/stopService';
-import { nearbyService } from '../services/nearbyService';
-import { useGeolocation } from '../hooks/useGeolocation';
+import {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
+import { routeService } from "../services/routeService";
+import { stopService } from "../services/stopService";
+import { nearbyService } from "../services/nearbyService";
+import { useGeolocation } from "../hooks/useGeolocation";
 
 export const RouteContext = createContext(null);
 
@@ -12,42 +18,58 @@ export function RouteProvider({ children }) {
   const [stops, setStops] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
+  const [activeDirection, setActiveDirection] = useState("OUTBOUND");
   const [searchedLocation, setSearchedLocation] = useState(null);
   const [nearestMatchInfo, setNearestMatchInfo] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
   const [onlyNearby, setOnlyNearby] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filteredRoutes, setFilteredRoutes] = useState([]);
 
-  const { location: userLocation, isLocating, requestLocation, hasCustomLocation } = useGeolocation();
+  const [nearbyStops, setNearbyStops] = useState([]);
+  const [loadingStops, setLoadingStops] = useState(false);
+  const [stopsError, setStopsError] = useState(null);
+  const [popularRoutes, setPopularRoutes] = useState([]);
+  const [loadingPopular, setLoadingPopular] = useState(false);
+  const [loadingRouteDetail, setLoadingRouteDetail] = useState(false);
+
+  const {
+    location: userLocation,
+    isLocating,
+    requestLocation,
+    hasCustomLocation,
+    gpsReady,
+  } = useGeolocation();
+
+  const fetchRoutesAndStops = useCallback(async () => {
+    const [fetchedRoutes, fetchedStops] = await Promise.all([
+      routeService.getAllRoutes(),
+      stopService.getAllStops(),
+    ]);
+    return { fetchedRoutes, fetchedStops };
+  }, []);
 
   const loadData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      setError(null);
-      const [fetchedRoutes, fetchedStops] = await Promise.all([
-        routeService.getAllRoutes(),
-        stopService.getAllStops(),
-      ]);
+      const { fetchedRoutes, fetchedStops } = await fetchRoutesAndStops();
       setRoutes(fetchedRoutes);
       setStops(fetchedStops);
     } catch (err) {
-      console.error('Error al cargar datos de rutas:', err);
-      setError('No se pudieron cargar las rutas. Revisa tu conexión.');
+      console.error("Error al cargar datos de rutas:", err);
+      setError("No se pudieron cargar las rutas. Revisa tu conexión.");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [fetchRoutesAndStops]);
 
   useEffect(() => {
     let isMounted = true;
     async function fetchData() {
       try {
-        const [fetchedRoutes, fetchedStops] = await Promise.all([
-          routeService.getAllRoutes(),
-          stopService.getAllStops(),
-        ]);
+        const { fetchedRoutes, fetchedStops } = await fetchRoutesAndStops();
         if (isMounted) {
           setRoutes(fetchedRoutes);
           setStops(fetchedStops);
@@ -55,28 +77,108 @@ export function RouteProvider({ children }) {
         }
       } catch (err) {
         if (isMounted) {
-          console.error('Error al cargar datos de rutas:', err);
-          setError('No se pudieron cargar las rutas. Revisa tu conexión.');
+          console.error("Error al cargar datos de rutas:", err);
+          setError("No se pudieron cargar las rutas. Revisa tu conexión.");
           setLoading(false);
         }
       }
     }
     fetchData();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
+  }, [fetchRoutesAndStops]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchPopular() {
+      try {
+        const data = await routeService.getPopularRoutes();
+        if (isMounted) {
+          setPopularRoutes(data);
+        }
+      } catch (err) {
+        console.warn("Error al obtener rutas populares:", err);
+      } finally {
+        if (isMounted) setLoadingPopular(false);
+      }
+    }
+    fetchPopular();
+    return () => {
+      isMounted = false;
+    };
   }, []);
+
+  // Load nearby stops whenever we have a real GPS location
+  const loadNearbyStops = useCallback(async () => {
+    if (!hasCustomLocation || !userLocation) return;
+    setLoadingStops(true);
+    setStopsError(null);
+    try {
+      const stops = await nearbyService.findNearbyStops(
+        userLocation.lat,
+        userLocation.lng,
+        1200,
+      );
+      setNearbyStops(stops);
+    } catch (err) {
+      console.error("Error al cargar paraderos cercanos:", err);
+      setStopsError("No se pudieron cargar los paraderos cercanos.");
+    } finally {
+      setLoadingStops(false);
+    }
+  }, [hasCustomLocation, userLocation]);
+
+  useEffect(() => {
+    let isMounted = true;
+    async function fetchNearby() {
+      if (!hasCustomLocation || !userLocation) return;
+      setLoadingStops(true);
+      setStopsError(null);
+      try {
+        const stops = await nearbyService.findNearbyStops(
+          userLocation.lat,
+          userLocation.lng,
+          1200,
+        );
+        if (isMounted) {
+          setNearbyStops(stops);
+        }
+      } catch (err) {
+        console.error("Error al cargar paraderos cercanos:", err);
+        if (isMounted) {
+          setStopsError("No se pudieron cargar los paraderos cercanos.");
+        }
+      } finally {
+        if (isMounted) setLoadingStops(false);
+      }
+    }
+    fetchNearby();
+    return () => {
+      isMounted = false;
+    };
+  }, [hasCustomLocation, userLocation]);
 
   // Re-compute filtered routes when filters change
   useEffect(() => {
     let isMounted = true;
     async function computeFiltered() {
       try {
-        if (searchQuery.trim() !== '') {
+        if (searchQuery.trim() !== "") {
           const results = await routeService.searchRoutes(searchQuery);
           if (isMounted) setFilteredRoutes(results);
         } else if (onlyNearby && userLocation) {
-          const results = await nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500);
+          const results = await nearbyService.findNearbyRoutes(
+            userLocation.lat,
+            userLocation.lng,
+            1500,
+          );
           if (isMounted) {
-            const match = routeService.findNearestRouteAndStop(results, userLocation.lat, userLocation.lng);
+            const match = routeService.findNearestRouteAndStop(
+              results,
+              userLocation.lat,
+              userLocation.lng,
+            );
             if (match) {
               setNearestMatchInfo(match);
               const sorted = [...results].sort((a, b) => {
@@ -93,29 +195,56 @@ export function RouteProvider({ children }) {
           if (isMounted) setFilteredRoutes(routes);
         }
       } catch (err) {
-        console.error('Error al filtrar rutas:', err);
+        console.error("Error al filtrar rutas:", err);
       }
     }
     computeFiltered();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [searchQuery, onlyNearby, userLocation, routes]);
 
-  const selectRoute = async (route) => {
-    // If we only have summary (no directions or empty directions), fetch full detail
+  const selectRoute = useCallback(async (route) => {
+    if (!route) return;
+
+    // Check if route already has full directions loaded
     const hasDirections = route.directions && route.directions.length > 0;
-    if (!hasDirections) {
-      try {
-        const detail = await routeService.getRouteDetail(route.id);
-        setSelectedRoute(detail);
-      } catch (err) {
-        console.error('Error al cargar detalle de ruta:', err);
-        setSelectedRoute(route);
+
+    // Synchronously update selectedRoute so UI responds immediately
+    setSelectedRoute((current) => {
+      if (
+        current &&
+        String(current.id) === String(route.id) &&
+        current.directions?.length > 0
+      ) {
+        return current;
       }
-    } else {
-      setSelectedRoute(route);
-    }
+      return route;
+    });
+
     setSelectedStop(null);
-  };
+    setActiveDirection("OUTBOUND");
+
+    if (hasDirections || !route.id) {
+      setLoadingRouteDetail(false);
+      return;
+    }
+
+    setLoadingRouteDetail(true);
+    try {
+      const detail = await routeService.getRouteDetail(route.id);
+      setSelectedRoute((current) => {
+        if (current && String(current.id) === String(route.id)) {
+          return detail;
+        }
+        return current;
+      });
+    } catch (err) {
+      console.error("Error al cargar detalle de ruta:", err);
+    } finally {
+      setLoadingRouteDetail(false);
+    }
+  }, []);
 
   const selectStop = (stop) => {
     setSelectedStop(stop);
@@ -124,26 +253,30 @@ export function RouteProvider({ children }) {
   const clearSelection = () => {
     setSelectedRoute(null);
     setSelectedStop(null);
+    setActiveDirection("OUTBOUND");
     setSearchedLocation(null);
     setNearestMatchInfo(null);
     setOnlyNearby(false);
-  };
-
-  const toggleNearby = () => {
-    if (!hasCustomLocation && !onlyNearby) {
-      requestLocation();
-    }
-    clearSelection();
-    setOnlyNearby((prev) => !prev);
+    setLoadingRouteDetail(false);
   };
 
   const locateNearestRoute = async () => {
-    requestLocation();
+    if (!userLocation) {
+      requestLocation();
+    }
     setOnlyNearby(true);
     if (userLocation) {
       try {
-        const nearbyRoutes = await nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500);
-        const match = routeService.findNearestRouteAndStop(nearbyRoutes, userLocation.lat, userLocation.lng);
+        const nearbyRoutes = await nearbyService.findNearbyRoutes(
+          userLocation.lat,
+          userLocation.lng,
+          1500,
+        );
+        const match = routeService.findNearestRouteAndStop(
+          nearbyRoutes,
+          userLocation.lat,
+          userLocation.lng,
+        );
         if (match) {
           setNearestMatchInfo(match);
           const sorted = [...nearbyRoutes].sort((a, b) => {
@@ -156,7 +289,7 @@ export function RouteProvider({ children }) {
           setFilteredRoutes(nearbyRoutes);
         }
       } catch (err) {
-        console.error('Error al buscar rutas cercanas:', err);
+        console.error("Error al buscar rutas cercanas:", err);
       }
     }
   };
@@ -165,10 +298,11 @@ export function RouteProvider({ children }) {
     <RouteContext.Provider
       value={{
         routes,
-        stops,
         filteredRoutes,
         selectedRoute,
         selectedStop,
+        activeDirection,
+        setActiveDirection,
         searchedLocation,
         nearestMatchInfo,
         searchQuery,
@@ -178,15 +312,22 @@ export function RouteProvider({ children }) {
         userLocation,
         isLocating,
         hasCustomLocation,
+        gpsReady,
+        nearbyStops,
+        loadingStops,
+        stopsError,
+        popularRoutes,
+        loadingPopular,
+        loadingRouteDetail,
+        loadNearbyStops,
         setSearchQuery,
         setSearchedLocation,
         selectRoute,
         selectStop,
         clearSelection,
-        toggleNearby,
         locateNearestRoute,
         requestLocation,
-        reload: loadData,
+        loadData,
       }}
     >
       {children}
@@ -197,7 +338,7 @@ export function RouteProvider({ children }) {
 export function useRoutes() {
   const context = useContext(RouteContext);
   if (!context) {
-    throw new Error('useRoutes debe ser usado dentro de un RouteProvider');
+    throw new Error("useRoutes debe ser usado dentro de un RouteProvider");
   }
   return context;
 }

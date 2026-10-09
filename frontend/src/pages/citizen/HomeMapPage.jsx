@@ -1,4 +1,5 @@
 import { useRef, useEffect } from "react";
+import { useParams, useNavigate } from "react-router-dom";
 import { SearchBar } from "../../components/search/SearchBar";
 import { RouteCard } from "../../components/routes/RouteCard";
 import { RouteDrawer } from "../../components/routes/RouteDrawer";
@@ -9,61 +10,90 @@ import {
   AlertCircle,
   RefreshCw,
   Target,
-  Info,
   ArrowLeft,
   ChevronLeft,
   ChevronRight,
-  Layers,
+  Route as RouteIcon,
 } from "lucide-react";
 
 export function HomeMapPage() {
+  const { id } = useParams();
+  const navigate = useNavigate();
+
   const {
+    routes,
     filteredRoutes,
     selectedRoute,
     selectedStop,
     searchedLocation,
+    userLocation,
+    onlyNearby,
+    loading,
+    error,
     nearestMatchInfo,
+    activeDirection,
     selectRoute,
     selectStop,
     clearSelection,
-    loading,
-    error,
-    reload,
-    onlyNearby,
-    searchQuery,
-    userLocation,
     locateNearestRoute,
     isLocating,
     gpsReady,
-    gpsPermissionState,
+    hasCustomLocation,
   } = useRoutes();
-
-  console.log(filteredRoutes);
 
   const carouselRef = useRef(null);
 
-  // Auto-scroll carousel to position 0 (the nearest route) when nearby filter is activated
+  // Sync URL parameter /mapa/ruta/:id with selectedRoute state
+  useEffect(() => {
+    if (id) {
+      const isAlreadySelected =
+        selectedRoute && String(selectedRoute.id) === String(id);
+      if (!isAlreadySelected) {
+        const found = routes?.find((r) => String(r.id) === String(id));
+        selectRoute(found || { id });
+      }
+    } else {
+      // Only clear selection if we are on base /mapa route without an id param
+      if (selectedRoute) {
+        clearSelection();
+      }
+    }
+  }, [id, routes]); // Depend only on id and routes to prevent re-triggering loops
+
+  // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {
     if (onlyNearby && carouselRef.current) {
       carouselRef.current.scrollTo({ left: 0, behavior: "smooth" });
     }
   }, [onlyNearby, nearestMatchInfo]);
 
+  const handleSelectRoute = (route) => {
+    selectRoute(route);
+    if (route?.id) {
+      navigate(`/mapa/ruta/${route.id}`);
+    }
+  };
+
+  const handleCloseDetail = () => {
+    clearSelection();
+    navigate("/mapa");
+  };
+
   const getCategoryTitle = () => {
-    if (searchQuery) return `Resultados para "${searchQuery}"`;
-    if (onlyNearby) return "Rutas Cercanas a tu Ubicación";
-    return "Todas las Rutas Urbanas";
+    if (onlyNearby) return "Rutas cercanas a ti";
+    return "Rutas disponibles";
   };
 
   const scrollCarousel = (direction) => {
     if (carouselRef.current) {
-      const scrollAmount = direction === "left" ? -300 : 300;
+      const scrollAmount = direction === "left" ? -310 : 310;
       carouselRef.current.scrollBy({ left: scrollAmount, behavior: "smooth" });
     }
   };
 
   return (
-    <div className="relative w-full h-[calc(100dvh-4rem-4rem)] sm:h-[calc(100vh-4rem)] overflow-hidden bg-slate-100 flex flex-col">
+    <div className="relative w-full h-full flex-1 overflow-hidden bg-gray-100 flex flex-col">
+      {/* ── Interactive Leaflet Map Background ────────────────────────────── */}
       <div className="absolute inset-0 z-0 w-full h-full">
         <InteractiveMap
           routes={filteredRoutes}
@@ -71,207 +101,176 @@ export function HomeMapPage() {
           selectedStop={selectedStop}
           searchedLocation={searchedLocation}
           userLocation={userLocation}
-          gpsReady={gpsReady}
+          gpsReady={gpsReady || hasCustomLocation}
           isLocating={isLocating}
-          onSelectRoute={selectRoute}
+          onSelectRoute={handleSelectRoute}
           onSelectStop={selectStop}
+          activeDirection={activeDirection}
           mapCenter={
-            gpsReady ? [userLocation.lat, userLocation.lng] : undefined
+            hasCustomLocation || gpsReady
+              ? [userLocation.lat, userLocation.lng]
+              : undefined
           }
         />
       </div>
 
-      <div className="relative z-10 p-2.5 sm:p-4 max-w-xl mx-auto w-full pointer-events-auto space-y-2">
+      {/* ── Top Floating Container (Search & Filter Chips) ─────────────────── */}
+      <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
         {selectedRoute ? (
-          <div className="glass-panel p-3 sm:p-3.5 rounded-3xl shadow-xl border border-amber-200/90 bg-amber-50/95 backdrop-blur-xl text-amber-950 flex items-start justify-between gap-3 animate-in fade-in slide-in-from-top-2 duration-200">
-            <div className="flex items-start gap-2.5 min-w-0 flex-1">
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-2xl bg-amber-500/20 text-amber-700 flex items-center justify-center flex-shrink-0 mt-0.5">
-                <Info className="w-4 h-4" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="font-extrabold text-xs sm:text-sm text-slate-900">
-                    Trazado: {selectedRoute.code}
-                  </span>
-                </div>
-                <p className="text-[11px] sm:text-xs text-amber-900/90 leading-relaxed whitespace-normal break-words">
-                  <strong>Puntos clave del recorrido:</strong> Toca un punto
-                  para ver su ubicación en el mapa.
-                </p>
-              </div>
+          /* When a route is selected: Back button + Route Name Pill */
+          <div className="pointer-events-auto flex items-center justify-between gap-2.5 animate-slide-in-top">
+            {/* Back button */}
+            <button
+              onClick={handleCloseDetail}
+              className="w-10 h-10 rounded-full bg-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-gray-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
+              title="Volver al mapa"
+            >
+              <ArrowLeft className="w-5 h-5" />
+            </button>
+
+            {/* Selected Route Title Pill */}
+            <div className="bg-white rounded-full px-4 py-2 shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-gray-100 flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 truncate">
+              <span
+                className="w-2.5 h-2.5 rounded-full shrink-0"
+                style={{ backgroundColor: selectedRoute.color || "#2563eb" }}
+              />
+              <span className="truncate">
+                {selectedRoute.code} -{" "}
+                {selectedRoute.name?.replace(/^Ruta \w+:\s*/i, "")}
+              </span>
             </div>
 
+            {/* Close button */}
             <button
-              onClick={clearSelection}
-              className="flex items-center gap-1 text-xs font-bold text-slate-700 bg-white hover:bg-slate-100 border border-slate-200 px-2.5 py-1.5 rounded-xl shadow-xs transition-colors flex-shrink-0 active:scale-95 self-start mt-0.5"
-              title="Volver a la búsqueda de rutas"
+              onClick={handleCloseDetail}
+              className="w-10 h-10 rounded-full bg-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-gray-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
+              title="Cerrar vista de detalle"
             >
-              <ArrowLeft className="w-3.5 h-3.5" />
-              <span className="hidden xs:inline">Volver</span>
+              <span className="text-sm font-bold">✕</span>
             </button>
           </div>
         ) : (
-          <div className="glass-panel p-2.5 sm:p-3 rounded-3xl shadow-xl border border-white/80 backdrop-blur-xl">
-            <SearchBar />
-          </div>
+          /* Normal SearchBar + Quick Filter Chips */
+          <SearchBar />
         )}
       </div>
 
-      <div
-        className={`absolute right-3 sm:right-4 z-10 pointer-events-auto transition-all top-28 sm:top-32`}
-      >
+      {/* ── Bottom Floating Area (Carousel OR Route Drawer) ───────────────── */}
+      <div className="mt-auto relative z-20 pointer-events-none w-full max-w-lg mx-auto">
+        {/* GPS Recenter Floating Button (Floats 14px above sheet top-right corner) */}
         <button
           onClick={locateNearestRoute}
           disabled={isLocating}
-          className="p-2.5 sm:p-3 bg-white/95 text-slate-800 hover:bg-slate-50 rounded-2xl shadow-xl border border-slate-200/80 backdrop-blur-md transition-all active:scale-95 flex items-center justify-center group"
-          title={
-            gpsReady || gpsPermissionState === "granted"
-              ? "Encontrar la ruta más cercana a mi ubicación"
-              : "Activar GPS y encontrar la ruta más cercana"
-          }
+          className="absolute -top-14 right-4 sm:right-2 z-40 pointer-events-auto w-12 h-12 rounded-full bg-white text-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-100 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90"
+          title="Centrar en mi ubicación GPS"
         >
           <Target
             className={`w-5 h-5 ${
               isLocating
-                ? "animate-spin text-emerald-600"
-                : "text-emerald-600 group-hover:scale-110 transition-transform"
+                ? "animate-spin text-blue-600"
+                : "text-blue-600 hover:scale-110 transition-transform"
             }`}
           />
         </button>
-      </div>
 
-      <div className="absolute bottom-1 sm:bottom-2 left-0 right-0 z-20 p-2 sm:p-4 max-w-4xl mx-auto w-full pointer-events-auto pb-safe">
         {selectedRoute ? (
-          <RouteDrawer />
+          /* Detail Drawer when route selected (with mb-16 to sit above BottomNav) */
+          <div className="pointer-events-auto mb-16 sm:mb-20">
+            <RouteDrawer />
+          </div>
         ) : (
-          <div className="glass-panel rounded-3xl border border-white/90 shadow-2xl p-2.5 sm:p-3 space-y-2.5">
-            <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar text-xs">
-              <button
-                onClick={locateNearestRoute}
-                disabled={isLocating}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-extrabold whitespace-nowrap transition-all border bg-emerald-600 text-white border-emerald-600 shadow-xs hover:bg-emerald-700 active:scale-95 flex-shrink-0"
-                title={
-                  gpsReady || gpsPermissionState === "granted"
-                    ? "Encontrar la ruta más cercana a mi ubicación"
-                    : "Activar GPS y encontrar la ruta más cercana"
-                }
-              >
-                <Target
-                  className={`w-3.5 h-3.5 ${isLocating ? "animate-spin" : ""}`}
-                />
-                <span>
-                  {isLocating
-                    ? "Ubicando GPS..."
-                    : gpsReady || gpsPermissionState === "granted"
-                      ? "📍 Rutas Cercanas"
-                      : "📍 Activar GPS"}
-                </span>
-              </button>
+          /* Route Horizontal Carousel Sheet when no route selected (occupies 100% width on mobile) */
+          <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/95 backdrop-blur-xl rounded-t-[32px] sm:rounded-3xl shadow-[0_-8px_35px_rgba(0,0,0,0.12)] border border-gray-100/90 animate-slide-in-bottom mb-16 sm:mb-20">
+            {/* Sheet Handle Indicator */}
+            <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto -mt-1 mb-1 shrink-0" />
 
-              <button
-                onClick={() => {
-                  clearSelection();
-                }}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-medium whitespace-nowrap transition-all border flex-shrink-0 ${
-                  !onlyNearby && !searchQuery
-                    ? "bg-slate-800 text-white border-slate-800 shadow-xs"
-                    : "bg-white/90 backdrop-blur-md text-slate-600 border-slate-200 hover:bg-slate-50"
-                }`}
-              >
-                <Layers className="w-3.5 h-3.5" />
-                <span>Ver Todas</span>
-              </button>
-            </div>
-
-            <div className="flex items-center justify-between px-1 border-t border-slate-100 pt-2">
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xs sm:text-sm text-slate-900 truncate">
-                  {getCategoryTitle()}
-                </span>
-                <span className="bg-blue-100 text-blue-800 text-[11px] font-bold px-2 py-0.5 rounded-full">
-                  {filteredRoutes?.length || 0}
-                </span>
+            {/* Carousel Header & Counter */}
+            <div className="flex items-center justify-between px-1">
+              <div>
+                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                  <RouteIcon className="w-4 h-4 text-blue-600 shrink-0" />
+                  <span>{getCategoryTitle()}</span>
+                  <span className="text-xs bg-blue-50 text-blue-700 font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
+                    {filteredRoutes.length}
+                  </span>
+                </h2>
+                <p className="text-xs text-slate-500 font-medium mt-0.5">
+                  {onlyNearby
+                    ? "Ordenadas por proximidad a tu GPS"
+                    : "Desliza para explorar las rutas"}
+                </p>
               </div>
 
-              <div className="hidden sm:flex items-center gap-1">
-                <button
-                  onClick={() => scrollCarousel("left")}
-                  className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                  title="Anterior"
-                >
-                  <ChevronLeft className="w-4 h-4" />
-                </button>
-                <button
-                  onClick={() => scrollCarousel("right")}
-                  className="p-1 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
-                  title="Siguiente"
-                >
-                  <ChevronRight className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            {loading && (
-              <div className="py-6 text-center text-slate-400">
-                <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-1.5" />
-                <p className="text-xs">Cargando rutas...</p>
-              </div>
-            )}
-
-            {error && (
-              <div className="p-3 bg-red-50 text-red-700 rounded-xl text-xs flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 text-red-600" />
-                  <span>{error}</span>
+              {/* Navigation Arrows */}
+              {filteredRoutes.length > 1 && (
+                <div className="flex items-center gap-1.5 shrink-0 pr-2">
+                  <button
+                    onClick={() => scrollCarousel("left")}
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 shadow-2xs"
+                    title="Anterior"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    onClick={() => scrollCarousel("right")}
+                    className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 shadow-2xs"
+                    title="Siguiente"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
                 </div>
-                <button
-                  onClick={reload}
-                  className="font-bold underline text-red-800"
-                >
-                  Reintentar
-                </button>
+              )}
+            </div>
+
+            {/* Error banner */}
+            {error && (
+              <div className="bg-red-50 text-red-700 text-xs font-semibold p-3.5 rounded-2xl flex items-center gap-2 border border-red-100 shadow-2xs">
+                <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+                <span>{error}</span>
               </div>
             )}
 
-            {!loading && !error && (
+            {/* Loading state */}
+            {loading && (
+              <div className="py-8 text-center text-slate-400">
+                <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+                <p className="text-xs font-semibold text-slate-500">
+                  Cargando rutas disponibles...
+                </p>
+              </div>
+            )}
+
+            {/* Empty state */}
+            {!loading && filteredRoutes.length === 0 && (
+              <div className="bg-slate-50/80 rounded-2xl p-6 text-center shadow-2xs border border-gray-100">
+                <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+                <p className="text-xs font-bold text-slate-800">
+                  No se encontraron rutas
+                </p>
+                <p className="text-[11px] text-slate-400 mt-0.5">
+                  Intenta cambiar el texto de búsqueda o la ubicación.
+                </p>
+              </div>
+            )}
+
+            {/* Horizontal Scrollable Carousel */}
+            {!loading && filteredRoutes.length > 0 && (
               <div
                 ref={carouselRef}
-                className="flex items-center gap-3 overflow-x-auto snap-x snap-mandatory no-scrollbar pb-1 pt-3.5"
+                className="flex items-center gap-3 overflow-x-auto hide-scrollbar scroll-smooth py-1 px-0.5 snap-x snap-mandatory"
               >
-                {filteredRoutes?.length === 0 ? (
-                  <div className="w-full text-center py-6 px-4">
-                    <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center mx-auto mb-1.5 text-slate-400">
-                      <MapPin className="w-4 h-4" />
-                    </div>
-                    <p className="text-xs font-semibold text-slate-700">
-                      No se encontraron rutas
-                    </p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Intenta cambiar la búsqueda o la ubicación.
-                    </p>
+                {filteredRoutes.map((route) => (
+                  <div
+                    key={route.id}
+                    className="w-[88%] sm:w-[330px] shrink-0 snap-center transition-transform duration-200 hover:scale-[1.01]"
+                  >
+                    <RouteCard
+                      route={route}
+                      isSelected={selectedRoute?.id === route.id}
+                      onSelect={() => handleSelectRoute(route)}
+                    />
                   </div>
-                ) : (
-                  filteredRoutes?.map((route) => {
-                    const isNearest = Boolean(
-                      onlyNearby && nearestMatchInfo?.route?.id === route.id,
-                    );
-                    const distanceKm = isNearest
-                      ? nearestMatchInfo?.distanceKm
-                      : null;
-                    return (
-                      <div
-                        key={route.id}
-                        className="flex-none w-[88%] sm:w-[320px] snap-center"
-                      >
-                        <RouteCard
-                          route={route}
-                          isNearest={isNearest}
-                          distanceKm={distanceKm}
-                        />
-                      </div>
-                    );
-                  })
-                )}
+                ))}
               </div>
             )}
           </div>
