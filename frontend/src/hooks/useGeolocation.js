@@ -9,8 +9,12 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
   const [hasCustomLocation, setHasCustomLocation] = useState(false);
   const [gpsReady, setGpsReady] = useState(false);
   const [error, setError] = useState(null);
-  // 'unknown' while checking, then 'granted' | 'denied' | 'prompt' | 'unsupported'
-  const [gpsPermissionState, setGpsPermissionState] = useState('unknown');
+  // 'unknown' while checking, then 'granted' | 'denied' | 'prompt' | 'unsupported'.
+  // Whether the browser exposes the Geolocation API cannot change during a session,
+  // so that case is settled in the initializer instead of in an effect.
+  const [gpsPermissionState, setGpsPermissionState] = useState(() =>
+    typeof navigator !== 'undefined' && !navigator.geolocation ? 'unsupported' : 'unknown'
+  );
 
   /**
    * Requests the device GPS position.
@@ -105,10 +109,8 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
   // This approach fixes Android Chrome where navigator.permissions.query() returns
   // 'prompt' for sites that already have geolocation permission.
   useEffect(() => {
-    if (!navigator.geolocation) {
-      setGpsPermissionState('unsupported');
-      return;
-    }
+    // Already reported as 'unsupported' by the initializer.
+    if (!navigator.geolocation) return;
 
     const runDetection = async () => {
       // ── Phase 1: probe for a cached or network-assisted position (no dialog) ──

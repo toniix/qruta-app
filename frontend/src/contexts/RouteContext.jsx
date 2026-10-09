@@ -15,7 +15,8 @@ export const RouteContext = createContext(null);
 
 export function RouteProvider({ children }) {
   const [routes, setRoutes] = useState([]);
-  const [stops, setStops] = useState([]);
+  // Stops are fetched and kept in sync, but not exposed through the context yet.
+  const [, setStops] = useState([]);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
   const [activeDirection, setActiveDirection] = useState("OUTBOUND");
@@ -246,11 +247,11 @@ export function RouteProvider({ children }) {
     }
   }, []);
 
-  const selectStop = (stop) => {
+  const selectStop = useCallback((stop) => {
     setSelectedStop(stop);
-  };
+  }, []);
 
-  const clearSelection = () => {
+  const clearSelection = useCallback(() => {
     setSelectedRoute(null);
     setSelectedStop(null);
     setActiveDirection("OUTBOUND");
@@ -258,7 +259,7 @@ export function RouteProvider({ children }) {
     setNearestMatchInfo(null);
     setOnlyNearby(false);
     setLoadingRouteDetail(false);
-  };
+  }, []);
 
   const locateNearestRoute = async () => {
     if (!userLocation) {

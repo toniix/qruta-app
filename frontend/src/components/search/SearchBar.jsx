@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Search,
@@ -42,16 +42,6 @@ export function SearchBar() {
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [origin, setOrigin] = useState('Mi ubicación');
-
-  // Read query passed from HomePage via sessionStorage if available
-  useEffect(() => {
-    const queryFromHome = sessionStorage.getItem('home_search_query');
-    if (queryFromHome) {
-      setSearchQuery(queryFromHome);
-      setIsExpanded(true);
-      sessionStorage.removeItem('home_search_query');
-    }
-  }, [setSearchQuery]);
 
   const handleSwap = (e) => {
     e.stopPropagation();

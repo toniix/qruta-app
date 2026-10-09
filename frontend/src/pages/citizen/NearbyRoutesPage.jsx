@@ -1,9 +1,8 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Navigation,
-  MapPin,
   Footprints,
   Bus,
   Loader2,
@@ -21,7 +20,6 @@ export function NearbyRoutesPage() {
     routes,
     userLocation,
     selectRoute,
-    selectStop,
     requestLocation,
     isLocating,
     hasCustomLocation,
@@ -35,33 +33,53 @@ export function NearbyRoutesPage() {
   const [selectedStopModal, setSelectedStopModal] = useState(null);
 
   /* Load nearby routes & stops based on GPS location */
-  const fetchNearbyData = useCallback(async () => {
-    if (!userLocation) return;
+  const locationKey = userLocation ? `${userLocation.lat},${userLocation.lng}` : null;
+  const [requestedKey, setRequestedKey] = useState(null);
+
+  // Restart the request when the location changes. Doing this during render (React's
+  // documented pattern for state derived from an external value) keeps the spinner on
+  // the same pass as the new location instead of costing an extra render.
+  if (locationKey && locationKey !== requestedKey) {
+    setRequestedKey(locationKey);
     setLoading(true);
     setError(null);
-    try {
-      const [stops, nearbyRoutes] = await Promise.all([
-        nearbyService.findNearbyStops(userLocation.lat, userLocation.lng, 1500),
-        nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500),
-      ]);
-
-      setNearbyStopsList(stops);
-      setNearbyRoutesList(
-        nearbyRoutes && nearbyRoutes.length > 0 ? nearbyRoutes : routes.slice(0, 3),
-      );
-    } catch {
-      setError('No se pudieron obtener las rutas o paraderos cercanos.');
-    } finally {
-      setLoading(false);
-    }
-  }, [userLocation, routes]);
+  }
 
   useEffect(() => {
     if (!hasCustomLocation) {
       requestLocation();
     }
-    fetchNearbyData();
-  }, [hasCustomLocation, requestLocation, fetchNearbyData]);
+  }, [hasCustomLocation, requestLocation]);
+
+  useEffect(() => {
+    if (!userLocation) return;
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const [stops, nearbyRoutes] = await Promise.all([
+          nearbyService.findNearbyStops(userLocation.lat, userLocation.lng, 1500),
+          nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500),
+        ]);
+
+        if (cancelled) return;
+        setNearbyStopsList(stops);
+        setNearbyRoutesList(
+          nearbyRoutes && nearbyRoutes.length > 0 ? nearbyRoutes : routes.slice(0, 3),
+        );
+      } catch {
+        if (!cancelled) {
+          setError('No se pudieron obtener las rutas o paraderos cercanos.');
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [userLocation, routes]);
 
   const handleSelectRoute = (route) => {
     selectRoute(route);
@@ -265,6 +283,7 @@ export function NearbyRoutesPage() {
       {/* Stop Routes Modal on Stop Click */}
       {selectedStopModal && (
         <StopRoutesModal
+          key={selectedStopModal.id}
           stop={selectedStopModal}
           onClose={() => setSelectedStopModal(null)}
         />

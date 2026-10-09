@@ -13,7 +13,7 @@ export function AdminDashboardPage() {
   const [routes, setRoutes] = useState([]);
   const [stops, setStops] = useState([]);
   const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   // Form states
@@ -60,20 +60,28 @@ export function AdminDashboardPage() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
+  const fetchAllData = async () => {
+    const [fetchedLines, fetchedRoutes, fetchedStops, fetchedCities] = await Promise.all([
+      adminLineService.getAllLines(),
+      adminRouteService.getAllRoutes(),
+      adminStopService.getAllStops(),
+      cityService.getAdminCities(),
+    ]);
+    return { fetchedLines, fetchedRoutes, fetchedStops, fetchedCities };
+  };
+
+  const applyData = ({ fetchedLines, fetchedRoutes, fetchedStops, fetchedCities }) => {
+    setLines(fetchedLines);
+    setRoutes(fetchedRoutes);
+    setStops(fetchedStops);
+    setCities(fetchedCities);
+  };
+
   const loadAllData = async () => {
     setLoading(true);
     setError(null);
     try {
-      const [fetchedLines, fetchedRoutes, fetchedStops, fetchedCities] = await Promise.all([
-        adminLineService.getAllLines(),
-        adminRouteService.getAllRoutes(),
-        adminStopService.getAllStops(),
-        cityService.getAdminCities(),
-      ]);
-      setLines(fetchedLines);
-      setRoutes(fetchedRoutes);
-      setStops(fetchedStops);
-      setCities(fetchedCities);
+      applyData(await fetchAllData());
     } catch (err) {
       console.error('Error cargando datos:', err);
       setError('No se pudieron cargar los datos. Verifica tu conexión.');
@@ -82,8 +90,25 @@ export function AdminDashboardPage() {
     }
   };
 
+  // Initial load. `loading` already starts as true, so this only writes state after
+  // the request settles — no synchronous reset that would cost an extra render.
   useEffect(() => {
-    loadAllData();
+    let isMounted = true;
+    (async () => {
+      try {
+        const data = await fetchAllData();
+        if (isMounted) applyData(data);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error('Error cargando datos:', err);
+        setError('No se pudieron cargar los datos. Verifica tu conexión.');
+      } finally {
+        if (isMounted) setLoading(false);
+      }
+    })();
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   const handleLogout = () => {

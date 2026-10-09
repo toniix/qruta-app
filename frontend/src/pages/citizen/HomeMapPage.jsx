@@ -58,7 +58,7 @@ export function HomeMapPage() {
         clearSelection();
       }
     }
-  }, [id, routes]); // Depend only on id and routes to prevent re-triggering loops
+  }, [id, routes, selectedRoute, selectRoute, clearSelection]);
 
   // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {

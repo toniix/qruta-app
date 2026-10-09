@@ -26,8 +26,6 @@ export function StopRoutesModal({ stop, onClose }) {
   useEffect(() => {
     if (!stop || !stop.id) return;
     let isMounted = true;
-    setLoading(true);
-    setError(null);
 
     async function fetchRoutes() {
       try {

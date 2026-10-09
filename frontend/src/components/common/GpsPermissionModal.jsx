@@ -16,8 +16,13 @@ import { useRoutes } from '../../contexts/RouteContext';
  */
 export function GpsPermissionModal() {
   const { gpsPermissionState, locateNearestRoute, showGpsModal, setShowGpsModal } = useRoutes();
-  const [visible, setVisible] = useState(false);
+  const [autoVisible, setAutoVisible] = useState(false);
   const [isRequesting, setIsRequesting] = useState(false);
+
+  // Visibility is derived rather than mirrored into state: it shows when the user
+  // explicitly asked for it (showGpsModal) or when the startup probe asked for it,
+  // and hides itself as soon as the permission is granted.
+  const visible = (showGpsModal || autoVisible) && gpsPermissionState !== 'granted';
 
   // Auto-show on startup: once detection is complete and GPS is not available/granted.
   // We wait 1.2 s so the two-phase detection (cache probe + Permissions API) has time
@@ -32,32 +37,17 @@ export function GpsPermissionModal() {
     // Give the cache probe and Permissions API a chance to settle first.
     const timer = setTimeout(() => {
       if (gpsPermissionState === 'prompt' || gpsPermissionState === 'denied' || gpsPermissionState === 'unsupported') {
-        setVisible(true);
+        setAutoVisible(true);
       }
     }, 1200);
 
     return () => clearTimeout(timer);
   }, [gpsPermissionState]);
 
-  // Imperative show: triggered when the user taps "Cercanas" without GPS active.
-  // Ignores the dismissed session flag — user explicitly asked for this.
-  useEffect(() => {
-    if (showGpsModal) {
-      setVisible(true);
-    }
-  }, [showGpsModal]);
-
-  // Close immediately if permission becomes granted at any point.
-  useEffect(() => {
-    if (gpsPermissionState === 'granted') {
-      setVisible(false);
-    }
-  }, [gpsPermissionState]);
-
   const handleDismiss = () => {
     sessionStorage.setItem('gps_modal_dismissed', '1');
     setShowGpsModal(false);
-    setVisible(false);
+    setAutoVisible(false);
   };
 
   const handleAllow = async () => {
@@ -66,7 +56,7 @@ export function GpsPermissionModal() {
       await locateNearestRoute();
       sessionStorage.setItem('gps_modal_dismissed', '1');
       setShowGpsModal(false);
-      setVisible(false);
+      setAutoVisible(false);
     } catch {
       // Permission denied by browser dialog — modal will update via gpsPermissionState
     } finally {

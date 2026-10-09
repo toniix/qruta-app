@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Bus, Route } from 'lucide-react';
+import { ChevronRight, Bus } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
 import { formatDistance } from '../../utils/geoUtils';
 import { getRoutePalette } from '../../utils/routeUtils';
@@ -94,6 +94,7 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
       {/* Render StopRoutesModal when stop is clicked */}
       {activeModalStop && (
         <StopRoutesModal
+          key={activeModalStop.id}
           stop={activeModalStop}
           onClose={() => setActiveModalStop(null)}
         />
