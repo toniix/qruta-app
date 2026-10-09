@@ -1,4 +1,5 @@
 // Mock data para desarrollo con VITE_USE_MOCK=true
+import { BRAND_PRIMARY } from '../constants/brand';
 
 export const MOCK_CITY = {
   id: 'city-ica',
@@ -8,7 +9,7 @@ export const MOCK_CITY = {
 };
 
 export const MOCK_LINES = [
-  { id: 'line-ica-01', cityId: 'city-ica', code: 'L1', name: 'Línea 1: Consorcio Urbano Ica', color: '#2563eb', company: 'Empresa de Transportes Huacachina Express S.A.', contact: '+51 956 123 456', description: 'Conecta el centro con Huacachina', status: 'ACTIVE' },
+  { id: 'line-ica-01', cityId: 'city-ica', code: 'L1', name: 'Línea 1: Consorcio Urbano Ica', color: BRAND_PRIMARY, company: 'Empresa de Transportes Huacachina Express S.A.', contact: '+51 956 123 456', description: 'Conecta el centro con Huacachina', status: 'ACTIVE' },
   { id: 'line-ica-02', cityId: 'city-ica', code: 'L9', name: 'Línea 9: Expreso Señor de Luren', color: '#16a34a', company: 'TransIca Sur S.A.C.', contact: '+51 956 789 012', description: 'Ruta transversal norte-sur', status: 'ACTIVE' },
   { id: 'line-ica-03', cityId: 'city-ica', code: 'L14', name: 'Línea 14: Corredor Parcona - Subtanjalla', color: '#dc2626', company: 'Transportes Integrados de Ica S.A.', contact: '+51 956 333 444', description: 'Ruta del norte al sur', status: 'ACTIVE' },
   { id: 'line-ica-04', cityId: 'city-ica', code: 'L22', name: 'Línea 22: Ruta Sol de Ica', color: '#d97706', company: 'Empresa de Transportes El Sol S.A.', contact: '+51 956 555 666', description: 'Ruta circular por el centro', status: 'ACTIVE' },
@@ -40,7 +41,7 @@ export const MOCK_STOPS = [
 export const MOCK_ROUTES = [
   {
     id: 'route-ica-101', code: 'R101', name: 'Ruta 101: Plaza de Armas - Balneario Huacachina',
-    color: '#2563eb', description: 'Conecta el centro con Huacachina', status: 'ACTIVE',
+    color: BRAND_PRIMARY, description: 'Conecta el centro con Huacachina', status: 'ACTIVE',
     fare: 'S/ 2.50', schedule: '06:00 AM - 10:30 PM', frequency: 'Cada 8 - 10 minutos',
     transportLineId: 'line-ica-01', transportLineName: 'Línea 1: Consorcio Urbano Ica',
     origin: 'Plaza de Armas de Ica', destination: 'Balneario Oasis de Huacachina',

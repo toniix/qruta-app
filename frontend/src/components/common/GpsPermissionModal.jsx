@@ -69,6 +69,9 @@ export function GpsPermissionModal() {
   return (
     // Backdrop
     <div
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="gps-modal-title"
       className="fixed inset-0 z-[9000] flex items-end sm:items-center justify-center p-4 sm:p-0"
       style={{
         background: 'rgba(15, 23, 42, 0.55)',
@@ -93,14 +96,14 @@ export function GpsPermissionModal() {
       `}</style>
 
       <div
-        className="gps-modal-card w-full sm:max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden"
+        className="gps-modal-card w-full sm:max-w-sm bg-white rounded-2xl shadow-overlay overflow-hidden"
         style={{ border: '1px solid rgba(226,232,240,0.9)' }}
       >
         {/* Header band */}
         <div
           className="relative px-5 pt-6 pb-5"
           style={{
-            background: 'linear-gradient(135deg, #1d4ed8 0%, #0891b2 100%)',
+            background: 'var(--color-brand-primary)',
           }}
         >
           {/* Close button */}
@@ -124,7 +127,8 @@ export function GpsPermissionModal() {
           </div>
 
           <h2
-            className="text-white font-extrabold text-lg leading-tight"
+            id="gps-modal-title"
+            className="text-white font-bold text-lg leading-tight"
             style={{ letterSpacing: '-0.01em' }}
           >
             {gpsPermissionState === 'denied'
@@ -173,7 +177,7 @@ export function GpsPermissionModal() {
                   </div>
                   <div>
                     <p className="text-xs font-bold text-slate-900">{item.title}</p>
-                    <p className="text-[11px] text-slate-500 leading-snug mt-0.5">{item.desc}</p>
+                    <p className="text-xs text-slate-500 leading-snug mt-0.5">{item.desc}</p>
                   </div>
                 </li>
               ))}
@@ -193,8 +197,8 @@ export function GpsPermissionModal() {
                   'Cambia el permiso a "Permitir".',
                   'Recarga la página.',
                 ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-[11px] text-slate-700">
-                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-bold flex items-center justify-center flex-shrink-0 text-[10px]">
+                  <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700">
+                    <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-bold flex items-center justify-center flex-shrink-0 text-xs">
                       {i + 1}
                     </span>
                     {step}
@@ -217,11 +221,11 @@ export function GpsPermissionModal() {
               <button
                 onClick={handleAllow}
                 disabled={isRequesting}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-extrabold text-sm text-white transition-all active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
                 style={{
                   background: isRequesting
                     ? '#93c5fd'
-                    : 'linear-gradient(135deg, #1d4ed8, #0891b2)',
+                    : 'var(--color-brand-primary)',
                   boxShadow: isRequesting ? 'none' : '0 4px 14px rgba(29,78,216,0.35)',
                 }}
               >
@@ -245,9 +249,9 @@ export function GpsPermissionModal() {
             {gpsPermissionState === 'denied' && (
               <button
                 onClick={() => window.location.reload()}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-extrabold text-sm text-white transition-all active:scale-[0.98]"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
                 style={{
-                  background: 'linear-gradient(135deg, #1d4ed8, #0891b2)',
+                  background: 'var(--color-brand-primary)',
                   boxShadow: '0 4px 14px rgba(29,78,216,0.35)',
                 }}
               >
@@ -267,7 +271,7 @@ export function GpsPermissionModal() {
 
         {/* Privacy note */}
         <div className="px-5 pb-4">
-          <p className="text-[10px] text-slate-400 text-center leading-relaxed">
+          <p className="text-xs text-slate-500 text-center leading-relaxed">
             🔒 Tu ubicación solo se usa localmente para mostrar rutas cercanas. No se almacena ni se comparte.
           </p>
         </div>

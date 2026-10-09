@@ -55,11 +55,11 @@ export function RoutesListPage() {
   return (
     <div className="flex flex-col h-[100dvh] h-screen bg-slate-50/70 overflow-hidden">
       {/* ── Top Header / Search & Category Filters ────────────────────────── */}
-      <header className="bg-white pt-10 pb-4 px-5 space-y-4 border-b border-gray-100/90 shadow-2xs shrink-0 z-20">
+      <header className="bg-white pt-10 pb-4 px-5 space-y-4 border-b border-slate-100/90 shadow-2xs shrink-0 z-20">
         {/* Title & Subtitle */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
               <Route className="w-5 h-5 text-blue-600 shrink-0" />
               Catálogo de Rutas
             </h1>
@@ -75,7 +75,7 @@ export function RoutesListPage() {
 
         {/* Search bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
@@ -86,7 +86,7 @@ export function RoutesListPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600 rounded-full"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full"
             >
               <X className="w-4 h-4" />
             </button>
@@ -117,10 +117,10 @@ export function RoutesListPage() {
       {/* ── Routes Scrollable Vertical List ──────────────────────────────── */}
       <main className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
         {filteredRoutes.length === 0 ? (
-          <div className="bg-white rounded-3xl p-8 text-center border border-gray-100 shadow-2xs space-y-3 animate-fade-in">
-            <MapPin className="w-8 h-8 text-slate-300 mx-auto" />
+          <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-2xs space-y-3 animate-fade-in">
+            <MapPin className="w-8 h-8 text-slate-400 mx-auto" />
             <h3 className="text-sm font-bold text-slate-800">No se encontraron rutas</h3>
-            <p className="text-xs text-slate-400">
+            <p className="text-xs text-slate-500">
               Intenta cambiando los términos de búsqueda o filtrando por otra categoría.
             </p>
             <button
@@ -142,20 +142,20 @@ export function RoutesListPage() {
                 ? keyStops[Math.floor(keyStops.length / 2)]?.name
                 : null;
             const destination = keyStops[keyStops.length - 1]?.name || 'Destino';
-            const color = route.color || '#2563eb';
+            const color = route.color || 'var(--color-brand-primary)';
 
             return (
               <div
                 key={route.id}
                 onClick={() => handleSelectRoute(route)}
-                className="bg-white rounded-3xl p-5 border border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] space-y-3.5 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-card space-y-3.5 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
               >
                 {/* Header Row: Badge | Name & Subtitle | Fare */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="flex items-start gap-3 min-w-0 flex-1">
                     {/* Badge */}
                     <div
-                      className="w-14 h-9 text-white font-extrabold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs mt-0.5"
+                      className="w-14 h-9 text-white font-bold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs mt-0.5"
                       style={{ backgroundColor: color }}
                     >
                       {route.code || 'Ruta'}
@@ -166,7 +166,7 @@ export function RoutesListPage() {
                       <h3 className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-600 transition-colors truncate">
                         {route.name.replace(/^Ruta \w+:\s*/i, '')}
                       </h3>
-                      <p className="text-xs font-medium text-slate-400 mt-0.5 truncate">
+                      <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
                         {route.transportLineName || 'Línea urbana'}
                       </p>
                     </div>
@@ -174,17 +174,17 @@ export function RoutesListPage() {
 
                   {/* Fare */}
                   <div className="text-right shrink-0">
-                    <span className="text-blue-600 font-extrabold text-base block">
+                    <span className="text-blue-600 font-bold text-base block">
                       {route.fare || 'S/ 2.00'}
                     </span>
-                    <span className="text-[10px] text-slate-400 font-medium block">
+                    <span className="text-xs text-slate-500 font-medium block">
                       {route.frequency || 'Cada 8 min'}
                     </span>
                   </div>
                 </div>
 
                 {/* Subtle Horizontal Divider */}
-                <div className="border-t border-gray-100/90" />
+                <div className="border-t border-slate-100/90" />
 
                 {/* Vertical Timeline Stop Route */}
                 <div className="relative pl-6 space-y-2.5 before:absolute before:left-2 before:top-2 before:bottom-2 before:w-0.5 before:bg-slate-200/80">
@@ -198,7 +198,7 @@ export function RoutesListPage() {
                   {intermediate && (
                     <div className="relative flex items-center justify-between text-xs">
                       <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-slate-300 shrink-0" />
-                      <span className="font-normal text-slate-400 truncate">{intermediate}</span>
+                      <span className="font-normal text-slate-500 truncate">{intermediate}</span>
                     </div>
                   )}
 

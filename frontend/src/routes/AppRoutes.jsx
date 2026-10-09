@@ -5,6 +5,8 @@ import { HomeMapPage } from "../pages/citizen/HomeMapPage";
 import { RoutesListPage } from "../pages/citizen/RoutesListPage";
 import { SearchPage } from "../pages/citizen/SearchPage";
 import { NearbyRoutesPage } from "../pages/citizen/NearbyRoutesPage";
+import { FavoritesPage } from "../pages/citizen/FavoritesPage";
+import { PlacesPage } from "../pages/citizen/PlacesPage";
 import { AdminLoginPage } from "../pages/admin/AdminLoginPage";
 import { AdminDashboardPage } from "../pages/admin/AdminDashboardPage";
 import { authService } from "../services/authService";
@@ -26,6 +28,8 @@ export function AppRoutes() {
         <Route path="/mapa" element={<HomeMapPage />} />
         <Route path="/mapa/ruta/:id" element={<HomeMapPage />} />
         <Route path="/rutas" element={<RoutesListPage />} />
+        <Route path="/favoritos" element={<FavoritesPage />} />
+        <Route path="/lugares" element={<PlacesPage />} />
         <Route path="/admin/login" element={<AdminLoginPage />} />
         <Route
           path="/admin/dashboard"

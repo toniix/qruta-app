@@ -1,17 +1,43 @@
 @import "tailwindcss";
 @import "leaflet/dist/leaflet.css";
 
+@theme {
+  /* ── Brand ──────────────────────────────────────────────────────────── */
+  --color-brand-primary: #2563eb;
+  --color-brand-primary-dark: #1d4ed8;
+  --color-brand-secondary: #0d9488;
+  --color-brand-accent: #ea580c;
+
+  /* ── Surfaces ───────────────────────────────────────────────────────── */
+  --color-surface-page: #f8fafc;
+  --color-surface-raised: #ffffff;
+  --color-surface-sunken: #f1f5f9;
+
+  /* ── Ink ────────────────────────────────────────────────────────────── */
+  --color-ink-primary: #0f172a;
+  --color-ink-secondary: #475569;
+  --color-ink-muted: #64748b;
+
+  /* ── State ──────────────────────────────────────────────────────────── */
+  --color-state-success: #16a34a;
+  --color-state-error: #dc2626;
+  --color-state-warning: #d97706;
+
+  /* ── Radius scale (cards max 16px) ──────────────────────────────────── */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-xl: 16px;
+
+  /* ── Shadow scale (blur <= 16px; no wide soft shadows) ──────────────── */
+  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.08);
+  --shadow-raised: 0 4px 8px -2px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.06);
+  --shadow-overlay: 0 8px 12px -4px rgb(15 23 42 / 0.14), 0 4px 6px -4px rgb(15 23 42 / 0.08);
+}
+
 @layer base {
-  :root {
-    --color-brand-primary: #2563eb;
-    --color-brand-secondary: #14b8a6;
-    --color-brand-accent: #f97316;
-
-    --color-surface-background: #f8fafc;
-    --color-surface: #ffffff;
-
-    --color-text-primary: #0f172a;
-    --color-text-secondary: #64748b;
+  html {
+    -webkit-text-size-adjust: 100%;
   }
 
   body {
@@ -26,8 +52,8 @@
       Ubuntu,
       Cantarell,
       sans-serif;
-    background-color: #f8fafc;
-    color: #0f172a;
+    background-color: var(--color-surface-page);
+    color: var(--color-ink-primary);
     margin: 0;
     padding: 0;
     overflow-x: hidden;
@@ -41,6 +67,33 @@
     flex-direction: column;
     width: 100%;
     max-width: 100%;
+  }
+
+  /* Consistent focus ring on every interactive element. */
+  :focus-visible {
+    outline: 2px solid var(--color-brand-primary);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+}
+
+/* Safe-area padding helpers (index.html adds viewport-fit=cover). */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+.pt-safe {
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ── Respect reduced motion globally ─────────────────────────────────── */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -82,14 +135,14 @@
   width: 36px;
   height: 36px;
   line-height: 36px;
-  border-radius: 12px !important;
+  border-radius: 10px !important;
   border: 1px solid #e2e8f0;
-  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 1px 3px 0 rgb(15 23 42 / 0.08);
   color: #1e293b;
   background-color: #ffffff;
 }
 
-/* Glassmorphism utilities */
+/* Glassmorphism utility (used by overlay chrome only). */
 .glass-panel {
   background: rgba(255, 255, 255, 0.88);
   backdrop-filter: blur(12px);
@@ -97,26 +150,28 @@
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-.glass-dark {
-  background: rgba(15, 23, 42, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(51, 65, 85, 0.8);
+/* The single app gradient. */
+.bg-brand-gradient {
+  background: linear-gradient(
+    135deg,
+    var(--color-brand-primary-dark) 0%,
+    var(--color-brand-primary) 100%
+  );
 }
 
 /* Custom Pulse and Pulse Glow Animations */
 @keyframes pulse-ring {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7);
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0.7);
   }
   70% {
     transform: scale(1.05);
-    box-shadow: 0 0 0 14px rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 14px rgb(37 99 235 / 0);
   }
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgba(37, 99, 235, 0);
+    box-shadow: 0 0 0 0 rgb(37 99 235 / 0);
   }
 }
 
@@ -139,11 +194,6 @@
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-}
-
-/* Home header gradient */
-.bg-home-gradient {
-  background: linear-gradient(135deg, #4a00e0 0%, #8e2de2 50%, #ff512f 100%);
 }
 
 /* Slide-in animations */
@@ -170,8 +220,12 @@
 }
 
 @keyframes fade-in {
-  from { opacity: 0; }
-  to   { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 .animate-slide-in-top {

@@ -74,7 +74,7 @@ export function SearchBar() {
       const rideTimeMin = [20, 25, 30, 18, 15][idx % 5];
       const totalTimeMin = walkTimeMin + rideTimeMin;
       const arrivalTime = getArrivalTime(totalTimeMin);
-      const color = route.color || '#2563eb';
+      const color = route.color || 'var(--color-brand-primary)';
 
       return {
         id: route.id,
@@ -107,37 +107,45 @@ export function SearchBar() {
     <div className="w-full space-y-2.5 pointer-events-auto">
       {/* ── Collapsed vs Expanded Search Card ───────────────────────────── */}
       {!isExpanded ? (
-        /* Collapsed Pill Input */
-        <div
+        /* Collapsed Pill — a real button that opens the search sheet */
+        <button
+          type="button"
           onClick={() => setIsExpanded(true)}
-          className="relative bg-white rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.08)] flex items-center px-4 py-3 border border-gray-100/90 cursor-pointer transition-all hover:border-blue-300"
+          className="relative w-full bg-white rounded-full shadow-card flex items-center px-4 py-3 border border-slate-100/90 cursor-pointer transition-all hover:border-blue-300 text-left"
         >
-          <Search className="w-5 h-5 text-gray-400 mr-3 shrink-0" />
-          <input
-            type="text"
-            value={searchQuery}
-            readOnly
-            placeholder="¿A dónde quieres ir?"
-            className="flex-1 bg-transparent border-none text-gray-900 placeholder-gray-400 text-sm p-0 w-full font-medium pointer-events-none"
-          />
+          <Search className="w-5 h-5 text-slate-500 mr-3 shrink-0" />
+          <span className="flex-1 text-slate-800 text-sm font-medium">
+            {searchQuery || '¿A dónde quieres ir?'}
+          </span>
 
           {searchQuery ? (
-            <button
-              onClick={handleClear}
-              className="p-1 rounded-full text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors ml-2 pointer-events-auto"
-              title="Limpiar búsqueda"
+            <span
+              role="button"
+              tabIndex={0}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleClear(e);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.stopPropagation();
+                  handleClear(e);
+                }
+              }}
+              className="p-1 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors ml-2"
+              aria-label="Limpiar búsqueda"
             >
               <X className="w-4 h-4" />
-            </button>
+            </span>
           ) : (
-            <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 ml-2">
+            <span className="text-xs font-bold text-brand-primary bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 ml-2">
               Buscar
             </span>
           )}
-        </div>
+        </button>
       ) : (
         /* Expanded Dual Input Card (Origen + Destino + Swap) */
-        <div className="bg-white rounded-3xl p-4 border border-gray-100/90 shadow-[0_8px_30px_rgba(0,0,0,0.12)] relative space-y-3 animate-slide-in-top">
+        <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-raised relative space-y-3 animate-slide-in-top">
           {/* Swap Button Floating on Right edge */}
           <button
             type="button"
@@ -161,7 +169,7 @@ export function SearchBar() {
           </div>
 
           {/* Horizontal Divider */}
-          <div className="border-t border-gray-100" />
+          <div className="border-t border-slate-100" />
 
           {/* Destination Row */}
           <div className="flex items-center gap-3 pr-10">
@@ -178,7 +186,7 @@ export function SearchBar() {
               <button
                 type="button"
                 onClick={handleClear}
-                className="p-1 rounded-full text-gray-400 hover:text-gray-600"
+                className="p-1 rounded-full text-slate-400 hover:text-slate-600"
               >
                 <X className="w-3.5 h-3.5" />
               </button>
@@ -186,10 +194,10 @@ export function SearchBar() {
           </div>
 
           {/* Close expanded button */}
-          <div className="flex justify-end pt-1 border-t border-gray-50">
+          <div className="flex justify-end pt-1 border-t border-slate-50">
             <button
               onClick={() => setIsExpanded(false)}
-              className="text-[11px] font-bold text-slate-500 hover:text-slate-800"
+              className="text-xs font-bold text-slate-500 hover:text-slate-800"
             >
               Cerrar buscador
             </button>
@@ -199,9 +207,9 @@ export function SearchBar() {
 
       {/* ── Search Results Popup (when expanded & searching) ─────────────── */}
       {isExpanded && searchQuery.trim() !== '' && (
-        <div className="bg-white/98 backdrop-blur-xl rounded-3xl p-3.5 border border-gray-100 shadow-[0_8px_30px_rgba(0,0,0,0.12)] space-y-2.5 max-h-[42vh] overflow-y-auto hide-scrollbar animate-slide-in-top">
+        <div className="bg-white/98 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-100 shadow-raised space-y-2.5 max-h-[42vh] overflow-y-auto hide-scrollbar animate-slide-in-top">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-extrabold text-slate-900">
+            <span className="text-xs font-bold text-slate-900">
               {searchResults.length} opciones encontradas
             </span>
           </div>
@@ -211,11 +219,11 @@ export function SearchBar() {
               <div
                 key={item.id}
                 onClick={() => handleSelectOption(item)}
-                className="bg-white rounded-2xl p-3.5 border border-gray-100 shadow-2xs space-y-2 hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer group active:scale-[0.99]"
+                className="bg-white rounded-2xl p-3.5 border border-slate-100 shadow-2xs space-y-2 hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer group active:scale-[0.99]"
               >
                 <div className="flex items-baseline justify-between">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-xl font-black text-slate-900">
+                    <span className="text-xl font-bold text-slate-900">
                       {item.totalTimeMin}
                     </span>
                     <span className="text-xs font-bold text-slate-900">
@@ -223,20 +231,20 @@ export function SearchBar() {
                     </span>
                   </div>
 
-                  <span className="text-[11px] font-medium text-slate-400">
+                  <span className="text-xs font-medium text-slate-500">
                     Llegada {item.arrivalTime}
                   </span>
                 </div>
 
-                <div className="flex items-center gap-1.5 flex-wrap text-[11px]">
+                <div className="flex items-center gap-1.5 flex-wrap text-xs">
                   <div className="flex items-center gap-1 text-slate-500 font-semibold">
-                    <Footprints className="w-3 h-3 text-slate-400" />
+                    <Footprints className="w-3 h-3 text-slate-500" />
                     <span>{item.walkTimeMin} min</span>
                   </div>
 
-                  <ChevronRight className="w-3 h-3 text-slate-300 shrink-0" />
+                  <ChevronRight className="w-3 h-3 text-slate-500 shrink-0" />
 
-                  <div className="bg-slate-100 rounded-full px-2.5 py-1 text-[11px] font-bold text-slate-800 flex items-center gap-1.5 border border-slate-200/60">
+                  <div className="bg-slate-100 rounded-full px-2.5 py-1 text-xs font-bold text-slate-800 flex items-center gap-1.5 border border-slate-200/60">
                     <span
                       className="w-2 h-2 rounded-full shrink-0"
                       style={{ backgroundColor: item.color }}
@@ -259,7 +267,7 @@ export function SearchBar() {
             className={`flex-shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
               onlyNearby
                 ? 'bg-emerald-600 text-white border-emerald-600 font-bold'
-                : 'bg-white text-gray-700 border-gray-100 hover:bg-gray-50 font-medium'
+                : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium'
             }`}
           >
             <Navigation className={`w-3.5 h-3.5 ${isLocating ? 'animate-spin text-emerald-300' : 'text-emerald-500'}`} />
@@ -274,7 +282,7 @@ export function SearchBar() {
             className={`flex-shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
               !onlyNearby && !searchQuery
                 ? 'bg-slate-900 text-white border-slate-900 font-bold'
-                : 'bg-white text-gray-700 border-gray-100 hover:bg-gray-50 font-medium'
+                : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium'
             }`}
           >
             <Layers className="w-3.5 h-3.5 text-blue-500" />
@@ -289,10 +297,10 @@ export function SearchBar() {
             className={`flex-shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
               searchQuery === 'Centro'
                 ? 'bg-blue-600 text-white border-blue-600 font-bold'
-                : 'bg-white text-gray-700 border-gray-100 hover:bg-gray-50 font-medium'
+                : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium'
             }`}
           >
-            <Home className="w-3.5 h-3.5 text-gray-500" />
+            <Home className="w-3.5 h-3.5 text-slate-500" />
             <span>Casa (Centro)</span>
           </button>
 
@@ -304,7 +312,7 @@ export function SearchBar() {
             className={`flex-shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
               searchQuery === 'UNICA'
                 ? 'bg-purple-600 text-white border-purple-600 font-bold'
-                : 'bg-white text-gray-700 border-gray-100 hover:bg-gray-50 font-medium'
+                : 'bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium'
             }`}
           >
             <Briefcase className="w-3.5 h-3.5 text-blue-600" />
@@ -312,8 +320,8 @@ export function SearchBar() {
           </button>
 
           <button
-            onClick={() => setIsExpanded(true)}
-            className="flex-shrink-0 bg-white rounded-full shadow-sm px-3.5 py-1.5 flex items-center gap-1.5 border border-gray-100 text-gray-700 font-medium hover:bg-gray-50 transition-all active:scale-95"
+            onClick={() => navigate('/favoritos')}
+            className="flex-shrink-0 bg-white rounded-full shadow-sm px-3.5 py-1.5 flex items-center gap-1.5 border border-slate-100 text-slate-700 font-medium hover:bg-slate-50 transition-all active:scale-95"
           >
             <Star className="w-3.5 h-3.5 text-amber-500" />
             <span>Favoritos</span>

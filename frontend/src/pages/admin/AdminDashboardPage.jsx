@@ -6,6 +6,7 @@ import { adminStopService } from '../../services/adminStopService';
 import { adminRouteService } from '../../services/adminRouteService';
 import { cityService } from '../../services/cityService';
 import { useNavigate } from 'react-router-dom';
+import { BRAND_PRIMARY } from '../../constants/brand';
 
 export function AdminDashboardPage() {
   const [activeTab, setActiveTab] = useState('routes');
@@ -42,9 +43,9 @@ export function AdminDashboardPage() {
   const filteredDepartments = PERU_DEPARTMENTS.filter(d =>
     d.toLowerCase().includes(departmentSearch.toLowerCase())
   );
-  const [lineForm, setLineForm] = useState({ cityId: '', name: '', code: '', color: '#2563eb', company: '', contact: '', description: '' });
+  const [lineForm, setLineForm] = useState({ cityId: '', name: '', code: '', color: BRAND_PRIMARY, company: '', contact: '', description: '' });
   const [stopForm, setStopForm] = useState({ cityId: '', name: '', latitude: '', longitude: '', reference: '', address: '', isAccessible: true });
-  const [routeForm, setRouteForm] = useState({ transportLineId: '', code: '', name: '', color: '#2563eb', fare: '', schedule: '', frequency: '', description: '' });
+  const [routeForm, setRouteForm] = useState({ transportLineId: '', code: '', name: '', color: BRAND_PRIMARY, fare: '', schedule: '', frequency: '', description: '' });
 
   const navigate = useNavigate();
   const deptDropdownRef = useRef(null);
@@ -117,7 +118,7 @@ export function AdminDashboardPage() {
   };
 
   const resetLineForm = () => {
-    setLineForm({ cityId: cities[0]?.id || '', name: '', code: '', color: '#2563eb', company: '', contact: '', description: '' });
+    setLineForm({ cityId: cities[0]?.id || '', name: '', code: '', color: BRAND_PRIMARY, company: '', contact: '', description: '' });
     setShowAddLine(false);
     setEditLine(null);
   };
@@ -137,7 +138,7 @@ export function AdminDashboardPage() {
   };
 
   const resetRouteForm = () => {
-    setRouteForm({ transportLineId: lines[0]?.id || '', code: '', name: '', color: '#2563eb', fare: '', schedule: '', frequency: '', description: '' });
+    setRouteForm({ transportLineId: lines[0]?.id || '', code: '', name: '', color: BRAND_PRIMARY, fare: '', schedule: '', frequency: '', description: '' });
     setShowAddRoute(false);
     setEditRoute(null);
   };
@@ -274,7 +275,7 @@ export function AdminDashboardPage() {
     <div className="max-w-7xl mx-auto w-full p-4 sm:p-6 space-y-6">
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 glass-panel p-4 rounded-2xl border border-slate-200">
         <div>
-          <h1 className="text-xl font-extrabold text-slate-900">Panel Administrativo RutaYa</h1>
+          <h1 className="text-xl font-bold text-slate-900">Panel Administrativo RutaYa</h1>
           <p className="text-xs text-slate-500">Gestión central de líneas, rutas y paraderos</p>
         </div>
         <button onClick={handleLogout} className="flex items-center gap-1.5 px-3 py-2 text-xs font-semibold text-red-600 bg-red-50 hover:bg-red-100 rounded-xl transition-colors">
@@ -291,7 +292,7 @@ export function AdminDashboardPage() {
       )}
 
       {loading ? (
-        <div className="text-center py-12 text-slate-400 text-sm">Cargando datos...</div>
+        <div className="text-center py-12 text-slate-500 text-sm">Cargando datos...</div>
       ) : (
         <>
           <div className="flex gap-2 border-b border-slate-200 pb-2">
@@ -385,7 +386,7 @@ export function AdminDashboardPage() {
                         <td className="p-3">{r.transportLineName}</td>
                         <td className="p-3 font-bold text-emerald-600">{r.fare || '-'}</td>
                         <td className="p-3">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${r.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                          <span className={`px-2 py-0.5 rounded-full text-xs font-bold ${r.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                             {r.status}
                           </span>
                         </td>
@@ -476,7 +477,7 @@ export function AdminDashboardPage() {
                     </div>
                     {l.company && <p className="text-xs text-slate-600">Empresa: <strong>{l.company}</strong></p>}
                     {l.contact && <p className="text-xs text-slate-500">Contacto: {l.contact}</p>}
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold ${l.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
+                    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-bold ${l.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-100 text-slate-500'}`}>
                       {l.status}
                     </span>
                   </div>
@@ -557,7 +558,7 @@ export function AdminDashboardPage() {
                       <tr key={s.id} className="hover:bg-slate-50">
                         <td className="p-3 font-semibold text-slate-900">{s.name}</td>
                         <td className="p-3 text-slate-600">{s.address || s.reference || '-'}</td>
-                        <td className="p-3 font-mono text-[11px] text-slate-500">{s.latitude}, {s.longitude}</td>
+                        <td className="p-3 font-mono text-xs text-slate-500">{s.latitude}, {s.longitude}</td>
                         <td className="p-3">{s.isAccessible ? '✅ Sí' : '❌ No'}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-1">
@@ -605,7 +606,7 @@ export function AdminDashboardPage() {
                       {showDepartmentDropdown && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
                           {filteredDepartments.length === 0 ? (
-                            <div className="p-2 text-slate-400 text-center">Sin resultados</div>
+                            <div className="p-2 text-slate-500 text-center">Sin resultados</div>
                           ) : (
                             filteredDepartments.map((dept) => (
                               <button
@@ -648,7 +649,7 @@ export function AdminDashboardPage() {
                       {showDepartmentDropdown && (
                         <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-48 overflow-y-auto z-50">
                           {filteredDepartments.length === 0 ? (
-                            <div className="p-2 text-slate-400 text-center">Sin resultados</div>
+                            <div className="p-2 text-slate-500 text-center">Sin resultados</div>
                           ) : (
                             filteredDepartments.map((dept) => (
                               <button

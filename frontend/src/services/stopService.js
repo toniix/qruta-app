@@ -1,4 +1,5 @@
 import { apiClient } from './apiClient';
+import { BRAND_PRIMARY } from '../constants/brand';
 import { MOCK_ROUTES, MOCK_STOPS } from './mockData';
 
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
@@ -52,7 +53,7 @@ export const stopService = {
         id: route.id,
         code: route.code,
         name: route.name,
-        color: route.color || '#2563eb',
+        color: route.color || BRAND_PRIMARY,
         directions: ['OUTBOUND'],
         directionLabel: 'IDA',
       }));

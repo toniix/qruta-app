@@ -10,6 +10,7 @@ import {
 } from "react-leaflet";
 import L from "leaflet";
 import { getBoundsFromPoints } from "../../utils/geoUtils";
+import { BRAND_PRIMARY } from "../../constants/brand";
 import { routingService } from "../../services/routingService";
 
 // CARTO basemap. CARTO exige API key en sus tiles raster desde el 25/09/2026:
@@ -33,7 +34,7 @@ if (import.meta.env.DEV && !CARTO_KEY) {
 
 // Lighten (positive) or darken (negative) a hex color by a percentage (0..100).
 function shadeColor(color, percent) {
-  const clean = (color || "#2563eb").replace("#", "");
+  const clean = (color || BRAND_PRIMARY).replace("#", "");
   let num = parseInt(clean, 16);
   let r = num >> 16;
   let g = (num >> 8) & 0xff;
@@ -111,7 +112,7 @@ const createUserLocationIcon = (showLabel = true) =>
         ${
           showLabel
             ? `
-          <div class="px-2 py-0.5 rounded-lg bg-blue-600 text-white text-[10px] font-extrabold shadow-md whitespace-nowrap mb-1 border border-blue-400/50 backdrop-blur-md">
+          <div class="px-2 py-0.5 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-md whitespace-nowrap mb-1 border border-blue-400/50 backdrop-blur-md">
           Tu ubicación actual
           </div>
         `
@@ -131,7 +132,7 @@ const createSearchedLocationIcon = () =>
   L.divIcon({
     className: "custom-search-pin",
     html: `
-      <div class="flex items-center justify-center p-2 rounded-xl bg-purple-600 text-white border-2 border-white shadow-xl animate-bounce">
+      <div class="flex items-center justify-center p-2 rounded-xl bg-purple-600 text-white border-2 border-white shadow-overlay">
         <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
           <circle cx="11" cy="11" r="8"/>
           <path d="m21 21-4.3-4.3"/>
@@ -150,7 +151,7 @@ const createStopIcon = (stopName, isSelected, showLabel = false) =>
         ${
           showLabel
             ? `
-          <div class="px-2 py-0.5 rounded-lg bg-slate-900/90 text-white text-[10px] font-extrabold shadow-lg whitespace-nowrap mb-1 border border-slate-700/80 backdrop-blur-md flex items-center gap-1 transition-transform group-hover:scale-105">
+          <div class="px-2 py-0.5 rounded-lg bg-slate-900/90 text-white text-xs font-bold shadow-lg whitespace-nowrap mb-1 border border-slate-700/80 backdrop-blur-md flex items-center gap-1 transition-transform group-hover:scale-105">
             <span>${stopName}</span>
           </div>
         `
@@ -346,7 +347,7 @@ export function InteractiveMap({
                   {searchedLocation.name}
                 </div>
                 {searchedLocation.district && (
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-xs text-slate-500">
                     {searchedLocation.district}
                   </div>
                 )}
@@ -367,7 +368,7 @@ export function InteractiveMap({
                 key={route.id}
                 positions={positions}
                 pathOptions={{
-                  color: route.color || "#2563eb",
+                  color: route.color || BRAND_PRIMARY,
                   weight: 4,
                   opacity: selectedRoute ? 0.25 : 0.75,
                   lineCap: "round",
@@ -405,7 +406,7 @@ export function InteractiveMap({
                 const isActive =
                   dir.direction === activeDirection ||
                   (!hasBoth && dir.direction !== "INBOUND");
-                const baseColor = selectedRoute.color || "#2563eb";
+                const baseColor = selectedRoute.color || BRAND_PRIMARY;
 
                 return (
                   <Polyline
@@ -437,7 +438,7 @@ export function InteractiveMap({
                     selectedRoute.points
                   }
                   pathOptions={{
-                    color: selectedRoute.color || "#2563eb",
+                    color: selectedRoute.color || BRAND_PRIMARY,
                     weight: 6,
                     opacity: 0.95,
                     lineCap: "round",
@@ -476,17 +477,17 @@ export function InteractiveMap({
             >
               <Popup>
                 <div className="p-1 max-w-[200px]">
-                  <div className="text-[10px] uppercase font-bold text-blue-600">
+                  <div className="text-xs uppercase font-bold text-blue-600">
                     Punto frecuente
                   </div>
                   <div className="text-xs font-bold text-slate-900">
                     {stop.name}
                   </div>
-                  <div className="text-[11px] text-slate-500">
+                  <div className="text-xs text-slate-500">
                     {stop.address || stop.reference}
                   </div>
                   {stop.accessible != null && stop.accessible && (
-                    <span className="inline-block mt-1 text-[10px] bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
+                    <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
                       ♿ Acceso Accesible
                     </span>
                   )}

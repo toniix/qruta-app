@@ -1,4 +1,5 @@
 import { apiClient } from "./apiClient";
+import { BRAND_PRIMARY } from "../constants/brand";
 import { MOCK_ROUTES } from "./mockData";
 import { calculateDistanceKm } from "../utils/geoUtils";
 
@@ -39,7 +40,7 @@ export const routeService = {
           id: "550e8400-e29b-41d4-a716-446655440002",
           code: "R303",
           name: "Parcona - San Joaquín",
-          color: "#2563eb",
+          color: BRAND_PRIMARY,
           totalStops: 22,
           popularityScore: 82,
         },

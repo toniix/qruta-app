@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
@@ -35,14 +35,7 @@ export function HomePage() {
     loadingPopular,
   } = useRoutes();
 
-  const [searchValue, setSearchValue] = useState('');
   const nearbyStopsRef = useRef(null);
-
-  /* Search handler: navigate to /buscar */
-  const handleSearch = (e) => {
-    e.preventDefault();
-    navigate('/buscar');
-  };
 
   const handleNearbyAction = () => {
     locateNearestRoute();
@@ -80,7 +73,7 @@ export function HomePage() {
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-slate-50">
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <header className="bg-home-gradient pt-10 pb-9 px-5 sm:px-6 rounded-b-[36px] text-white relative z-10 animate-slide-in-top space-y-4 shadow-md">
+      <header className="bg-brand-gradient pt-10 pb-9 px-5 sm:px-6 rounded-b-xl text-white relative z-10 animate-slide-in-top space-y-4 shadow-md">
         {/* Top Brand Bar: Logo & App Name + City Badge + Notifications */}
         <div className="flex justify-between items-center">
           <div className="flex items-center gap-3">
@@ -92,10 +85,10 @@ export function HomePage() {
             {/* Brand Title & Badge */}
             <div>
               <div className="flex items-center gap-2">
-                <span className="font-extrabold text-xl tracking-tight text-white drop-shadow-xs">
+                <span className="font-bold text-xl tracking-tight text-white drop-shadow-xs">
                   Ruta<span className="text-amber-300">Ya</span>
                 </span>
-                <span className="text-[10px] font-bold tracking-wider uppercase bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30 backdrop-blur-md flex items-center gap-1">
+                <span className="text-xs font-bold tracking-wider uppercase bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30 backdrop-blur-md flex items-center gap-1">
                   <Sparkles className="w-2.5 h-2.5 text-amber-300" /> Ica
                 </span>
               </div>
@@ -113,25 +106,21 @@ export function HomePage() {
 
         {/* Greeting Sub-header */}
         <div>
-          <h1 className="text-2xl font-extrabold mb-0.5 leading-tight">
+          <h1 className="text-2xl font-bold mb-0.5 leading-tight">
             {greeting}!
           </h1>
           <p className="text-xs text-white/90 font-medium">¿A dónde vamos a viajar hoy?</p>
         </div>
 
-        {/* Search Bar */}
-        <form onSubmit={handleSearch} className="relative pt-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400 pointer-events-none" />
-          <input
-            type="text"
-            value={searchValue}
-            onChange={(e) => setSearchValue(e.target.value)}
-            onClick={() => navigate('/buscar')}
-            readOnly
-            placeholder="Buscar ruta, paradero o lugar..."
-            className="w-full bg-white rounded-full py-3.5 pl-12 pr-4 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-purple-400 shadow-md border-0 text-sm font-medium cursor-pointer"
-          />
-        </form>
+        {/* Search trigger — navigates to the real search page */}
+        <button
+          type="button"
+          onClick={() => navigate('/buscar')}
+          className="relative w-full flex items-center gap-3 bg-white rounded-full py-3.5 pl-12 pr-4 shadow-md border-0 text-sm font-medium text-slate-500 hover:bg-slate-50 transition-colors"
+        >
+          <Search className="absolute left-4 w-5 h-5 text-slate-500 pointer-events-none" />
+          <span>Buscar ruta, paradero o lugar…</span>
+        </button>
       </header>
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
@@ -164,7 +153,7 @@ export function HomePage() {
             label="Favoritos"
             bgClass="bg-rose-50/90 text-rose-600 border border-rose-100/80"
             iconClass="text-rose-500"
-            onClick={() => {/* placeholder */}}
+            onClick={() => navigate('/favoritos')}
           />
         </section>
 
@@ -175,7 +164,7 @@ export function HomePage() {
               <MapPin className="w-5 h-5 text-blue-600 shrink-0" />
               <span>Paraderos cercanos</span>
               {nearbyStops.length > 0 && (
-                <span className="text-xs bg-blue-100 text-blue-800 font-extrabold px-2 py-0.5 rounded-full">
+                <span className="text-xs bg-blue-100 text-blue-800 font-bold px-2 py-0.5 rounded-full">
                   {nearbyStops.length}
                 </span>
               )}
@@ -211,7 +200,7 @@ export function HomePage() {
 
           {/* GPS not active CTA */}
           {!hasCustomLocation && !loadingStops && (
-            <div className="bg-white rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 animate-fade-in">
+            <div className="bg-white rounded-2xl p-5 shadow-card border border-slate-100 animate-fade-in">
               <div className="flex flex-col items-center gap-2.5 py-2 text-center">
                 <div className="w-11 h-11 bg-blue-50 rounded-2xl flex items-center justify-center">
                   <Navigation className="w-5 h-5 text-blue-600" />
@@ -220,7 +209,7 @@ export function HomePage() {
                   <p className="text-sm font-bold text-slate-800">
                     Activa tu ubicación GPS
                   </p>
-                  <p className="text-xs text-slate-400 mt-0.5">
+                  <p className="text-xs text-slate-500 mt-0.5">
                     Descubre los paraderos y puntos más cercanos a ti
                   </p>
                 </div>
@@ -291,12 +280,12 @@ export function HomePage() {
 
           {/* GPS active but no stops found */}
           {!loadingStops && !stopsError && hasCustomLocation && nearbyStops.length === 0 && (
-            <div className="bg-white rounded-3xl p-5 shadow-[0_4px_20px_rgba(0,0,0,0.03)] border border-slate-100 text-center animate-fade-in">
-              <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+            <div className="bg-white rounded-2xl p-5 shadow-card border border-slate-100 text-center animate-fade-in">
+              <MapPin className="w-8 h-8 text-slate-400 mx-auto mb-2" />
               <p className="text-sm font-bold text-slate-800">
                 Sin paraderos cercanos
               </p>
-              <p className="text-xs text-slate-400 mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 No encontramos paraderos en un radio de 1.2 km.
               </p>
             </div>
@@ -320,7 +309,7 @@ export function HomePage() {
           </div>
 
           {loadingPopular ? (
-            <div className="bg-white rounded-3xl p-6 text-center border border-slate-100 text-slate-400">
+            <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 text-slate-500">
               <Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto mb-2" />
               <p className="text-xs font-semibold text-slate-500">Cargando rutas populares...</p>
             </div>
@@ -330,11 +319,11 @@ export function HomePage() {
                 <div
                   key={item.id}
                   onClick={() => handleSelectPopularRoute(item)}
-                  className="bg-white rounded-3xl p-4 border border-slate-100 shadow-[0_4px_20px_rgba(0,0,0,0.03)] flex items-center justify-between gap-3.5 hover:shadow-md hover:border-orange-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                  className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between gap-3.5 hover:shadow-md hover:border-orange-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
                 >
                   {/* Code Pill Badge */}
                   <div
-                    className="w-14 h-10 text-white font-extrabold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+                    className="w-14 h-10 text-white font-bold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
                     style={{ backgroundColor: item.color || '#E8532E' }}
                   >
                     {item.code}
@@ -342,10 +331,10 @@ export function HomePage() {
 
                   {/* Route Name & Total Stops */}
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-extrabold text-slate-900 text-sm truncate leading-tight group-hover:text-orange-600 transition-colors">
+                    <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-orange-600 transition-colors">
                       {item.name}
                     </h3>
-                    <p className="text-xs font-medium text-slate-400 mt-0.5 flex items-center gap-1.5">
+                    <p className="text-xs font-medium text-slate-500 mt-0.5 flex items-center gap-1.5">
                       <span>{item.totalStops} pts. frecuentes</span>
                     </p>
                   </div>
@@ -353,7 +342,7 @@ export function HomePage() {
                   {/* Popularity Score Badge */}
                   <div className="shrink-0 flex items-center gap-1.5 bg-orange-50 border border-orange-100 px-3 py-1.5 rounded-full">
                     <Flame className="w-3.5 h-3.5 text-orange-500 fill-orange-500" />
-                    <span className="text-xs font-extrabold text-orange-600">
+                    <span className="text-xs font-bold text-orange-600">
                       {item.popularityScore}%
                     </span>
                   </div>

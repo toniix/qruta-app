@@ -92,7 +92,7 @@ export function HomeMapPage() {
   };
 
   return (
-    <div className="relative w-full h-full flex-1 overflow-hidden bg-gray-100 flex flex-col">
+    <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-100 flex flex-col">
       {/* ── Interactive Leaflet Map Background ────────────────────────────── */}
       <div className="absolute inset-0 z-0 w-full h-full">
         <InteractiveMap
@@ -122,17 +122,17 @@ export function HomeMapPage() {
             {/* Back button */}
             <button
               onClick={handleCloseDetail}
-              className="w-10 h-10 rounded-full bg-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-gray-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
+              className="w-10 h-10 rounded-full bg-white shadow-raised border border-slate-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
               title="Volver al mapa"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>
 
             {/* Selected Route Title Pill */}
-            <div className="bg-white rounded-full px-4 py-2 shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-gray-100 flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 truncate">
+            <div className="bg-white rounded-full px-4 py-2 shadow-raised border border-slate-100 flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 truncate">
               <span
                 className="w-2.5 h-2.5 rounded-full shrink-0"
-                style={{ backgroundColor: selectedRoute.color || "#2563eb" }}
+                style={{ backgroundColor: selectedRoute.color || "var(--color-brand-primary)" }}
               />
               <span className="truncate">
                 {selectedRoute.code} -{" "}
@@ -143,7 +143,7 @@ export function HomeMapPage() {
             {/* Close button */}
             <button
               onClick={handleCloseDetail}
-              className="w-10 h-10 rounded-full bg-white shadow-[0_4px_16px_rgba(0,0,0,0.1)] border border-gray-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
+              className="w-10 h-10 rounded-full bg-white shadow-raised border border-slate-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
               title="Cerrar vista de detalle"
             >
               <span className="text-sm font-bold">✕</span>
@@ -161,7 +161,7 @@ export function HomeMapPage() {
         <button
           onClick={locateNearestRoute}
           disabled={isLocating}
-          className="absolute -top-14 right-4 sm:right-2 z-40 pointer-events-auto w-12 h-12 rounded-full bg-white text-slate-800 shadow-[0_8px_30px_rgba(0,0,0,0.18)] border border-gray-100 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90"
+          className="absolute -top-14 right-4 sm:right-2 z-40 pointer-events-auto w-12 h-12 rounded-full bg-white text-slate-800 shadow-overlay border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90"
           title="Centrar en mi ubicación GPS"
         >
           <Target
@@ -180,17 +180,17 @@ export function HomeMapPage() {
           </div>
         ) : (
           /* Route Horizontal Carousel Sheet when no route selected (occupies 100% width on mobile) */
-          <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/95 backdrop-blur-xl rounded-t-[32px] sm:rounded-3xl shadow-[0_-8px_35px_rgba(0,0,0,0.12)] border border-gray-100/90 animate-slide-in-bottom mb-16 sm:mb-20">
+          <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/95 backdrop-blur-xl rounded-t-2xl sm:rounded-2xl shadow-overlay border border-slate-100/90 animate-slide-in-bottom mb-16 sm:mb-20">
             {/* Sheet Handle Indicator */}
             <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto -mt-1 mb-1 shrink-0" />
 
             {/* Carousel Header & Counter */}
             <div className="flex items-center justify-between px-1">
               <div>
-                <h2 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
+                <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
                   <RouteIcon className="w-4 h-4 text-blue-600 shrink-0" />
                   <span>{getCategoryTitle()}</span>
-                  <span className="text-xs bg-blue-50 text-blue-700 font-extrabold px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
+                  <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
                     {filteredRoutes.length}
                   </span>
                 </h2>
@@ -232,7 +232,7 @@ export function HomeMapPage() {
 
             {/* Loading state */}
             {loading && (
-              <div className="py-8 text-center text-slate-400">
+              <div className="py-8 text-center text-slate-500">
                 <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
                 <p className="text-xs font-semibold text-slate-500">
                   Cargando rutas disponibles...
@@ -242,12 +242,12 @@ export function HomeMapPage() {
 
             {/* Empty state */}
             {!loading && filteredRoutes.length === 0 && (
-              <div className="bg-slate-50/80 rounded-2xl p-6 text-center shadow-2xs border border-gray-100">
-                <MapPin className="w-8 h-8 text-slate-300 mx-auto mb-2" />
+              <div className="bg-slate-50/80 rounded-2xl p-6 text-center shadow-2xs border border-slate-100">
+                <MapPin className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-800">
                   No se encontraron rutas
                 </p>
-                <p className="text-[11px] text-slate-400 mt-0.5">
+                <p className="text-xs text-slate-500 mt-0.5">
                   Intenta cambiar el texto de búsqueda o la ubicación.
                 </p>
               </div>

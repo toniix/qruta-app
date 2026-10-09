@@ -53,7 +53,7 @@ export function RouteCard({ route, isNearest, distanceKm }) {
 
   // Extract display code (e.g. R101, T20)
   const code = route.code || "Ruta";
-  const color = route.color || "#2563eb";
+  const color = route.color || "var(--color-brand-primary)";
   const name = (route.name || "").replace(/^Ruta \w+:\s*/i, "");
   const transportLine =
     route.transportLineName ||
@@ -65,34 +65,34 @@ export function RouteCard({ route, isNearest, distanceKm }) {
   return (
     <div
       onClick={handleRouteClick}
-      className={`bg-white rounded-3xl p-4 border transition-all duration-200 cursor-pointer ${
+      className={`bg-white rounded-2xl p-4 border transition-all duration-200 cursor-pointer ${
         isSelected
           ? "border-blue-500 ring-2 ring-blue-500/20 shadow-md scale-[1.01]"
-          : "border-gray-100 shadow-[0_4px_20px_rgba(0,0,0,0.04)] hover:border-blue-200 hover:shadow-md"
+          : "border-slate-100 shadow-card hover:border-blue-200 hover:shadow-md"
       }`}
     >
       {/* ── Header: Colored strip + code + name + transport line ─────────── */}
       <div className="flex items-center gap-3">
         {/* Code Pill */}
         <div
-          className="w-16 h-11 text-white font-extrabold text-sm rounded-2xl flex justify-center items-center shrink-0 shadow-2xs uppercase tracking-wider"
+          className="w-16 h-11 text-white font-bold text-sm rounded-2xl flex justify-center items-center shrink-0 shadow-2xs uppercase tracking-wider"
           style={{ backgroundColor: color }}
         >
           {code}
         </div>
 
         <div className="min-w-0 flex-1">
-          <h3 className="font-extrabold text-slate-900 text-sm leading-tight truncate">
+          <h3 className="font-bold text-slate-900 text-sm leading-tight truncate">
             {name}
           </h3>
-          <p className="text-xs font-medium text-slate-400 mt-0.5 truncate">
+          <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
             {transportLine}
           </p>
         </div>
 
         {/* Nearest / distance badge */}
         {isNearest && distanceKm != null && (
-          <div className="flex items-center gap-1 text-emerald-600 font-extrabold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/70 shrink-0">
+          <div className="flex items-center gap-1 text-emerald-600 font-bold text-xs bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/70 shrink-0">
             <Wifi className="w-3 h-3" />
             <span>{Math.round(distanceKm * 1000)}m</span>
           </div>
@@ -133,10 +133,10 @@ export function RouteCard({ route, isNearest, distanceKm }) {
         <div className="rounded-2xl bg-orange-50/70 border border-orange-100/60 p-2.5 flex items-center gap-2.5 min-w-0">
           <Clock3 className="w-4 h-4 text-orange-500 shrink-0" />
           <div className="min-w-0">
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide truncate">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">
               Frecuencia
             </p>
-            <p className="text-xs font-extrabold text-slate-800 leading-tight truncate">
+            <p className="text-xs font-bold text-slate-800 leading-tight truncate">
               {frequency}
             </p>
           </div>
@@ -145,10 +145,10 @@ export function RouteCard({ route, isNearest, distanceKm }) {
         <div className="rounded-2xl bg-emerald-50/70 border border-emerald-100/60 p-2.5 flex items-center gap-2.5 min-w-0">
           <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
           <div className="min-w-0">
-            <p className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wide truncate">
+            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">
               Tarifa
             </p>
-            <p className="text-xs font-extrabold text-slate-800 leading-tight truncate">
+            <p className="text-xs font-bold text-slate-800 leading-tight truncate">
               {fare}
             </p>
           </div>
@@ -156,12 +156,12 @@ export function RouteCard({ route, isNearest, distanceKm }) {
       </div>
 
       {/* ── Footer Action Buttons ────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-gray-100">
+      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-100">
         {/* Puntos frecuentes button */}
         <button
           type="button"
           onClick={handleToggleStopsDropdown}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-extrabold transition-all border ${
+          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
             isStopsExpanded
               ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
               : "text-slate-700 bg-slate-100 hover:bg-slate-200/80 border-slate-200/60"
@@ -193,7 +193,7 @@ export function RouteCard({ route, isNearest, distanceKm }) {
           onClick={(e) => e.stopPropagation()}
           className="mt-3 pt-3 border-t border-slate-100 space-y-2 animate-slide-in-top"
         >
-          <div className="flex items-center justify-between text-[10px] font-extrabold text-slate-400 uppercase tracking-wider px-0.5">
+          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-0.5">
             <span>Puntos frecuentes del trayecto</span>
             <span className="text-blue-600 font-semibold normal-case">
               Toca para enfocar
@@ -215,7 +215,7 @@ export function RouteCard({ route, isNearest, distanceKm }) {
                 >
                   <div className="flex items-center gap-2 truncate min-w-0">
                     <span
-                      className="w-4 h-4 rounded-full text-white text-[10px] font-extrabold flex items-center justify-center shrink-0"
+                      className="w-4 h-4 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0"
                       style={{ backgroundColor: color }}
                     >
                       {idx + 1}
@@ -225,14 +225,14 @@ export function RouteCard({ route, isNearest, distanceKm }) {
                         {stop.name}
                       </p>
                       {(stop.address || stop.reference) && (
-                        <p className="text-[10px] text-slate-400 truncate">
+                        <p className="text-xs text-slate-500 truncate">
                           {stop.address || stop.reference}
                         </p>
                       )}
                     </div>
                   </div>
                   {stop.isAccessible === true && (
-                    <span className="text-[10px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0 font-medium">
+                    <span className="text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0 font-medium">
                       ♿
                     </span>
                   )}

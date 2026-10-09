@@ -27,7 +27,7 @@ export function AdminLoginPage() {
 
   return (
     <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-100">
-      <div className="w-full max-w-md bg-white rounded-3xl shadow-xl border border-slate-200/80 p-6 sm:p-8 space-y-6">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-overlay border border-slate-200/80 p-6 sm:p-8 space-y-6">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30">
             <ShieldCheck className="w-6 h-6" />
@@ -57,7 +57,7 @@ export function AdminLoginPage() {
               Correo electrónico
             </label>
             <div className="relative flex items-center">
-              <User className="absolute left-3.5 w-4 h-4 text-slate-400" />
+              <User className="absolute left-3.5 w-4 h-4 text-slate-500" />
               <input
                 type="email"
                 required
@@ -74,7 +74,7 @@ export function AdminLoginPage() {
               Contraseña
             </label>
             <div className="relative flex items-center">
-              <Lock className="absolute left-3.5 w-4 h-4 text-slate-400" />
+              <Lock className="absolute left-3.5 w-4 h-4 text-slate-500" />
               <input
                 type="password"
                 required
