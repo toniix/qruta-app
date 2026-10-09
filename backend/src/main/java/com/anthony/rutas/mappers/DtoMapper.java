@@ -4,6 +4,7 @@ import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public class DtoMapper {
@@ -69,33 +70,37 @@ public class DtoMapper {
                                 .map(DtoMapper::toRouteDirectionResponse)
                                 .collect(Collectors.toList());
 
+                RouteDetailResponse.TransportLineInfo transportLine = RouteDetailResponse.TransportLineInfo.builder()
+                                .id(route.getTransportLine().getId())
+                                .name(route.getTransportLine().getName())
+                                .build();
+
+                RouteDetailResponse.ScheduleInfo schedule = RouteDetailResponse.ScheduleInfo.builder()
+                                .hours(route.getSchedule())
+                                .frequency(route.getFrequency())
+                                .build();
+
                 return RouteDetailResponse.builder()
                                 .id(route.getId())
                                 .code(route.getCode())
                                 .name(route.getName())
                                 .color(route.getColor())
-                                .description(route.getDescription())
-                                .status(route.getStatus())
                                 .fare(route.getFare())
-                                .schedule(route.getSchedule())
-                                .frequency(route.getFrequency())
-                                .transportLineId(route.getTransportLine().getId())
-                                .transportLineName(route.getTransportLine().getName())
+                                .transportLine(transportLine)
+                                .description(route.getDescription())
+                                .schedule(schedule)
+                                .status(route.getStatus())
                                 .directions(directionResponses)
                                 .build();
         }
 
         public static RouteDirectionResponse toRouteDirectionResponse(RouteDirection direction) {
-                List<StopResponse> stops = direction.getRouteStops().stream()
-                                .map(rs -> toStopResponse(rs.getStop()))
+                List<DirectionStopResponse> stops = direction.getRouteStops().stream()
+                                .map(DtoMapper::toDirectionStopResponse)
                                 .collect(Collectors.toList());
 
-                List<RoutePointResponse> points = direction.getRoutePoints().stream()
-                                .map(rp -> RoutePointResponse.builder()
-                                                .pointOrder(rp.getPointOrder())
-                                                .latitude(rp.getLocation().getY())
-                                                .longitude(rp.getLocation().getX())
-                                                .build())
+                List<List<Double>> points = direction.getRoutePoints().stream()
+                                .map(rp -> List.of(rp.getLocation().getY(), rp.getLocation().getX()))
                                 .collect(Collectors.toList());
 
                 return RouteDirectionResponse.builder()
@@ -107,6 +112,29 @@ public class DtoMapper {
                                 .estimatedMinutes(direction.getEstimatedMinutes())
                                 .stops(stops)
                                 .routePoints(points)
+                                .build();
+        }
+
+        public static DirectionStopResponse toDirectionStopResponse(RouteStop routeStop) {
+                Stop stop = routeStop.getStop();
+                if (stop == null) {
+                        return null;
+                }
+
+                DirectionStopResponse.Coordinates coordinates = DirectionStopResponse.Coordinates.builder()
+                                .latitude(stop.getLocation() != null ? stop.getLocation().getY() : null)
+                                .longitude(stop.getLocation() != null ? stop.getLocation().getX() : null)
+                                .build();
+
+                return DirectionStopResponse.builder()
+                                .id(stop.getId())
+                                .name(stop.getName())
+                                .location(coordinates)
+                                .reference(stop.getReference())
+                                .address(stop.getAddress())
+                                .accessible(stop.isAccessible())
+                                .stopOrder(routeStop.getStopOrder())
+                                .distanceFromStart(routeStop.getDistanceFromStart())
                                 .build();
         }
 
@@ -128,6 +156,24 @@ public class DtoMapper {
                                 .collect(Collectors.toList());
         }
 
+        public static PopularRouteResponse toPopularRouteResponse(Route route) {
+                long totalStops = route.getDirections().stream()
+                                .flatMap(dir -> dir.getRouteStops().stream())
+                                .map(rs -> rs.getStop() != null ? rs.getStop().getId() : null)
+                                .filter(Objects::nonNull)
+                                .distinct()
+                                .count();
+
+                return PopularRouteResponse.builder()
+                                .id(route.getId())
+                                .code(route.getCode())
+                                .name(route.getName())
+                                .color(route.getColor())
+                                .totalStops((int) totalStops)
+                                .popularityScore(route.getPopularityScore())
+                                .build();
+        }
+
         public static List<KeyStopResponse> toKeyStopList(List<Stop> stops) {
                 return stops.stream()
                                 .filter(stop -> stop != null && Boolean.TRUE.equals(stop.getKeyStop()))
@@ -139,5 +185,16 @@ public class DtoMapper {
                 return stops.stream()
                                 .map(DtoMapper::toStopResponse)
                                 .collect(Collectors.toList());
+        }
+
+        public static StopRouteResponse toStopRouteResponse(Route route, List<String> directions, String directionLabel) {
+                return StopRouteResponse.builder()
+                                .id(route.getId())
+                                .code(route.getCode())
+                                .name(route.getName())
+                                .color(route.getColor())
+                                .directions(directions)
+                                .directionLabel(directionLabel)
+                                .build();
         }
 }

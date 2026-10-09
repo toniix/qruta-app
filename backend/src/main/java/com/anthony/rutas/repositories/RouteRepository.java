@@ -3,6 +3,7 @@ package com.anthony.rutas.repositories;
 import com.anthony.rutas.entities.Route;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
@@ -24,4 +25,12 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
      */
     @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine")
     List<Route> findAllWithTransportLine();
+
+    /**
+     * Fetch the most popular active routes, ordered by popularity score
+     * descending. Routes without a score (null) are treated as 0 and sorted last.
+     */
+    @Query("SELECT r FROM Route r WHERE r.status = 'ACTIVE' " +
+           "ORDER BY COALESCE(r.popularityScore, 0) DESC, r.name ASC")
+    List<Route> findPopular(Pageable pageable);
 }

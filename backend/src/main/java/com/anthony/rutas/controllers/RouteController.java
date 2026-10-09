@@ -21,6 +21,11 @@ public class RouteController {
         return ResponseEntity.ok(routeService.findAllCards());
     }
 
+    @GetMapping("/routes/popular")
+    public ResponseEntity<List<PopularRouteResponse>> getPopularRoutes() {
+        return ResponseEntity.ok(routeService.findPopularRoutes());
+    }
+
     @GetMapping("/routes/{id}")
     public ResponseEntity<RouteDetailResponse> getRouteById(@PathVariable UUID id) {
         return ResponseEntity.ok(routeService.findById(id));

@@ -7,6 +7,7 @@ import com.anthony.rutas.entities.*;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.RouteStopRepository;
 import com.anthony.rutas.repositories.StopRepository;
 import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
@@ -15,7 +16,11 @@ import org.locationtech.jts.geom.Point;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.TreeSet;
 import java.util.UUID;
 
 @Service
@@ -24,6 +29,7 @@ public class StopService {
 
     private final StopRepository stopRepository;
     private final CityRepository cityRepository;
+    private final RouteStopRepository routeStopRepository;
     private final GeometryFactory geometryFactory = new GeometryFactory();
 
     public List<StopResponse> findAll() {
@@ -34,6 +40,46 @@ public class StopService {
         Stop stop = stopRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + id));
         return DtoMapper.toStopResponse(stop);
+    }
+
+    /**
+     * Returns all routes that pass through the given stop, grouped by route.
+     * Each entry includes the distinct directions served (OUTBOUND/INBOUND)
+     * and a derived label (IDA / VUELTA / IDA Y VUELTA) computed here, never
+     * persisted.
+     */
+    @Transactional(readOnly = true)
+    public List<StopRouteResponse> findRoutesByStop(UUID stopId) {
+        if (!stopRepository.existsById(stopId)) {
+            throw new ResourceNotFoundException("Stop not found with id: " + stopId);
+        }
+
+        Map<UUID, Route> routesByRoute = new LinkedHashMap<>();
+        Map<UUID, Set<String>> directionsByRoute = new LinkedHashMap<>();
+
+        for (RouteStop routeStop : routeStopRepository.findByStopId(stopId)) {
+            Route route = routeStop.getDirection().getRoute();
+            routesByRoute.putIfAbsent(route.getId(), route);
+            directionsByRoute.computeIfAbsent(route.getId(), id -> new TreeSet<>())
+                    .add(routeStop.getDirection().getDirection());
+        }
+
+        return routesByRoute.entrySet().stream()
+                .map(entry -> {
+                    Route route = entry.getValue();
+                    List<String> directions = List.copyOf(directionsByRoute.get(entry.getKey()));
+                    return DtoMapper.toStopRouteResponse(route, directions, resolveDirectionLabel(directions));
+                })
+                .toList();
+    }
+
+    private String resolveDirectionLabel(List<String> directions) {
+        boolean hasOutbound = directions.contains("OUTBOUND");
+        boolean hasInbound = directions.contains("INBOUND");
+        if (hasOutbound && hasInbound) {
+            return "IDA Y VUELTA";
+        }
+        return hasOutbound ? "IDA" : "VUELTA";
     }
 
     public List<StopResponse> search(String query) {

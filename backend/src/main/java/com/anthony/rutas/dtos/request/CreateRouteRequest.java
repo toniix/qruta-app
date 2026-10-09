@@ -1,5 +1,6 @@
 package com.anthony.rutas.dtos.request;
 
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
 import lombok.*;
@@ -27,6 +28,9 @@ public class CreateRouteRequest {
     private String schedule;
     private String frequency;
     private String status;
+
+    @Min(value = 0, message = "Popularity score cannot be negative")
+    private Integer popularityScore;
 
     private List<RouteDirectionRequest> directions;
 

@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -21,6 +22,8 @@ import java.util.UUID;
 @Service
 @RequiredArgsConstructor
 public class RouteService {
+
+    private static final int MAX_POPULAR_ROUTES = 10;
 
     private final RouteRepository routeRepository;
     private final RouteDirectionRepository routeDirectionRepository;
@@ -43,6 +46,19 @@ public class RouteService {
         return DtoMapper.toRouteSummaryList(routeRepository.findAllWithTransportLine());
     }
 
+    /**
+     * Returns the most popular active routes (top N) for the home screen
+     * "Rutas populares" section.
+     */
+    @Transactional(readOnly = true)
+    public List<PopularRouteResponse> findPopularRoutes() {
+        return routeRepository.findPopular(PageRequest.of(0, MAX_POPULAR_ROUTES))
+                .stream()
+                .map(DtoMapper::toPopularRouteResponse)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public RouteDetailResponse findById(UUID id) {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + id));
@@ -74,6 +90,7 @@ public class RouteService {
                 .schedule(request.getSchedule())
                 .frequency(request.getFrequency())
                 .status(request.getStatus() != null ? request.getStatus() : "ACTIVE")
+                .popularityScore(request.getPopularityScore() != null ? request.getPopularityScore() : 0)
                 .build();
 
         route = routeRepository.save(route);
@@ -145,6 +162,8 @@ public class RouteService {
             route.setFrequency(request.getFrequency());
         if (request.getStatus() != null)
             route.setStatus(request.getStatus());
+        if (request.getPopularityScore() != null)
+            route.setPopularityScore(request.getPopularityScore());
 
         return DtoMapper.toRouteSummaryResponse(routeRepository.save(route));
     }

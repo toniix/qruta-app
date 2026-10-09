@@ -26,6 +26,11 @@ public class StopController {
         return ResponseEntity.ok(stopService.findById(id));
     }
 
+    @GetMapping("/stops/{id}/routes")
+    public ResponseEntity<List<StopRouteResponse>> getRoutesByStop(@PathVariable UUID id) {
+        return ResponseEntity.ok(stopService.findRoutesByStop(id));
+    }
+
     @GetMapping("/stops/search")
     public ResponseEntity<List<StopResponse>> searchStops(@RequestParam String query) {
         return ResponseEntity.ok(stopService.search(query));

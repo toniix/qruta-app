@@ -15,12 +15,30 @@ public class RouteDetailResponse {
     private String code;
     private String name;
     private String color;
-    private String description;
-    private String status;
     private String fare;
-    private String schedule;
-    private String frequency;
-    private UUID transportLineId;
-    private String transportLineName;
+    private TransportLineInfo transportLine;
+    private String description;
+    private ScheduleInfo schedule;
+    private String status;
     private List<RouteDirectionResponse> directions;
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class TransportLineInfo {
+        private UUID id;
+        private String name;
+    }
+
+    @Getter
+    @Setter
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class ScheduleInfo {
+        private String hours;
+        private String frequency;
+    }
 }

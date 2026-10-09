@@ -41,6 +41,10 @@ public class Route {
 
     private String frequency;
 
+    @Column(name = "popularity_score")
+    @Builder.Default
+    private Integer popularityScore = 0;
+
     @Column(nullable = false)
     @Builder.Default
     private String status = "ACTIVE";
