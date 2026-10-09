@@ -12,6 +12,25 @@ import L from "leaflet";
 import { getBoundsFromPoints } from "../../utils/geoUtils";
 import { routingService } from "../../services/routingService";
 
+// CARTO basemap. CARTO exige API key en sus tiles raster desde el 25/09/2026:
+// sin key el servidor responde con un PNG en blanco rotulado "API KEY REQUIRED".
+// La key se lee de VITE_CARTO_KEY (ver frontend/.env.example).
+const CARTO_KEY = import.meta.env.VITE_CARTO_KEY;
+const CARTO_STYLE = import.meta.env.VITE_CARTO_STYLE || "light_all";
+const TILE_URL = `https://{s}.basemaps.cartocdn.com/${CARTO_STYLE}/{z}/{x}/{y}{r}.png${
+  CARTO_KEY ? `?key=${CARTO_KEY}` : ""
+}`;
+const TILE_ATTRIBUTION =
+  '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+const TILE_MAX_ZOOM = Number(import.meta.env.VITE_CARTO_MAX_ZOOM) || 19;
+const TILE_SUBDOMAINS = "abcd";
+
+if (import.meta.env.DEV && !CARTO_KEY) {
+  console.warn(
+    "[mapa] VITE_CARTO_KEY no está definida: CARTO devolverá tiles con la marca de agua 'API KEY REQUIRED'. Copia tu key en .env.local y reinicia Vite.",
+  );
+}
+
 // Lighten (positive) or darken (negative) a hex color by a percentage (0..100).
 function shadeColor(color, percent) {
   const clean = (color || "#2563eb").replace("#", "");
@@ -283,10 +302,10 @@ export function InteractiveMap({
         className="w-full h-full"
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={19}
+          attribution={TILE_ATTRIBUTION}
+          url={TILE_URL}
+          subdomains={TILE_SUBDOMAINS}
+          maxZoom={TILE_MAX_ZOOM}
         />
 
         <MapClickHandler onMapClick={handleMapBackgroundClick} />
