@@ -5,8 +5,10 @@ import {
   MapPin,
   Info,
   Route as RouteIcon,
+  Heart,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
+import { useFavorites } from '../../hooks/useFavorites';
 import { formatDistance } from '../../utils/geoUtils';
 
 export function RouteDrawerSkeleton({ route }) {
@@ -121,6 +123,8 @@ export function RouteDrawer() {
     loadingRouteDetail,
   } = useRoutes();
 
+  const { isFavorite, toggleFavorite } = useFavorites();
+
   if (!selectedRoute) return null;
 
   // Directions come from the route detail (already normalized in routeService)
@@ -197,11 +201,38 @@ export function RouteDrawer() {
           </p>
         </div>
 
-        <div className="text-right shrink-0">
-          <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200/70">
-            {selectedRoute.fare || 'S/ 2.00'}
-          </span>
-          <p className="text-xs text-slate-500 mt-0.5">tarifa</p>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => toggleFavorite(selectedRoute)}
+            className={`p-2 rounded-xl transition-all active:scale-90 ${
+              isFavorite(selectedRoute.id)
+                ? 'text-red-500 bg-red-50 hover:bg-red-100'
+                : 'text-slate-400 hover:text-slate-600 hover:bg-slate-100'
+            }`}
+            title={
+              isFavorite(selectedRoute.id)
+                ? 'Quitar de favoritos'
+                : 'Guardar en favoritos'
+            }
+            aria-label={
+              isFavorite(selectedRoute.id)
+                ? 'Quitar de favoritos'
+                : 'Guardar en favoritos'
+            }
+          >
+            <Heart
+              className="w-4 h-4"
+              fill={isFavorite(selectedRoute.id) ? 'currentColor' : 'none'}
+            />
+          </button>
+
+          <div className="text-right">
+            <span className="bg-emerald-50 text-emerald-700 font-bold text-xs px-2.5 py-1 rounded-full border border-emerald-200/70">
+              {selectedRoute.fare || 'S/ 2.00'}
+            </span>
+            <p className="text-xs text-slate-500 mt-0.5">tarifa</p>
+          </div>
         </div>
       </div>
 

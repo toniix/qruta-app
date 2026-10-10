@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { SearchBar } from "../../components/search/SearchBar";
 import { RouteCard } from "../../components/routes/RouteCard";
@@ -23,6 +23,7 @@ export function HomeMapPage() {
   const {
     routes,
     filteredRoutes,
+    loadingFiltered,
     selectedRoute,
     selectedStop,
     searchedLocation,
@@ -35,13 +36,15 @@ export function HomeMapPage() {
     selectRoute,
     selectStop,
     clearSelection,
-    locateNearestRoute,
+    requestLocation,
     isLocating,
     gpsReady,
     hasCustomLocation,
   } = useRoutes();
 
+  const [recenterTrigger, setRecenterTrigger] = useState(0);
   const carouselRef = useRef(null);
+
 
   // Sync URL parameter /mapa/ruta/:id with selectedRoute state
   useEffect(() => {
@@ -91,6 +94,17 @@ export function HomeMapPage() {
     }
   };
 
+  const handleRecenterGPS = async () => {
+    if (!hasCustomLocation && !gpsReady) {
+      try {
+        await requestLocation();
+      } catch (err) {
+        console.warn("No se pudo obtener ubicación GPS:", err);
+      }
+    }
+    setRecenterTrigger(Date.now());
+  };
+
   return (
     <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-100 flex flex-col">
       {/* ── Interactive Leaflet Map Background ────────────────────────────── */}
@@ -106,6 +120,7 @@ export function HomeMapPage() {
           onSelectRoute={handleSelectRoute}
           onSelectStop={selectStop}
           activeDirection={activeDirection}
+          recenterTrigger={recenterTrigger}
           mapCenter={
             hasCustomLocation || gpsReady
               ? [userLocation.lat, userLocation.lng]
@@ -159,7 +174,7 @@ export function HomeMapPage() {
       <div className="mt-auto relative z-20 pointer-events-none w-full max-w-lg mx-auto">
         {/* GPS Recenter Floating Button (Floats 14px above sheet top-right corner) */}
         <button
-          onClick={locateNearestRoute}
+          onClick={handleRecenterGPS}
           disabled={isLocating}
           className="absolute -top-14 right-4 sm:right-2 z-40 pointer-events-auto w-12 h-12 rounded-full bg-white text-slate-800 shadow-overlay border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90"
           title="Centrar en mi ubicación GPS"
@@ -231,17 +246,19 @@ export function HomeMapPage() {
             )}
 
             {/* Loading state */}
-            {loading && (
+            {(loading || loadingFiltered) && (
               <div className="py-8 text-center text-slate-500">
                 <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
                 <p className="text-xs font-semibold text-slate-500">
-                  Cargando rutas disponibles...
+                  {loadingFiltered
+                    ? "Buscando rutas cercanas a tu ubicación..."
+                    : "Cargando rutas disponibles..."}
                 </p>
               </div>
             )}
 
             {/* Empty state */}
-            {!loading && filteredRoutes.length === 0 && (
+            {!loading && !loadingFiltered && filteredRoutes.length === 0 && (
               <div className="bg-slate-50/80 rounded-2xl p-6 text-center shadow-2xs border border-slate-100">
                 <MapPin className="w-8 h-8 text-slate-400 mx-auto mb-2" />
                 <p className="text-xs font-bold text-slate-800">
@@ -254,7 +271,8 @@ export function HomeMapPage() {
             )}
 
             {/* Horizontal Scrollable Carousel */}
-            {!loading && filteredRoutes.length > 0 && (
+            {!loading && !loadingFiltered && filteredRoutes.length > 0 && (
+
               <div
                 ref={carouselRef}
                 className="flex items-center gap-3 overflow-x-auto hide-scrollbar scroll-smooth py-1 px-0.5 snap-x snap-mandatory"

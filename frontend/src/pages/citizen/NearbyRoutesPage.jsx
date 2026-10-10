@@ -13,6 +13,8 @@ import { useRoutes } from '../../contexts/RouteContext';
 import { nearbyService } from '../../services/nearbyService';
 import { InteractiveMap } from '../../components/map/InteractiveMap';
 import { StopRoutesModal } from '../../components/home/StopRoutesModal';
+import { calculateDistanceKm } from '../../utils/geoUtils';
+
 
 export function NearbyRoutesPage() {
   const navigate = useNavigate();
@@ -175,8 +177,27 @@ export function NearbyRoutesPage() {
             <div className="space-y-3">
               {nearbyRoutesList.map((route, idx) => {
                 const color = route.color || 'var(--color-brand-primary)';
-                const distMeters = [200, 450, 600, 850][idx % 4];
-                const walkMin = Math.ceil(distMeters / 80);
+                
+                // Calcular distancia real al paradero más cercano de la ruta
+                let minDistanceKm = null;
+                const stops = route.keyStops || route.stops || [];
+                if (userLocation && stops.length > 0) {
+                  stops.forEach((s) => {
+                    const lat = s.latitude ?? s.location?.latitude;
+                    const lng = s.longitude ?? s.location?.longitude;
+                    if (lat != null && lng != null) {
+                      const d = calculateDistanceKm(userLocation.lat, userLocation.lng, lat, lng);
+                      if (minDistanceKm === null || d < minDistanceKm) {
+                        minDistanceKm = d;
+                      }
+                    }
+                  });
+                }
+
+                const distMeters = minDistanceKm != null
+                  ? Math.round(minDistanceKm * 1000)
+                  : [250, 450, 600, 850][idx % 4];
+                const walkMin = Math.max(1, Math.ceil(distMeters / 80));
 
                 return (
                   <div
@@ -198,14 +219,14 @@ export function NearbyRoutesPage() {
                         {route.name.replace(/^Ruta \w+:\s*/i, '')}
                       </h3>
                       <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
-                        {route.fare || 'S/ 2.00'} • Frecuencia: {route.frequency || '5 min'}
+                        {route.fare || 'S/ 2.00'} • {route.transportLineName || 'Línea urbana'}
                       </p>
                     </div>
 
                     {/* Right: Distance & Walk time */}
                     <div className="text-right shrink-0">
                       <span className="text-blue-600 font-bold text-sm block">
-                        a {distMeters}m
+                        a {distMeters < 1000 ? `${distMeters} m` : `${(distMeters / 1000).toFixed(1)} km`}
                       </span>
                       <span className="text-xs font-medium text-slate-500 flex items-center justify-end gap-1 mt-0.5">
                         <Footprints className="w-3 h-3 text-slate-500" />
@@ -216,6 +237,7 @@ export function NearbyRoutesPage() {
                 );
               })}
             </div>
+
           )}
         </section>
 

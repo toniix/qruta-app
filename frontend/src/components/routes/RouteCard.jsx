@@ -9,12 +9,15 @@ import {
   Bus,
   Clock3,
   Banknote,
+  Heart,
 } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
+import { useFavorites } from "../../hooks/useFavorites";
 
 export function RouteCard({ route, isNearest, distanceKm }) {
   const navigate = useNavigate();
   const { selectedRoute, selectedStop, selectRoute, selectStop } = useRoutes();
+  const { isFavorite, toggleFavorite } = useFavorites();
   const [isStopsExpanded, setIsStopsExpanded] = useState(false);
 
   const isSelected = selectedRoute?.id === route.id;
@@ -97,6 +100,27 @@ export function RouteCard({ route, isNearest, distanceKm }) {
             <span>{Math.round(distanceKm * 1000)}m</span>
           </div>
         )}
+
+        {/* Favorite button */}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            toggleFavorite(route);
+          }}
+          className={`p-2 rounded-xl transition-all shrink-0 active:scale-90 ${
+            isFavorite(route.id)
+              ? "text-red-500 bg-red-50 hover:bg-red-100"
+              : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
+          }`}
+          title={isFavorite(route.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
+          aria-label={isFavorite(route.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
+        >
+          <Heart
+            className="w-4 h-4"
+            fill={isFavorite(route.id) ? "currentColor" : "none"}
+          />
+        </button>
       </div>
 
       {/* ── Route visualization: Origin ── route ── Destination ─────────── */}

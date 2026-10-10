@@ -23,24 +23,21 @@ export function HomePage() {
   const navigate = useNavigate();
   const {
     routes,
-    locateNearestRoute,
+    requestLocation,
     isLocating,
     hasCustomLocation,
+    gpsReady,
     selectRoute,
     nearbyStops,
     loadingStops,
     stopsError,
     loadNearbyStops,
-    popularRoutes,
+    displayedPopularRoutes,
     loadingPopular,
   } = useRoutes();
 
   const nearbyStopsRef = useRef(null);
 
-  const handleNearbyAction = () => {
-    locateNearestRoute();
-    navigate('/mapa');
-  };
 
   const handleSelectPopularRoute = (item) => {
     // Match with full route object from RouteContext if available
@@ -214,7 +211,7 @@ export function HomePage() {
                   </p>
                 </div>
                 <button
-                  onClick={handleNearbyAction}
+                  onClick={requestLocation}
                   disabled={isLocating}
                   className="mt-1 flex items-center gap-2 bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors active:scale-95 disabled:opacity-60 shadow-2xs"
                 >
@@ -223,7 +220,7 @@ export function HomePage() {
                   ) : (
                     <Navigation className="w-3.5 h-3.5" />
                   )}
-                  {isLocating ? 'Ubicando GPS...' : 'Usar mi ubicación'}
+                  {isLocating ? 'Obteniendo GPS...' : 'Usar mi ubicación'}
                 </button>
               </div>
             </div>
@@ -298,6 +295,11 @@ export function HomePage() {
             <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
               <Flame className="w-5 h-5 text-orange-500 fill-orange-500/20 shrink-0" />
               <span>Rutas populares</span>
+              {(hasCustomLocation || gpsReady) && (
+                <span className="text-xs bg-emerald-50 text-emerald-700 font-bold px-2 py-0.5 rounded-full border border-emerald-200/60 shadow-2xs">
+                  A ≤ 2 km
+                </span>
+              )}
             </h2>
             <button
               onClick={() => navigate('/rutas')}
@@ -313,9 +315,21 @@ export function HomePage() {
               <Loader2 className="w-6 h-6 animate-spin text-orange-500 mx-auto mb-2" />
               <p className="text-xs font-semibold text-slate-500">Cargando rutas populares...</p>
             </div>
+          ) : displayedPopularRoutes.length === 0 ? (
+            <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 space-y-2">
+              <p className="text-xs text-slate-600 font-medium">
+                No hay rutas populares a menos de 2 km de tu ubicación actual.
+              </p>
+              <button
+                onClick={() => navigate('/rutas')}
+                className="text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors"
+              >
+                Ver todo el catálogo
+              </button>
+            </div>
           ) : (
             <div className="space-y-3">
-              {popularRoutes.map((item) => (
+              {displayedPopularRoutes.map((item) => (
                 <div
                   key={item.id}
                   onClick={() => handleSelectPopularRoute(item)}

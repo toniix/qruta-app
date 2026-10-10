@@ -126,14 +126,13 @@ export const routeService = {
     let minDistance = Infinity;
 
     routes.forEach((route) => {
-      const stops = route.stops || [];
+      const stops = route.keyStops || route.stops || [];
       stops.forEach((stop) => {
-        const dist = calculateDistanceKm(
-          userLat,
-          userLng,
-          stop.latitude,
-          stop.longitude,
-        );
+        const lat = stop.latitude ?? stop.location?.latitude;
+        const lng = stop.longitude ?? stop.location?.longitude;
+        if (lat == null || lng == null) return;
+
+        const dist = calculateDistanceKm(userLat, userLng, lat, lng);
         if (dist < minDistance) {
           minDistance = dist;
           bestMatch = { route, stop, distanceKm: dist };
@@ -143,4 +142,5 @@ export const routeService = {
 
     return bestMatch;
   },
+
 };

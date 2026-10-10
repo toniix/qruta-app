@@ -1,6 +1,15 @@
-import { useEffect, useState } from 'react';
-import { MapPin, Navigation, Route, Zap, X, Settings, AlertTriangle, WifiOff } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
+import { useState } from "react";
+import {
+  MapPin,
+  Navigation,
+  Route,
+  Zap,
+  X,
+  Settings,
+  AlertTriangle,
+  WifiOff,
+} from "lucide-react";
+import { useRoutes } from "../../contexts/RouteContext";
 
 /**
  * GpsPermissionModal
@@ -15,48 +24,28 @@ import { useRoutes } from '../../contexts/RouteContext';
  * the same session if the user clicks "Ahora no".
  */
 export function GpsPermissionModal() {
-  const { gpsPermissionState, locateNearestRoute, showGpsModal, setShowGpsModal } = useRoutes();
-  const [autoVisible, setAutoVisible] = useState(false);
+  const { gpsPermissionState, requestLocation, showGpsModal, setShowGpsModal } =
+    useRoutes();
   const [isRequesting, setIsRequesting] = useState(false);
 
-  // Visibility is derived rather than mirrored into state: it shows when the user
-  // explicitly asked for it (showGpsModal) or when the startup probe asked for it,
-  // and hides itself as soon as the permission is granted.
-  const visible = (showGpsModal || autoVisible) && gpsPermissionState !== 'granted';
-
-  // Auto-show on startup: once detection is complete and GPS is not available/granted.
-  // We wait 1.2 s so the two-phase detection (cache probe + Permissions API) has time
-  // to resolve before the modal appears — prevents false positives on Android.
-  useEffect(() => {
-    // Never show while we're still in the 'unknown' detection phase.
-    if (gpsPermissionState === 'unknown' || gpsPermissionState === 'granted') return;
-
-    const dismissed = sessionStorage.getItem('gps_modal_dismissed');
-    if (dismissed) return;
-
-    // Give the cache probe and Permissions API a chance to settle first.
-    const timer = setTimeout(() => {
-      if (gpsPermissionState === 'prompt' || gpsPermissionState === 'denied' || gpsPermissionState === 'unsupported') {
-        setAutoVisible(true);
-      }
-    }, 1200);
-
-    return () => clearTimeout(timer);
-  }, [gpsPermissionState]);
+  // The modal is only visible if explicitly requested via showGpsModal
+  const visible = Boolean(showGpsModal) && gpsPermissionState !== "granted";
 
   const handleDismiss = () => {
-    sessionStorage.setItem('gps_modal_dismissed', '1');
-    setShowGpsModal(false);
-    setAutoVisible(false);
+    if (typeof setShowGpsModal === "function") {
+      setShowGpsModal(false);
+    }
   };
 
   const handleAllow = async () => {
     setIsRequesting(true);
     try {
-      await locateNearestRoute();
-      sessionStorage.setItem('gps_modal_dismissed', '1');
-      setShowGpsModal(false);
-      setAutoVisible(false);
+      if (typeof requestLocation === "function") {
+        await requestLocation();
+      }
+      if (typeof setShowGpsModal === "function") {
+        setShowGpsModal(false);
+      }
     } catch {
       // Permission denied by browser dialog — modal will update via gpsPermissionState
     } finally {
@@ -74,10 +63,10 @@ export function GpsPermissionModal() {
       aria-labelledby="gps-modal-title"
       className="fixed inset-0 z-[9000] flex items-end sm:items-center justify-center p-4 sm:p-0"
       style={{
-        background: 'rgba(15, 23, 42, 0.55)',
-        backdropFilter: 'blur(4px)',
-        WebkitBackdropFilter: 'blur(4px)',
-        animation: 'modal-fade-in 0.25s ease-out',
+        background: "rgba(15, 23, 42, 0.55)",
+        backdropFilter: "blur(4px)",
+        WebkitBackdropFilter: "blur(4px)",
+        animation: "modal-fade-in 0.25s ease-out",
       }}
       onClick={(e) => e.target === e.currentTarget && handleDismiss()}
     >
@@ -97,13 +86,13 @@ export function GpsPermissionModal() {
 
       <div
         className="gps-modal-card w-full sm:max-w-sm bg-white rounded-2xl shadow-overlay overflow-hidden"
-        style={{ border: '1px solid rgba(226,232,240,0.9)' }}
+        style={{ border: "1px solid rgba(226,232,240,0.9)" }}
       >
         {/* Header band */}
         <div
           className="relative px-5 pt-6 pb-5"
           style={{
-            background: 'var(--color-brand-primary)',
+            background: "var(--color-brand-primary)",
           }}
         >
           {/* Close button */}
@@ -117,9 +106,9 @@ export function GpsPermissionModal() {
 
           {/* Icon */}
           <div className="w-12 h-12 rounded-2xl bg-white/20 border border-white/30 flex items-center justify-center mb-3">
-            {gpsPermissionState === 'denied' ? (
+            {gpsPermissionState === "denied" ? (
               <AlertTriangle className="w-6 h-6 text-amber-300" />
-            ) : gpsPermissionState === 'unsupported' ? (
+            ) : gpsPermissionState === "unsupported" ? (
               <WifiOff className="w-6 h-6 text-white" />
             ) : (
               <Navigation className="w-6 h-6 text-white" />
@@ -129,55 +118,61 @@ export function GpsPermissionModal() {
           <h2
             id="gps-modal-title"
             className="text-white font-bold text-lg leading-tight"
-            style={{ letterSpacing: '-0.01em' }}
+            style={{ letterSpacing: "-0.01em" }}
           >
-            {gpsPermissionState === 'denied'
-              ? 'Ubicación bloqueada'
-              : gpsPermissionState === 'unsupported'
-              ? 'GPS no disponible'
-              : '¿Activo tu ubicación?'}
+            {gpsPermissionState === "denied"
+              ? "Ubicación bloqueada"
+              : gpsPermissionState === "unsupported"
+                ? "GPS no disponible"
+                : "¿Activo tu ubicación?"}
           </h2>
           <p className="text-blue-100 text-xs mt-1 leading-relaxed">
-            {gpsPermissionState === 'denied'
-              ? 'Necesitas permitir el acceso desde la configuración del navegador.'
-              : gpsPermissionState === 'unsupported'
-              ? 'Tu navegador no soporta geolocalización.'
-              : 'Encuentra rutas cerca de ti en segundos.'}
+            {gpsPermissionState === "denied"
+              ? "Necesitas permitir el acceso desde la configuración del navegador."
+              : gpsPermissionState === "unsupported"
+                ? "Tu navegador no soporta geolocalización."
+                : "Encuentra rutas cerca de ti en segundos."}
           </p>
         </div>
 
         {/* Body */}
         <div className="px-5 py-4">
           {/* — PROMPT state: Show benefits — */}
-          {gpsPermissionState === 'prompt' && (
+          {gpsPermissionState === "prompt" && (
             <ul className="space-y-3 mb-5">
               {[
                 {
                   icon: <Route className="w-4 h-4 text-blue-600" />,
-                  bg: 'bg-blue-50',
-                  title: 'Rutas más cercanas',
-                  desc: 'Filtra automáticamente las rutas a menos de 1.5 km de ti.',
+                  bg: "bg-blue-50",
+                  title: "Rutas más cercanas",
+                  desc: "Filtra automáticamente las rutas a menos de 1.5 km de ti.",
                 },
                 {
                   icon: <MapPin className="w-4 h-4 text-emerald-600" />,
-                  bg: 'bg-emerald-50',
-                  title: 'Tu posición en el mapa',
-                  desc: 'Siempre verás dónde estás y a qué distancia está cada parada.',
+                  bg: "bg-emerald-50",
+                  title: "Tu posición en el mapa",
+                  desc: "Siempre verás dónde estás y a qué distancia está cada parada.",
                 },
                 {
                   icon: <Zap className="w-4 h-4 text-amber-600" />,
-                  bg: 'bg-amber-50',
-                  title: 'Acceso rápido',
+                  bg: "bg-amber-50",
+                  title: "Acceso rápido",
                   desc: 'El botón "Ruta Más Cercana" te llevará directo a la opción ideal.',
                 },
               ].map((item) => (
                 <li key={item.title} className="flex items-start gap-3">
-                  <div className={`w-8 h-8 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}>
+                  <div
+                    className={`w-8 h-8 rounded-xl ${item.bg} flex items-center justify-center flex-shrink-0 mt-0.5`}
+                  >
                     {item.icon}
                   </div>
                   <div>
-                    <p className="text-xs font-bold text-slate-900">{item.title}</p>
-                    <p className="text-xs text-slate-500 leading-snug mt-0.5">{item.desc}</p>
+                    <p className="text-xs font-bold text-slate-900">
+                      {item.title}
+                    </p>
+                    <p className="text-xs text-slate-500 leading-snug mt-0.5">
+                      {item.desc}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -185,7 +180,7 @@ export function GpsPermissionModal() {
           )}
 
           {/* — DENIED state: Manual instructions — */}
-          {gpsPermissionState === 'denied' && (
+          {gpsPermissionState === "denied" && (
             <div className="mb-5 space-y-3">
               <p className="text-xs text-slate-600 leading-relaxed">
                 Para activar la ubicación, sigue estos pasos en tu navegador:
@@ -195,9 +190,12 @@ export function GpsPermissionModal() {
                   'Toca el ícono del candado 🔒 o la "i" en la barra de direcciones.',
                   'Busca "Ubicación" o "Permisos de sitio".',
                   'Cambia el permiso a "Permitir".',
-                  'Recarga la página.',
+                  "Recarga la página.",
                 ].map((step, i) => (
-                  <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700">
+                  <li
+                    key={i}
+                    className="flex items-start gap-2.5 text-xs text-slate-700"
+                  >
                     <span className="w-5 h-5 rounded-full bg-slate-100 text-slate-500 font-bold flex items-center justify-center flex-shrink-0 text-xs">
                       {i + 1}
                     </span>
@@ -209,31 +207,34 @@ export function GpsPermissionModal() {
           )}
 
           {/* — UNSUPPORTED state — */}
-          {gpsPermissionState === 'unsupported' && (
+          {gpsPermissionState === "unsupported" && (
             <p className="text-xs text-slate-600 leading-relaxed mb-5">
-              Puedes seguir usando RutasYa sin GPS. Busca rutas por nombre o explora el mapa manualmente.
+              Puedes seguir usando RutasYa sin GPS. Busca rutas por nombre o
+              explora el mapa manualmente.
             </p>
           )}
 
           {/* Actions */}
           <div className="flex flex-col gap-2">
-            {gpsPermissionState === 'prompt' && (
+            {gpsPermissionState === "prompt" && (
               <button
                 onClick={handleAllow}
                 disabled={isRequesting}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
                 style={{
                   background: isRequesting
-                    ? '#93c5fd'
-                    : 'var(--color-brand-primary)',
-                  boxShadow: isRequesting ? 'none' : '0 4px 14px rgba(29,78,216,0.35)',
+                    ? "#93c5fd"
+                    : "var(--color-brand-primary)",
+                  boxShadow: isRequesting
+                    ? "none"
+                    : "0 4px 14px rgba(29,78,216,0.35)",
                 }}
               >
                 {isRequesting ? (
                   <>
                     <span
                       className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block"
-                      style={{ animation: 'spin 0.8s linear infinite' }}
+                      style={{ animation: "spin 0.8s linear infinite" }}
                     />
                     Ubicando...
                   </>
@@ -246,13 +247,13 @@ export function GpsPermissionModal() {
               </button>
             )}
 
-            {gpsPermissionState === 'denied' && (
+            {gpsPermissionState === "denied" && (
               <button
                 onClick={() => window.location.reload()}
                 className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
                 style={{
-                  background: 'var(--color-brand-primary)',
-                  boxShadow: '0 4px 14px rgba(29,78,216,0.35)',
+                  background: "var(--color-brand-primary)",
+                  boxShadow: "0 4px 14px rgba(29,78,216,0.35)",
                 }}
               >
                 <Settings className="w-4 h-4" />
@@ -264,7 +265,9 @@ export function GpsPermissionModal() {
               onClick={handleDismiss}
               className="w-full py-2.5 rounded-2xl font-semibold text-sm text-slate-500 hover:text-slate-700 hover:bg-slate-50 transition-colors"
             >
-              {gpsPermissionState === 'prompt' ? 'Ahora no, explorar igual' : 'Continuar sin GPS'}
+              {gpsPermissionState === "prompt"
+                ? "Ahora no, explorar igual"
+                : "Continuar sin GPS"}
             </button>
           </div>
         </div>
@@ -272,7 +275,8 @@ export function GpsPermissionModal() {
         {/* Privacy note */}
         <div className="px-5 pb-4">
           <p className="text-xs text-slate-500 text-center leading-relaxed">
-            🔒 Tu ubicación solo se usa localmente para mostrar rutas cercanas. No se almacena ni se comparte.
+            🔒 Tu ubicación solo se usa localmente para mostrar rutas cercanas.
+            No se almacena ni se comparte.
           </p>
         </div>
       </div>

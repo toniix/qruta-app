@@ -47,7 +47,7 @@ function shadeColor(color, percent) {
   return `#${(0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
-function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected }) {
+function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recenterTrigger }) {
   const map = useMap();
 
   useEffect(() => {
@@ -85,12 +85,24 @@ function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected }) {
 
       map.panTo(targetLatLng, { animate: true });
     } else if (center) {
-      map.flyTo(center, 15, { animate: true });
+      // Cuando no hay recorrido de ruta seleccionado, el card de rutas ocupa la mitad inferior de la pantalla.
+      // Centramos el marcador de ubicación del usuario en el medio de la mitad superior visible (offset Y = 25% de la altura de la pantalla).
+      const zoom = map.getZoom() || 15;
+      const targetPoint = map.project(center, zoom);
+      const offsetY = window.innerHeight * 0.25;
+      const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
+      const targetLatLng = map.unproject(offsetPoint, zoom);
+
+      map.flyTo(targetLatLng, zoom, {
+        animate: true,
+        duration: 0.8,
+      });
     }
-  }, [map, bounds, center, selectedStop, isRouteSelected]);
+  }, [map, bounds, center, selectedStop, isRouteSelected, recenterTrigger]);
 
   return null;
 }
+
 
 /* MapClickHandler captures click events on the map canvas background */
 function MapClickHandler({ onMapClick }) {
@@ -185,47 +197,39 @@ export function InteractiveMap({
   mapCenter = [-14.0678, -75.7286],
   mapZoom = 14,
   activeDirection = "OUTBOUND",
+  recenterTrigger = 0,
 }) {
-  const [snappedPointsMap, setSnappedPointsMap] = useState({});
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
 
-  // Fetch street-polylines (OSRM snapping) for the active route directions
-  // and for the summary routes that expose points.
+
+  // Fetch street-polylines (OSRM snapping) ONLY for the selected route detail directions in parallel
   useEffect(() => {
     let isMounted = true;
-    async function fetchStreetRoutes() {
-      const newMap = {};
-      const newDirMap = {};
-      const routesToSnap = selectedRoute ? [selectedRoute] : routes;
+    async function fetchSelectedRouteStreets() {
+      if (!selectedRoute?.directions?.length) return;
 
-      for (const route of routesToSnap) {
-        if (route.id === selectedRoute?.id) {
-          // Selected route (detail): snap each direction's route points
-          for (const dir of route.directions || []) {
-            const points = dir.routePoints;
-            if (points && points.length >= 2) {
-              const snapped = await routingService.getRoadPolyline(points);
-              newDirMap[`${route.id}:${dir.direction || dir.id}`] = snapped;
-            }
-          }
-        } else if (route.points && route.points.length >= 2) {
-          // Summary routes: snap their direct points
-          const snapped = await routingService.getRoadPolyline(route.points);
-          newMap[route.id] = snapped;
+      const newDirMap = {};
+      const promises = selectedRoute.directions.map(async (dir) => {
+        const points = dir.routePoints;
+        if (points && points.length >= 2) {
+          const snapped = await routingService.getRoadPolyline(points);
+          newDirMap[`${selectedRoute.id}:${dir.direction || dir.id}`] = snapped;
         }
-      }
+      });
+
+      await Promise.all(promises);
 
       if (isMounted) {
-        setSnappedPointsMap((prev) => ({ ...prev, ...newMap }));
         setSnappedDirectionMap((prev) => ({ ...prev, ...newDirMap }));
       }
     }
 
-    fetchStreetRoutes();
+    fetchSelectedRouteStreets();
     return () => {
       isMounted = false;
     };
-  }, [routes, selectedRoute]);
+  }, [selectedRoute]);
+
 
   // Pull points/stops for the active direction of the selected route
   const activeDirectionMeta = useMemo(() => {
@@ -316,7 +320,9 @@ export function InteractiveMap({
           center={selectedRoute ? null : currentCenter}
           selectedStop={selectedStop}
           isRouteSelected={Boolean(selectedRoute)}
+          recenterTrigger={recenterTrigger}
         />
+
 
         {userLocation &&
           userLocation.lat != null &&
@@ -360,7 +366,7 @@ export function InteractiveMap({
         {routes
           .filter((r) => r.id !== selectedRoute?.id)
           .map((route) => {
-            const positions = snappedPointsMap[route.id] || route.points;
+            const positions = route.points;
             if (!positions || positions.length < 2) return null;
 
             return (
@@ -433,10 +439,7 @@ export function InteractiveMap({
               selectedRoute.points.length >= 2 && (
                 <Polyline
                   key={`${selectedRoute.id}-flat`}
-                  positions={
-                    snappedPointsMap[selectedRoute.id] ||
-                    selectedRoute.points
-                  }
+                  positions={selectedRoute.points}
                   pathOptions={{
                     color: selectedRoute.color || BRAND_PRIMARY,
                     weight: 6,

@@ -5,11 +5,14 @@ import {
   useState,
   useEffect,
   useCallback,
+  useMemo,
 } from "react";
+
 import { routeService } from "../services/routeService";
 import { stopService } from "../services/stopService";
 import { nearbyService } from "../services/nearbyService";
 import { useGeolocation } from "../hooks/useGeolocation";
+import { calculateDistanceKm } from "../utils/geoUtils";
 
 export const RouteContext = createContext(null);
 
@@ -27,6 +30,7 @@ export function RouteProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filteredRoutes, setFilteredRoutes] = useState([]);
+  const [loadingFiltered, setLoadingFiltered] = useState(false);
 
   const [nearbyStops, setNearbyStops] = useState([]);
   const [loadingStops, setLoadingStops] = useState(false);
@@ -34,6 +38,7 @@ export function RouteProvider({ children }) {
   const [popularRoutes, setPopularRoutes] = useState([]);
   const [loadingPopular, setLoadingPopular] = useState(false);
   const [loadingRouteDetail, setLoadingRouteDetail] = useState(false);
+  const [showGpsModal, setShowGpsModal] = useState(false);
 
   const {
     location: userLocation,
@@ -41,8 +46,48 @@ export function RouteProvider({ children }) {
     requestLocation,
     hasCustomLocation,
     gpsReady,
+    gpsPermissionState,
   } = useGeolocation();
 
+  // Filter popular routes within 2 km if GPS is active
+  const displayedPopularRoutes = useMemo(() => {
+    if (!popularRoutes || popularRoutes.length === 0) return [];
+
+    // If user has active GPS location, restrict popular routes to 2km radius
+    if (
+      (hasCustomLocation || gpsReady) &&
+      userLocation?.lat &&
+      userLocation?.lng
+    ) {
+      return popularRoutes.filter((pop) => {
+        const fullRoute = routes.find(
+          (r) => String(r.id) === String(pop.id) || r.code === pop.code,
+        );
+        if (!fullRoute) return false;
+
+        const stops = fullRoute.keyStops || fullRoute.stops || [];
+        if (stops.length === 0) return false;
+
+        return stops.some((stop) => {
+          const lat = stop.latitude ?? stop.location?.latitude;
+          const lng = stop.longitude ?? stop.location?.longitude;
+          if (lat == null || lng == null) return false;
+          const dist = calculateDistanceKm(
+            userLocation.lat,
+            userLocation.lng,
+            lat,
+            lng,
+          );
+          return dist <= 2.0; // Within 2 kilometers
+        });
+      });
+    }
+
+    return popularRoutes;
+  }, [popularRoutes, routes, hasCustomLocation, gpsReady, userLocation]);
+
+  // Fetch all routes and stops in parallel
+  //TODO: VERIFICAR SI ESTO ES NECESARIO, YA QUE SE HACE EN EL USEEFFECT DE ABAJO ADEMAS SI SE PUEDE HACER EN UNA SOLA LLAMDAZ
   const fetchRoutesAndStops = useCallback(async () => {
     const [fetchedRoutes, fetchedStops] = await Promise.all([
       routeService.getAllRoutes(),
@@ -51,6 +96,7 @@ export function RouteProvider({ children }) {
     return { fetchedRoutes, fetchedStops };
   }, []);
 
+  // Load all routes and stops on mount
   const loadData = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -66,6 +112,7 @@ export function RouteProvider({ children }) {
     }
   }, [fetchRoutesAndStops]);
 
+  // Load all routes and stops on mount
   useEffect(() => {
     let isMounted = true;
     async function fetchData() {
@@ -90,6 +137,7 @@ export function RouteProvider({ children }) {
     };
   }, [fetchRoutesAndStops]);
 
+  // Load popular routes on mount
   useEffect(() => {
     let isMounted = true;
     async function fetchPopular() {
@@ -111,6 +159,7 @@ export function RouteProvider({ children }) {
   }, []);
 
   // Load nearby stops whenever we have a real GPS location
+  //TODO: VERIFICAR SI ESTO ES NECESARIO, YA QUE SE HACE EN EL USEEFFECT DE ABAJO ADEMAS SI SE PUEDE HACER EN UNA SOLA LLAMDAZ
   const loadNearbyStops = useCallback(async () => {
     if (!hasCustomLocation || !userLocation) return;
     setLoadingStops(true);
@@ -130,6 +179,7 @@ export function RouteProvider({ children }) {
     }
   }, [hasCustomLocation, userLocation]);
 
+  // Re-compute nearby stops whenever the user location changes
   useEffect(() => {
     let isMounted = true;
     async function fetchNearby() {
@@ -160,19 +210,21 @@ export function RouteProvider({ children }) {
     };
   }, [hasCustomLocation, userLocation]);
 
-  // Re-compute filtered routes when filters change
+  // Re-compute filtered routes when filters change with clear loading state
   useEffect(() => {
     let isMounted = true;
     async function computeFiltered() {
       try {
         if (searchQuery.trim() !== "") {
+          setLoadingFiltered(true);
           const results = await routeService.searchRoutes(searchQuery);
           if (isMounted) setFilteredRoutes(results);
         } else if (onlyNearby && userLocation) {
+          setLoadingFiltered(true);
           const results = await nearbyService.findNearbyRoutes(
             userLocation.lat,
             userLocation.lng,
-            1500,
+            2000,
           );
           if (isMounted) {
             const match = routeService.findNearestRouteAndStop(
@@ -197,6 +249,8 @@ export function RouteProvider({ children }) {
         }
       } catch (err) {
         console.error("Error al filtrar rutas:", err);
+      } finally {
+        if (isMounted) setLoadingFiltered(false);
       }
     }
     computeFiltered();
@@ -206,6 +260,7 @@ export function RouteProvider({ children }) {
   }, [searchQuery, onlyNearby, userLocation, routes]);
 
   const selectRoute = useCallback(async (route) => {
+    console.log("Seleccionando ruta:", route);
     if (!route) return;
 
     // Check if route already has full directions loaded
@@ -234,6 +289,7 @@ export function RouteProvider({ children }) {
     setLoadingRouteDetail(true);
     try {
       const detail = await routeService.getRouteDetail(route.id);
+      console.log("Detalle de ruta cargado:", detail);
       setSelectedRoute((current) => {
         if (current && String(current.id) === String(route.id)) {
           return detail;
@@ -262,37 +318,15 @@ export function RouteProvider({ children }) {
   }, []);
 
   const locateNearestRoute = async () => {
-    if (!userLocation) {
-      requestLocation();
-    }
-    setOnlyNearby(true);
-    if (userLocation) {
+    if (!hasCustomLocation && !gpsReady) {
       try {
-        const nearbyRoutes = await nearbyService.findNearbyRoutes(
-          userLocation.lat,
-          userLocation.lng,
-          1500,
-        );
-        const match = routeService.findNearestRouteAndStop(
-          nearbyRoutes,
-          userLocation.lat,
-          userLocation.lng,
-        );
-        if (match) {
-          setNearestMatchInfo(match);
-          const sorted = [...nearbyRoutes].sort((a, b) => {
-            if (a.id === match.route?.id) return -1;
-            if (b.id === match.route?.id) return 1;
-            return 0;
-          });
-          setFilteredRoutes(sorted);
-        } else {
-          setFilteredRoutes(nearbyRoutes);
-        }
+        await requestLocation();
+        console.log("Ubicación GPS obtenida exitosamente.");
       } catch (err) {
-        console.error("Error al buscar rutas cercanas:", err);
+        console.warn("No se pudo obtener ubicación GPS:", err);
       }
     }
+    setOnlyNearby(true);
   };
 
   return (
@@ -300,6 +334,7 @@ export function RouteProvider({ children }) {
       value={{
         routes,
         filteredRoutes,
+        loadingFiltered,
         selectedRoute,
         selectedStop,
         activeDirection,
@@ -308,16 +343,21 @@ export function RouteProvider({ children }) {
         nearestMatchInfo,
         searchQuery,
         onlyNearby,
+        setOnlyNearby,
         loading,
         error,
         userLocation,
         isLocating,
         hasCustomLocation,
         gpsReady,
+        gpsPermissionState,
+        showGpsModal,
+        setShowGpsModal,
         nearbyStops,
         loadingStops,
         stopsError,
         popularRoutes,
+        displayedPopularRoutes,
         loadingPopular,
         loadingRouteDetail,
         loadNearbyStops,
