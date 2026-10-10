@@ -10,18 +10,18 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/lines")
 @RequiredArgsConstructor
 public class TransportLineController {
 
     private final TransportLineService transportLineService;
 
-    @GetMapping("/lines")
+    @GetMapping("/")
     public ResponseEntity<List<TransportLineResponse>> getAllLines() {
         return ResponseEntity.ok(transportLineService.findAll());
     }
 
-    @GetMapping("/lines/city/{cityId}")
+    @GetMapping("/city/{cityId}")
     public ResponseEntity<List<TransportLineResponse>> getLinesByCity(@PathVariable UUID cityId) {
         return ResponseEntity.ok(transportLineService.findByCity(cityId));
     }

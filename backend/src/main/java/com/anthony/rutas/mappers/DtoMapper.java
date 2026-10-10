@@ -41,14 +41,18 @@ public class DtoMapper {
                                 .map(DtoMapper::toKeyStopResponse)
                                 .collect(Collectors.toList());
 
+                return toRouteSummaryResponse(route, keyStops);
+        }
+
+        public static RouteSummaryResponse toRouteSummaryResponse(Route route, List<KeyStopResponse> keyStops) {
                 return RouteSummaryResponse.builder()
                                 .id(route.getId())
                                 .code(route.getCode())
                                 .name(route.getName())
                                 .color(route.getColor())
                                 .fare(route.getFare())
-                                .transportLineName(route.getTransportLine().getName())
-                                .keyStops(keyStops)
+                                .transportLineName(route.getTransportLine() != null ? route.getTransportLine().getName() : null)
+                                .keyStops(keyStops != null ? keyStops : List.of())
                                 .build();
         }
 

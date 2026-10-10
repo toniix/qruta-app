@@ -39,11 +39,44 @@ public class RouteService {
 
     /**
      * Returns a lightweight summary list for the public route cards endpoint.
-     * Maps key stops for each route within a read-only transaction.
+     * Fetches routes and their key stops in exactly 2 optimized SQL queries, eliminating N+1 queries.
      */
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> findAllCards() {
-        return DtoMapper.toRouteSummaryList(routeRepository.findAllWithTransportLine());
+        List<Route> routes = routeRepository.findAllWithTransportLine();
+        return toOptimizedRouteSummaryList(routes);
+    }
+
+    /**
+     * Helper to batch-load key stops for a list of routes in a single query.
+     */
+    private List<RouteSummaryResponse> toOptimizedRouteSummaryList(List<Route> routes) {
+        if (routes.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> routeIds = routes.stream().map(Route::getId).toList();
+        List<RouteStop> keyRouteStops = routeStopRepository.findKeyStopsByRouteIds(routeIds);
+
+        // Group key stops by Route ID
+        java.util.Map<UUID, List<KeyStopResponse>> keyStopsByRouteId = keyRouteStops.stream()
+                .collect(java.util.stream.Collectors.groupingBy(
+                        rs -> rs.getDirection().getRoute().getId(),
+                        java.util.stream.Collectors.mapping(
+                                rs -> DtoMapper.toKeyStopResponse(rs.getStop()),
+                                java.util.stream.Collectors.collectingAndThen(
+                                        java.util.stream.Collectors.toList(),
+                                        list -> list.stream().filter(java.util.Objects::nonNull).distinct().toList()
+                                )
+                        )
+                ));
+
+        return routes.stream()
+                .map(route -> DtoMapper.toRouteSummaryResponse(
+                        route,
+                        keyStopsByRouteId.getOrDefault(route.getId(), List.of())
+                ))
+                .toList();
     }
 
     /**
@@ -66,12 +99,31 @@ public class RouteService {
         return DtoMapper.toRouteDetailResponse(route, directions);
     }
 
+    @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query) {
-        return DtoMapper.toRouteSummaryList(routeRepository.searchByQuery(query));
+        List<Route> routes = routeRepository.searchByQuery(query);
+        return toOptimizedRouteSummaryList(routes);
     }
 
+    @Transactional(readOnly = true)
     public List<RouteSummaryResponse> findByTransportLine(UUID transportLineId) {
-        return DtoMapper.toRouteSummaryList(routeRepository.findByTransportLineId(transportLineId));
+        List<Route> routes = routeRepository.findByTransportLineId(transportLineId);
+        return toOptimizedRouteSummaryList(routes);
+    }
+
+    /**
+     * Finds routes nearby a geographic coordinate within radius meters.
+     */
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> findNearbyRoutes(double latitude, double longitude, double radiusMeters) {
+        List<Stop> nearbyStops = stopRepository.findNearby(latitude, longitude, radiusMeters);
+        List<Route> routes = nearbyStops.stream()
+                .flatMap(stop -> routeStopRepository.findByStopId(stop.getId()).stream())
+                .map(routeStop -> routeStop.getDirection().getRoute())
+                .distinct()
+                .toList();
+
+        return toOptimizedRouteSummaryList(routes);
     }
 
     @Transactional

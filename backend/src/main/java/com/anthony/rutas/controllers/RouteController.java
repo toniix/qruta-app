@@ -1,7 +1,10 @@
 package com.anthony.rutas.controllers;
 
+import com.anthony.rutas.dtos.request.NearbySearchRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.services.*;
+
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -10,34 +13,51 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/routes")
 @RequiredArgsConstructor
 public class RouteController {
 
     private final RouteService routeService;
 
-    @GetMapping("/routes/cards")
+    @GetMapping("/cards")
     public ResponseEntity<List<RouteSummaryResponse>> getRouteCards() {
         return ResponseEntity.ok(routeService.findAllCards());
     }
 
-    @GetMapping("/routes/popular")
+    @GetMapping("/popular")
     public ResponseEntity<List<PopularRouteResponse>> getPopularRoutes() {
         return ResponseEntity.ok(routeService.findPopularRoutes());
     }
 
-    @GetMapping("/routes/{id}")
+    @GetMapping("/{id}")
     public ResponseEntity<RouteDetailResponse> getRouteById(@PathVariable UUID id) {
         return ResponseEntity.ok(routeService.findById(id));
     }
 
-    @GetMapping("/routes/search")
+    @GetMapping("/search")
     public ResponseEntity<List<RouteSummaryResponse>> searchRoutes(@RequestParam String query) {
         return ResponseEntity.ok(routeService.search(query));
     }
 
-    @GetMapping("/routes/line/{transportLineId}")
+    @GetMapping("/line/{transportLineId}")
     public ResponseEntity<List<RouteSummaryResponse>> getRoutesByLine(@PathVariable UUID transportLineId) {
         return ResponseEntity.ok(routeService.findByTransportLine(transportLineId));
+    }
+
+    @PostMapping("/nearby")
+    public ResponseEntity<List<RouteSummaryResponse>> findNearbyRoutes(
+            @Valid @RequestBody NearbySearchRequest request) {
+        return ResponseEntity.ok(routeService.findNearbyRoutes(
+                request.getLatitude(),
+                request.getLongitude(),
+                request.getRadiusMeters()));
+    }
+
+    @GetMapping("/nearby")
+    public ResponseEntity<List<RouteSummaryResponse>> findNearbyRoutesGet(
+            @RequestParam double latitude,
+            @RequestParam double longitude,
+            @RequestParam(defaultValue = "1500") double radiusMeters) {
+        return ResponseEntity.ok(routeService.findNearbyRoutes(latitude, longitude, radiusMeters));
     }
 }

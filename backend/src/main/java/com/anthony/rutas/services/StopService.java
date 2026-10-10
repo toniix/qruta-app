@@ -43,6 +43,15 @@ public class StopService {
     }
 
     /**
+     * Finds stops nearby a geographic coordinate within radius meters.
+     */
+    @Transactional(readOnly = true)
+    public List<StopResponse> findNearbyStops(double latitude, double longitude, double radiusMeters) {
+        List<Stop> nearbyStops = stopRepository.findNearby(latitude, longitude, radiusMeters);
+        return DtoMapper.toStopList(nearbyStops);
+    }
+
+    /**
      * Returns all routes that pass through the given stop, grouped by route.
      * Each entry includes the distinct directions served (OUTBOUND/INBOUND)
      * and a derived label (IDA / VUELTA / IDA Y VUELTA) computed here, never

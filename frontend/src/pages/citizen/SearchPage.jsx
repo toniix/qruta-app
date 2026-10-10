@@ -16,7 +16,6 @@ import {
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
 import { routeService } from '../../services/routeService';
-import { stopService } from '../../services/stopService';
 
 /* Sugerencias populares de Ica */
 const QUICK_SUGGESTIONS = [
@@ -57,39 +56,9 @@ export function SearchPage() {
     setLastQuery(term);
 
     try {
-      // 1. Buscar rutas en el backend
+      // La búsqueda del backend ahora busca por nombre de ruta, código, empresa Y paraderos/referencias
       const routesResult = await routeService.searchRoutes(term);
-      
-      // 2. Si no hubo rutas directas, intentar buscar si el término coincide con paraderos
-      let combinedRoutes = Array.isArray(routesResult) ? [...routesResult] : [];
-
-      if (combinedRoutes.length === 0) {
-        try {
-          const stopsResult = await stopService.searchStops(term);
-          if (stopsResult && stopsResult.length > 0) {
-            // Si hay paraderos que coinciden, buscar rutas para esos paraderos
-            const stopIds = stopsResult.slice(0, 3).map((s) => s.id);
-            const stopRoutePromises = stopIds.map((id) =>
-              stopService.getStopRoutes(id).catch(() => [])
-            );
-            const stopRoutesNested = await Promise.all(stopRoutePromises);
-            const flatStopRoutes = stopRoutesNested.flat();
-            
-            // Deduplicar rutas
-            const seen = new Set();
-            for (const r of flatStopRoutes) {
-              if (r && r.id && !seen.has(r.id)) {
-                seen.add(r.id);
-                combinedRoutes.push(r);
-              }
-            }
-          }
-        } catch {
-          // Continuar con los resultados de rutas si falla la búsqueda de paraderos
-        }
-      }
-
-      setSearchResults(combinedRoutes);
+      setSearchResults(Array.isArray(routesResult) ? routesResult : []);
     } catch (err) {
       console.error('Error al realizar búsqueda en el backend:', err);
       setSearchError('No se pudo conectar con el servidor para buscar rutas. Revisa tu conexión.');

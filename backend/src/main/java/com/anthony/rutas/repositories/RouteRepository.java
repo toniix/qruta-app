@@ -15,9 +15,16 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
 
     List<Route> findByNameContainingIgnoreCase(String name);
 
-    @Query("SELECT r FROM Route r WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(r.code) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "OR LOWER(r.transportLine.name) LIKE LOWER(CONCAT('%', :query, '%'))")
+    @Query("SELECT DISTINCT r FROM Route r " +
+           "JOIN FETCH r.transportLine tl " +
+           "LEFT JOIN r.directions rd " +
+           "LEFT JOIN rd.routeStops rs " +
+           "LEFT JOIN rs.stop s " +
+           "WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "   OR LOWER(r.code) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "   OR LOWER(tl.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "   OR LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
+           "   OR LOWER(s.reference) LIKE LOWER(CONCAT('%', :query, '%'))")
     List<Route> searchByQuery(@Param("query") String query);
 
     /**
