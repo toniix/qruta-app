@@ -1,64 +1,61 @@
-import { apiClient } from './apiClient';
-import { BRAND_PRIMARY } from '../constants/brand';
-import { MOCK_ROUTES, MOCK_STOPS } from './mockData';
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
+import { apiClient } from "./apiClient";
+import { normalizeStop } from "../utils/adapters";
 
 export const stopService = {
+  /**
+   * Obtiene todos los paraderos
+   * GET /api/stops
+   */
   async getAllStops() {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 200));
-      return MOCK_STOPS;
-    }
-    const response = await apiClient.get('/stops');
-    return response.data;
+    const response = await apiClient.get("/stops");
+    const list = Array.isArray(response.data) ? response.data : [];
+    return list.map(normalizeStop).filter(Boolean);
   },
 
+  /**
+   * Obtiene un paradero por su ID
+   * GET /api/stops/{id}
+   */
   async getStopById(stopId) {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 150));
-      const stop = MOCK_STOPS.find((s) => s.id === stopId);
-      if (!stop) throw new Error('Paradero no encontrado');
-      return stop;
-    }
+    if (!stopId) throw new Error("ID de paradero no especificado");
     const response = await apiClient.get(`/stops/${stopId}`);
-    return response.data;
+    return normalizeStop(response.data);
   },
 
+  /**
+   * Busca paraderos por nombre o referencia
+   * GET /api/stops/search?query=...
+   */
   async searchStops(query) {
-    if (USE_MOCK) {
-      if (!query || query.trim() === '') return MOCK_STOPS;
-      const term = query.toLowerCase().trim();
-      return MOCK_STOPS.filter(
-        (s) =>
-          s.name.toLowerCase().includes(term) ||
-          s.reference?.toLowerCase().includes(term) ||
-          s.address?.toLowerCase().includes(term),
-      );
+    if (!query || query.trim() === "") {
+      return this.getAllStops();
     }
-    const response = await apiClient.get('/stops/search', { params: { query } });
-    return response.data;
+    const response = await apiClient.get("/stops/search", { params: { query } });
+    const list = Array.isArray(response.data) ? response.data : [];
+    return list.map(normalizeStop).filter(Boolean);
   },
 
-  /* GET /stops/${stopId}/routes - Fetch routes grouped by route that pass through a stop */
+  /**
+   * Obtiene las rutas asociadas a un paradero
+   * GET /api/stops/{id}/routes
+   */
   async getStopRoutes(stopId) {
-    if (USE_MOCK) {
-      await new Promise((resolve) => setTimeout(resolve, 250));
-      const matchedRoutes = MOCK_ROUTES.filter((r) =>
-        r.stops?.some((s) => s.id === stopId),
-      );
-      const fallbackRoutes = matchedRoutes.length > 0 ? matchedRoutes : MOCK_ROUTES.slice(0, 2);
-
-      return fallbackRoutes.map((route) => ({
-        id: route.id,
-        code: route.code,
-        name: route.name,
-        color: route.color || BRAND_PRIMARY,
-        directions: ['OUTBOUND'],
-        directionLabel: 'IDA',
-      }));
-    }
+    if (!stopId) return [];
     const response = await apiClient.get(`/stops/${stopId}/routes`);
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
+  },
+
+  /**
+   * Encuentra paraderos cercanos a coordenadas GPS
+   * POST /api/stops/nearby
+   */
+  async getNearbyStops(latitude, longitude, radiusMeters = 1000) {
+    const response = await apiClient.post("/stops/nearby", {
+      latitude,
+      longitude,
+      radiusMeters,
+    });
+    const list = Array.isArray(response.data) ? response.data : [];
+    return list.map(normalizeStop).filter(Boolean);
   },
 };

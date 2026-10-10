@@ -559,10 +559,10 @@ export function AdminDashboardPage() {
                         <td className="p-3 font-semibold text-slate-900">{s.name}</td>
                         <td className="p-3 text-slate-600">{s.address || s.reference || '-'}</td>
                         <td className="p-3 font-mono text-xs text-slate-500">{s.latitude}, {s.longitude}</td>
-                        <td className="p-3">{s.isAccessible ? '✅ Sí' : '❌ No'}</td>
+                        <td className="p-3">{(s.accessible ?? s.isAccessible) ? '✅ Sí' : '❌ No'}</td>
                         <td className="p-3">
                           <div className="flex items-center gap-1">
-                            <button onClick={() => { setEditStop(s); setStopForm({ cityId: s.cityId, name: s.name, latitude: s.latitude, longitude: s.longitude, reference: s.reference, address: s.address, isAccessible: s.isAccessible }); }} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Editar">
+                            <button onClick={() => { setEditStop(s); setStopForm({ cityId: s.cityId, name: s.name, latitude: s.latitude, longitude: s.longitude, reference: s.reference, address: s.address, isAccessible: Boolean(s.accessible ?? s.isAccessible) }); }} className="p-1.5 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors" title="Editar">
                               <Edit2 className="w-3.5 h-3.5" />
                             </button>
                             <button onClick={() => handleDeleteStop(s.id)} className="p-1.5 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors" title="Eliminar">

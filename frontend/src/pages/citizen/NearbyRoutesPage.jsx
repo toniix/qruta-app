@@ -10,7 +10,8 @@ import {
   ChevronRight,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
-import { nearbyService } from '../../services/nearbyService';
+import { routeService } from '../../services/routeService';
+import { stopService } from '../../services/stopService';
 import { InteractiveMap } from '../../components/map/InteractiveMap';
 import { StopRoutesModal } from '../../components/home/StopRoutesModal';
 import { calculateDistanceKm } from '../../utils/geoUtils';
@@ -37,9 +38,6 @@ export function NearbyRoutesPage() {
   const locationKey = userLocation ? `${userLocation.lat},${userLocation.lng}` : null;
   const [requestedKey, setRequestedKey] = useState(null);
 
-  // Restart the request when the location changes. Doing this during render (React's
-  // documented pattern for state derived from an external value) keeps the spinner on
-  // the same pass as the new location instead of costing an extra render.
   if (locationKey && locationKey !== requestedKey) {
     setRequestedKey(locationKey);
     setLoading(true);
@@ -59,14 +57,12 @@ export function NearbyRoutesPage() {
     (async () => {
       try {
         const [stops, nearbyRoutes] = await Promise.all([
-          nearbyService.findNearbyStops(userLocation.lat, userLocation.lng, 1500),
-          nearbyService.findNearbyRoutes(userLocation.lat, userLocation.lng, 1500),
+          stopService.getNearbyStops(userLocation.lat, userLocation.lng, 1500),
+          routeService.getNearbyRoutes(userLocation.lat, userLocation.lng, 1500),
         ]);
 
         if (cancelled) return;
         setNearbyStopsList(stops);
-        // Do NOT fall back to an arbitrary slice of all routes — that would show
-        // distant routes under a "Cerca de ti" heading. Empty is honest.
         setNearbyRoutesList(nearbyRoutes || []);
       } catch {
         if (!cancelled) {
@@ -285,7 +281,7 @@ export function NearbyRoutesPage() {
                           Ref: {stop.reference || stop.address}
                         </p>
                       )}
-                      {stop.isAccessible !== false && (
+                      {stop.accessible && (
                         <div className="mt-1 flex items-center gap-1">
                           <span className="text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200 font-medium">
                             ♿ Accesible

@@ -51,9 +51,9 @@ function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recent
   const map = useMap();
 
   useEffect(() => {
-    const lat = selectedStop?.location?.latitude ?? selectedStop?.latitude;
-    const lng = selectedStop?.location?.longitude ?? selectedStop?.longitude;
-    if (selectedStop && lat && lng) {
+    const lat = selectedStop?.latitude;
+    const lng = selectedStop?.longitude;
+    if (selectedStop && lat != null && lng != null) {
       // Shift stop center upward into the visible top 50% of screen
       const zoom = 16;
       const targetPoint = map.project([lat, lng], zoom);
@@ -458,8 +458,8 @@ export function InteractiveMap({
 
         {allStops.map((stop, idx) => {
           const isSelected = selectedStop?.id === stop.id;
-          const lat = stop.location?.latitude ?? stop.latitude;
-          const lng = stop.location?.longitude ?? stop.longitude;
+          const lat = stop.latitude;
+          const lng = stop.longitude;
           if (lat == null || lng == null) return null;
 
           return (
@@ -489,7 +489,7 @@ export function InteractiveMap({
                   <div className="text-xs text-slate-500">
                     {stop.address || stop.reference}
                   </div>
-                  {stop.accessible != null && stop.accessible && (
+                  {stop.accessible && (
                     <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
                       ♿ Acceso Accesible
                     </span>

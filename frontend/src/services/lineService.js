@@ -1,24 +1,21 @@
 import { apiClient } from "./apiClient";
-import { MOCK_LINES } from "./mockData";
-
-const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export const lineService = {
+  /**
+   * Obtiene todas las líneas de transporte
+   * GET /api/lines
+   */
   async getAllLines() {
-    if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 200));
-      return MOCK_LINES;
-    }
     const response = await apiClient.get("/lines");
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   },
 
+  /**
+   * Filtra líneas por ciudad
+   * GET /api/lines/city/{cityId}
+   */
   async getLinesByCity(cityId) {
-    if (USE_MOCK) {
-      await new Promise((r) => setTimeout(r, 200));
-      return MOCK_LINES;
-    }
     const response = await apiClient.get(`/lines/city/${cityId}`);
-    return response.data;
+    return Array.isArray(response.data) ? response.data : [];
   },
 };

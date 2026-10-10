@@ -255,7 +255,7 @@ export function RouteCard({ route, isNearest, distanceKm }) {
                       )}
                     </div>
                   </div>
-                  {stop.isAccessible === true && (
+                  {stop.accessible && (
                     <span className="text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0 font-medium">
                       ♿
                     </span>
