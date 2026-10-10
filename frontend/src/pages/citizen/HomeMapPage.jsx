@@ -36,10 +36,11 @@ export function HomeMapPage() {
     selectRoute,
     selectStop,
     clearSelection,
-    requestLocation,
+    triggerGpsRequest,
     isLocating,
     gpsReady,
     hasCustomLocation,
+    loadingRouteDetail,
   } = useRoutes();
 
   const [recenterTrigger, setRecenterTrigger] = useState(0);
@@ -97,7 +98,7 @@ export function HomeMapPage() {
   const handleRecenterGPS = async () => {
     if (!hasCustomLocation && !gpsReady) {
       try {
-        await requestLocation();
+        await triggerGpsRequest();
       } catch (err) {
         console.warn("No se pudo obtener ubicación GPS:", err);
       }
@@ -121,6 +122,7 @@ export function HomeMapPage() {
           onSelectStop={selectStop}
           activeDirection={activeDirection}
           recenterTrigger={recenterTrigger}
+          loadingRouteDetail={loadingRouteDetail}
           mapCenter={
             hasCustomLocation || gpsReady
               ? [userLocation.lat, userLocation.lng]

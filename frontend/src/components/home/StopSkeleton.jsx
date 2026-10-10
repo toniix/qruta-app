@@ -6,16 +6,9 @@ export function StopSkeleton() {
         <div className="h-4 bg-slate-100 rounded-full w-40" />
         <div className="h-4 bg-slate-100 rounded-full w-12" />
       </div>
-      <div className="space-y-4">
-        {[1, 2].map((i) => (
-          <div key={i} className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-slate-100 shrink-0" />
-            <div className="flex-1 space-y-1.5">
-              <div className="h-3 bg-slate-100 rounded-full w-3/4" />
-              <div className="h-3 bg-slate-100 rounded-full w-1/2" />
-            </div>
-          </div>
-        ))}
+      <div className="flex items-center justify-between">
+        <div className="h-5 bg-slate-100 rounded-full w-16" />
+        <div className="h-3 bg-slate-100 rounded-full w-28" />
       </div>
     </div>
   );

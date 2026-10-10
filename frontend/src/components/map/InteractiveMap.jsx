@@ -63,19 +63,21 @@ function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recent
 
       map.flyTo(targetLatLng, zoom, {
         animate: true,
-        duration: 1.2,
+        duration: 1.0,
       });
     } else if (bounds) {
-      // Reserve the bottom ~50% for the RouteDrawer bottom sheet immediately
+      // Reserve the bottom ~50% for the RouteDrawer bottom sheet smoothly
       const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
-      map.fitBounds(bounds, {
+      map.flyToBounds(bounds, {
         paddingTopLeft: [40, 90],
         paddingBottomRight: [40, bottomSheetPadding + 20],
         maxZoom: 16,
         animate: true,
+        duration: 1.1,
+        easeLinearity: 0.25,
       });
     } else if (isRouteSelected && center) {
-      // If a route is selected but bounds aren't ready yet, shift map center upward into top 50% immediately!
+      // If a route is selected but bounds aren't ready yet, shift map center upward smoothly
       const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
       const zoom = map.getZoom() || 14;
       const targetPoint = map.project(center, zoom);
@@ -83,10 +85,12 @@ function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recent
       const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
       const targetLatLng = map.unproject(offsetPoint, zoom);
 
-      map.panTo(targetLatLng, { animate: true });
+      map.flyTo(targetLatLng, zoom, {
+        animate: true,
+        duration: 0.8,
+      });
     } else if (center) {
-      // Cuando no hay recorrido de ruta seleccionado, el card de rutas ocupa la mitad inferior de la pantalla.
-      // Centramos el marcador de ubicación del usuario en el medio de la mitad superior visible (offset Y = 25% de la altura de la pantalla).
+      // Center user location on the upper visible area
       const zoom = map.getZoom() || 15;
       const targetPoint = map.project(center, zoom);
       const offsetY = window.innerHeight * 0.25;
@@ -198,6 +202,7 @@ export function InteractiveMap({
   mapZoom = 14,
   activeDirection = "OUTBOUND",
   recenterTrigger = 0,
+  loadingRouteDetail = false,
 }) {
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
 
@@ -425,6 +430,7 @@ export function InteractiveMap({
                       dashArray: isOutbound ? undefined : "7 7",
                       lineCap: "round",
                       lineJoin: "round",
+                      className: "route-active-polyline",
                     }}
                     eventHandlers={{
                       click: (e) => {
@@ -435,17 +441,19 @@ export function InteractiveMap({
                   />
                 );
               })
-            : selectedRoute.points &&
-              selectedRoute.points.length >= 2 && (
+            : activePoints &&
+              activePoints.length >= 2 && (
+                /* Mientras carga el detalle completo, simula el trazado activo con pulso y dash animado */
                 <Polyline
-                  key={`${selectedRoute.id}-flat`}
-                  positions={selectedRoute.points}
+                  key={`${selectedRoute.id}-loading-preview`}
+                  positions={activePoints}
                   pathOptions={{
                     color: selectedRoute.color || BRAND_PRIMARY,
-                    weight: 6,
-                    opacity: 0.95,
+                    weight: 5,
+                    opacity: 0.9,
                     lineCap: "round",
                     lineJoin: "round",
+                    className: "route-loading-polyline",
                   }}
                   eventHandlers={{
                     click: (e) => {
@@ -500,6 +508,25 @@ export function InteractiveMap({
           );
         })}
       </MapContainer>
+
+      {/* ── Overlay "Trazando ruta..." con animación pulsante ────────────────── */}
+      {selectedRoute && loadingRouteDetail && (
+        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-slide-in-top">
+          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 text-white backdrop-blur-md shadow-overlay border border-slate-700/80">
+            <span className="relative flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
+            </span>
+            <span className="text-xs font-semibold tracking-wide flex items-center gap-1.5">
+              <span>Trazando ruta</span>
+              <span className="font-bold text-blue-400">
+                {selectedRoute.code || ""}
+              </span>
+              <span className="animate-pulse">...</span>
+            </span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

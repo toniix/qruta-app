@@ -24,14 +24,24 @@ import { useRoutes } from "../../contexts/RouteContext";
  * the same session if the user clicks "Ahora no".
  */
 export function GpsPermissionModal() {
-  const { gpsPermissionState, requestLocation, showGpsModal, setShowGpsModal } =
-    useRoutes();
+  const {
+    gpsPermissionState,
+    requestLocation,
+    showGpsModal,
+    setShowGpsModal,
+    checkPermissionState,
+  } = useRoutes();
   const [isRequesting, setIsRequesting] = useState(false);
 
-  // The modal is only visible if explicitly requested via showGpsModal
+  // The modal is only visible if explicitly requested via showGpsModal and not yet granted
   const visible = Boolean(showGpsModal) && gpsPermissionState !== "granted";
 
   const handleDismiss = () => {
+    try {
+      sessionStorage.setItem("rutasya_gps_modal_dismissed", "true");
+    } catch {
+      // ignore private mode storage failures
+    }
     if (typeof setShowGpsModal === "function") {
       setShowGpsModal(false);
     }
@@ -47,10 +57,25 @@ export function GpsPermissionModal() {
         setShowGpsModal(false);
       }
     } catch {
-      // Permission denied by browser dialog — modal will update via gpsPermissionState
+      // Permission denied or dismissed by browser dialog — modal stays and guides user
+      if (typeof checkPermissionState === "function") {
+        await checkPermissionState();
+      }
     } finally {
       setIsRequesting(false);
     }
+  };
+
+  const handleRetryPermission = async () => {
+    if (typeof checkPermissionState === "function") {
+      const state = await checkPermissionState();
+      if (state === "granted") {
+        await handleAllow();
+        return;
+      }
+    }
+    // Attempt location request again in case user granted it in browser settings
+    await handleAllow();
   };
 
   if (!visible) return null;
@@ -248,17 +273,42 @@ export function GpsPermissionModal() {
             )}
 
             {gpsPermissionState === "denied" && (
-              <button
-                onClick={() => window.location.reload()}
-                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
-                style={{
-                  background: "var(--color-brand-primary)",
-                  boxShadow: "0 4px 14px rgba(29,78,216,0.35)",
-                }}
-              >
-                <Settings className="w-4 h-4" />
-                Recargar página
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={handleRetryPermission}
+                  disabled={isRequesting}
+                  className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl font-bold text-sm text-white transition-all active:scale-[0.98]"
+                  style={{
+                    background: isRequesting
+                      ? "#93c5fd"
+                      : "var(--color-brand-primary)",
+                    boxShadow: isRequesting
+                      ? "none"
+                      : "0 4px 14px rgba(29,78,216,0.35)",
+                  }}
+                >
+                  {isRequesting ? (
+                    <>
+                      <span
+                        className="w-4 h-4 rounded-full border-2 border-white/40 border-t-white inline-block animate-spin"
+                      />
+                      Verificando permiso...
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="w-4 h-4" />
+                      Ya lo activé, verificar GPS
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => window.location.reload()}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-2xl font-semibold text-xs text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                >
+                  <Settings className="w-3.5 h-3.5" />
+                  Recargar página
+                </button>
+              </div>
             )}
 
             <button

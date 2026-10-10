@@ -13,7 +13,7 @@ const CITIZEN_LINKS = [
 export function Header() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
-  const { requestLocation, isLocating, hasCustomLocation } = useRoutes();
+  const { triggerGpsRequest, isLocating, hasCustomLocation } = useRoutes();
 
   // Citizen pages own their full-screen mobile layout; the global header is
   // desktop-only there. Admin pages always show it.
@@ -74,7 +74,7 @@ export function Header() {
         <div className="flex items-center gap-2 shrink-0">
           {!isAdmin && (
             <button
-              onClick={requestLocation}
+              onClick={triggerGpsRequest}
               disabled={isLocating}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all ${
                 hasCustomLocation

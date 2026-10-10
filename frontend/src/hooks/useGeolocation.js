@@ -52,49 +52,72 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
       };
 
       const onError = (err) => {
-        // If high-accuracy satellite GPS times out or fails (common indoors on Android),
-        // fall back to low-accuracy network/cell/WiFi positioning.
-        if (err.code !== err.PERMISSION_DENIED) {
-          navigator.geolocation.getCurrentPosition(
-            onSuccess,
-            (fallbackErr) => {
-              let msg = "No se pudo obtener tu ubicación actual.";
-              if (fallbackErr.code === fallbackErr.PERMISSION_DENIED) {
-                msg = "Permiso de ubicación denegado por el usuario.";
-              } else if (
-                fallbackErr.code === fallbackErr.POSITION_UNAVAILABLE
-              ) {
-                msg =
-                  "Información de ubicación no disponible. Verifica que la ubicación esté activada en tu dispositivo.";
-              } else if (fallbackErr.code === fallbackErr.TIMEOUT) {
-                msg = "La solicitud de ubicación expiró.";
-              }
-              setError(msg);
-              setIsLocating(false);
-              reject(msg);
-            },
-            {
-              enableHighAccuracy: false,
-              timeout: 10000,
-              maximumAge: 60000,
-            },
-          );
+        // PERMISSION_DENIED (code 1)
+        if (err.code === err.PERMISSION_DENIED) {
+          const msg = "Permiso de ubicación denegado por el usuario.";
+          setGpsPermissionState("denied");
+          setError(msg);
+          setIsLocating(false);
+          reject(msg);
           return;
         }
 
-        let msg = "Permiso de ubicación denegado por el usuario.";
-        setError(msg);
-        setIsLocating(false);
-        reject(msg);
+        // POSITION_UNAVAILABLE (code 2) or TIMEOUT (code 3):
+        // If high-accuracy satellite GPS timed out or failed (common indoors on Android/iOS),
+        // try fallback to low-accuracy network/cell/WiFi positioning.
+        navigator.geolocation.getCurrentPosition(
+          onSuccess,
+          (fallbackErr) => {
+            let msg = "No se pudo obtener tu ubicación actual.";
+            if (fallbackErr.code === fallbackErr.PERMISSION_DENIED) {
+              msg = "Permiso de ubicación denegado por el usuario.";
+              setGpsPermissionState("denied");
+            } else if (fallbackErr.code === fallbackErr.POSITION_UNAVAILABLE) {
+              msg =
+                "Información de ubicación no disponible. Verifica que el GPS de tu celular esté encendido.";
+            } else if (fallbackErr.code === fallbackErr.TIMEOUT) {
+              msg = "La solicitud de ubicación tardó demasiado tiempo.";
+            }
+            setError(msg);
+            setIsLocating(false);
+            reject(msg);
+          },
+          {
+            enableHighAccuracy: false,
+            timeout: 10000,
+            maximumAge: 60000,
+          },
+        );
       };
 
-      // Try high-accuracy (satellite) GPS first with an 8-second timeout
+      // Try high-accuracy (satellite) GPS first with a 7-second timeout
       navigator.geolocation.getCurrentPosition(onSuccess, onError, {
         enableHighAccuracy: true,
-        timeout: 8000,
+        timeout: 7000,
         maximumAge: 30000,
       });
     });
+  }, []);
+
+  // Helper to re-query permissions API at any time
+  const checkPermissionState = useCallback(async () => {
+    if (
+      typeof navigator === "undefined" ||
+      !navigator.geolocation
+    ) {
+      setGpsPermissionState("unsupported");
+      return "unsupported";
+    }
+    if (!navigator.permissions || !navigator.permissions.query) {
+      return "prompt";
+    }
+    try {
+      const result = await navigator.permissions.query({ name: "geolocation" });
+      setGpsPermissionState(result.state);
+      return result.state;
+    } catch {
+      return "prompt";
+    }
   }, []);
 
   // On mount: check permission state via Permissions API if available, without forcing prompt
@@ -146,5 +169,7 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
     requestLocation,
     setLocation,
     gpsPermissionState,
+    setGpsPermissionState,
+    checkPermissionState,
   };
 }

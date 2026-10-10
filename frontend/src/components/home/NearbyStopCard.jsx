@@ -1,21 +1,15 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Bus } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
+import { ChevronRight } from 'lucide-react';
 import { formatDistance } from '../../utils/geoUtils';
-import { getRoutePalette } from '../../utils/routeUtils';
 import { StopRoutesModal } from './StopRoutesModal';
 
-/** A single nearby stop card showing the stop name + routes that pass through */
+/** A single nearby stop card — compact summary; the full route list lives in StopRoutesModal */
 export function NearbyStopCard({ stop, routes, distanceKm }) {
-  const navigate = useNavigate();
-  const { selectRoute } = useRoutes();
   const [activeModalStop, setActiveModalStop] = useState(null);
 
-  // Find routes that have this stop
-  const matchingRoutes = routes
-    .filter((r) => r.stops?.some((s) => s.id === stop.id))
-    .slice(0, 3);
+  // Count routes that pass through this stop (full list is fetched by the modal)
+  const routeCount = routes.filter((r) => r.stops?.some((s) => s.id === stop.id))
+    .length;
 
   return (
     <>
@@ -44,51 +38,23 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
           )}
         </div>
 
-        {/* Routes at this stop */}
-        <div className="space-y-3">
-          {matchingRoutes.length === 0 ? (
-            <div className="flex items-center justify-between text-xs text-slate-500 font-medium">
-              <span>Ver rutas del paradero</span>
-              <ChevronRight className="w-4 h-4 text-slate-500" />
-            </div>
-          ) : (
-            matchingRoutes.map((route, idx) => {
-              const { bg } = getRoutePalette(idx);
-              return (
-                <div
-                  key={route.id}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    selectRoute(route);
-                    navigate(`/mapa/ruta/${route.id}`);
-                  }}
-                  className="flex items-center justify-between w-full group/btn hover:bg-slate-50 p-1.5 rounded-2xl transition-colors"
-                >
-                  <div className="flex items-center gap-3 min-w-0 flex-1">
-                    <div
-                      className={`w-9 h-9 rounded-xl ${bg} text-white flex items-center justify-center shrink-0 shadow-2xs font-bold text-xs`}
-                    >
-                      {route.code || <Bus className="w-4 h-4" />}
-                    </div>
-                    <div className="text-left min-w-0 flex-1">
-                      <p className="font-bold text-slate-800 text-sm leading-tight group-hover/btn:text-blue-600 transition-colors truncate">
-                        {route.name.replace(/^Ruta \w+:\s*/i, '')}
-                      </p>
-                      <p className="text-xs text-slate-400 mt-0.5 truncate">
-                        {route.origin} → {route.destination}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0 ml-2">
-                    <span className="text-xs font-bold text-slate-500">{route.fare || 'S/ 2.00'}</span>
-                    <ChevronRight className="w-4 h-4 text-slate-500 group-hover/btn:text-slate-700 transition-colors" />
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
+        {/* Route count + CTA — opens StopRoutesModal with the full list */}
+        {routeCount > 0 ? (
+          <div className="flex items-center justify-between gap-2">
+            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 shrink-0">
+              {routeCount} {routeCount === 1 ? 'ruta' : 'rutas'}
+            </span>
+            <span className="text-xs font-bold text-blue-600 group-hover:text-blue-700 transition-colors flex items-center gap-1 min-w-0 truncate">
+              Ver rutas del paradero
+              <ChevronRight className="w-4 h-4 shrink-0" />
+            </span>
+          </div>
+        ) : (
+          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
+            <span>Ver rutas del paradero</span>
+            <ChevronRight className="w-4 h-4 text-slate-500" />
+          </div>
+        )}
       </div>
 
       {/* Render StopRoutesModal when stop is clicked */}

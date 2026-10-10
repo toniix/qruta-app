@@ -55,7 +55,36 @@ export function RouteProvider({ children }) {
     hasCustomLocation,
     gpsReady,
     gpsPermissionState,
+    setGpsPermissionState,
+    checkPermissionState,
   } = useGeolocation();
+
+  // Unified function to request GPS or open guide modal if blocked
+  const triggerGpsRequest = useCallback(async () => {
+    // If browser permission is explicitly denied, immediately show the helper modal
+    if (gpsPermissionState === "denied") {
+      setShowGpsModal(true);
+      return;
+    }
+
+    try {
+      await requestLocation();
+    } catch {
+      // If user dismissed browser dialog or denied, open modal to offer manual guidance
+      setShowGpsModal(true);
+    }
+  }, [gpsPermissionState, requestLocation]);
+
+  // Check once on mount: if session hasn't dismissed yet and GPS isn't granted, show polite modal
+  useEffect(() => {
+    const hasDismissed = sessionStorage.getItem("rutasya_gps_modal_dismissed");
+    if (!hasDismissed && gpsPermissionState === "prompt") {
+      const timer = setTimeout(() => {
+        setShowGpsModal(true);
+      }, 1200);
+      return () => clearTimeout(timer);
+    }
+  }, [gpsPermissionState]);
 
   // Filter popular routes within 2 km if GPS is active
   const displayedPopularRoutes = useMemo(() => {
@@ -347,6 +376,9 @@ export function RouteProvider({ children }) {
         clearSelection,
         locateNearestRoute,
         requestLocation,
+        triggerGpsRequest,
+        setGpsPermissionState,
+        checkPermissionState,
         loadData,
       }}
     >

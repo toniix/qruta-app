@@ -95,7 +95,7 @@ public class RouteService {
     public RouteDetailResponse findById(UUID id) {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + id));
-        List<RouteDirection> directions = routeDirectionRepository.findByRouteId(id);
+        List<RouteDirection> directions = routeDirectionRepository.findByRouteIdWithStops(id);
         return DtoMapper.toRouteDetailResponse(route, directions);
     }
 

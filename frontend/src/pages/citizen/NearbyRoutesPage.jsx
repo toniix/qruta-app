@@ -22,7 +22,7 @@ export function NearbyRoutesPage() {
   const {
     userLocation,
     selectRoute,
-    requestLocation,
+    triggerGpsRequest,
     isLocating,
     hasCustomLocation,
     gpsReady,
@@ -45,10 +45,10 @@ export function NearbyRoutesPage() {
   }
 
   useEffect(() => {
-    if (!hasCustomLocation) {
-      requestLocation();
+    if (!hasCustomLocation && !gpsReady) {
+      triggerGpsRequest().catch(() => {});
     }
-  }, [hasCustomLocation, requestLocation]);
+  }, [hasCustomLocation, gpsReady, triggerGpsRequest]);
 
   useEffect(() => {
     if (!userLocation) return;
@@ -128,9 +128,23 @@ export function NearbyRoutesPage() {
           />
 
           {/* Floating GPS Status Pill Badge */}
-          <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-200/80 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2 pointer-events-none">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
-            <span>GPS Activo</span>
+          <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-200/80 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2">
+            <span
+              className={`w-2.5 h-2.5 rounded-full ${
+                gpsReady || hasCustomLocation
+                  ? "bg-emerald-500 animate-pulse"
+                  : isLocating
+                    ? "bg-blue-500 animate-ping"
+                    : "bg-amber-500"
+              }`}
+            />
+            <span>
+              {gpsReady || hasCustomLocation
+                ? "GPS Activo"
+                : isLocating
+                  ? "Buscando GPS..."
+                  : "GPS Inactivo"}
+            </span>
           </div>
         </div>
 

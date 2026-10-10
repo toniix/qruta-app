@@ -23,7 +23,7 @@ export function HomePage() {
   const navigate = useNavigate();
   const {
     routes,
-    requestLocation,
+    triggerGpsRequest,
     isLocating,
     hasCustomLocation,
     gpsReady,
@@ -211,7 +211,7 @@ export function HomePage() {
                   </p>
                 </div>
                 <button
-                  onClick={requestLocation}
+                  onClick={triggerGpsRequest}
                   disabled={isLocating}
                   className="mt-1 flex items-center gap-2 bg-blue-600 text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-blue-700 transition-colors active:scale-95 disabled:opacity-60 shadow-2xs"
                 >
