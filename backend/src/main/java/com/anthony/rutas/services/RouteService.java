@@ -85,9 +85,21 @@ public class RouteService {
      */
     @Transactional(readOnly = true)
     public List<PopularRouteResponse> findPopularRoutes() {
-        return routeRepository.findPopular(PageRequest.of(0, MAX_POPULAR_ROUTES))
-                .stream()
-                .map(DtoMapper::toPopularRouteResponse)
+        List<Route> popularRoutes = routeRepository.findPopular(PageRequest.of(0, MAX_POPULAR_ROUTES));
+        if (popularRoutes.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> routeIds = popularRoutes.stream().map(Route::getId).toList();
+        List<Object[]> counts = routeStopRepository.countDistinctStopsByRouteIds(routeIds);
+        java.util.Map<UUID, Integer> stopsCountByRouteId = counts.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).intValue()
+                ));
+
+        return popularRoutes.stream()
+                .map(r -> DtoMapper.toPopularRouteResponse(r, stopsCountByRouteId.getOrDefault(r.getId(), 0)))
                 .toList();
     }
 

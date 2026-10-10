@@ -41,6 +41,7 @@ export function HomeMapPage() {
     gpsReady,
     hasCustomLocation,
     loadingRouteDetail,
+    userAddress,
   } = useRoutes();
 
   const [recenterTrigger, setRecenterTrigger] = useState(0);
@@ -123,6 +124,7 @@ export function HomeMapPage() {
           activeDirection={activeDirection}
           recenterTrigger={recenterTrigger}
           loadingRouteDetail={loadingRouteDetail}
+          userAddress={userAddress}
           mapCenter={
             hasCustomLocation || gpsReady
               ? [userLocation.lat, userLocation.lng]

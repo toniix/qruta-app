@@ -168,12 +168,16 @@ public class DtoMapper {
                                 .distinct()
                                 .count();
 
+                return toPopularRouteResponse(route, (int) totalStops);
+        }
+
+        public static PopularRouteResponse toPopularRouteResponse(Route route, int totalStops) {
                 return PopularRouteResponse.builder()
                                 .id(route.getId())
                                 .code(route.getCode())
                                 .name(route.getName())
                                 .color(route.getColor())
-                                .totalStops((int) totalStops)
+                                .totalStops(totalStops)
                                 .popularityScore(route.getPopularityScore())
                                 .build();
         }

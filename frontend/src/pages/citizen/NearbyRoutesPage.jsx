@@ -26,6 +26,7 @@ export function NearbyRoutesPage() {
     isLocating,
     hasCustomLocation,
     gpsReady,
+    userAddress,
   } = useRoutes();
 
   const [nearbyRoutesList, setNearbyRoutesList] = useState([]);
@@ -105,7 +106,9 @@ export function NearbyRoutesPage() {
             Cerca de ti
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
-            Mostrando rutas y paraderos en un radio de 1.5 km
+            {userAddress?.formattedAddress
+              ? `Cerca de ${userAddress.formattedAddress}`
+              : "Mostrando rutas y paraderos en un radio de 1.5 km"}
           </p>
         </div>
       </div>
@@ -120,6 +123,7 @@ export function NearbyRoutesPage() {
           <InteractiveMap
             routes={nearbyRoutesList}
             userLocation={userLocation}
+            userAddress={userAddress}
             gpsReady={gpsReady || hasCustomLocation}
             mapCenter={
               userLocation ? [userLocation.lat, userLocation.lng] : [-14.0678, -75.7286]

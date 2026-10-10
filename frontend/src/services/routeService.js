@@ -9,6 +9,7 @@ export const routeService = {
    */
   async getAllRoutes() {
     const response = await apiClient.get("/routes/cards");
+    console.log(response.data);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },
@@ -19,6 +20,7 @@ export const routeService = {
    */
   async getPopularRoutes() {
     const response = await apiClient.get("/routes/popular");
+    console.log(response.data);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },
@@ -82,11 +84,17 @@ export const routeService = {
     let minDistance = Infinity;
 
     routes.forEach((route) => {
-      const stops = route.keyStops?.length > 0 ? route.keyStops : route.stops || [];
+      const stops =
+        route.keyStops?.length > 0 ? route.keyStops : route.stops || [];
       stops.forEach((stop) => {
         if (stop.latitude == null || stop.longitude == null) return;
 
-        const dist = calculateDistanceKm(userLat, userLng, stop.latitude, stop.longitude);
+        const dist = calculateDistanceKm(
+          userLat,
+          userLng,
+          stop.latitude,
+          stop.longitude,
+        );
         if (dist < minDistance) {
           minDistance = dist;
           bestMatch = { route, stop, distanceKm: dist };

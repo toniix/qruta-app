@@ -34,6 +34,7 @@ export function HomePage() {
     loadNearbyStops,
     displayedPopularRoutes,
     loadingPopular,
+    userAddress,
   } = useRoutes();
 
   const nearbyStopsRef = useRef(null);
@@ -102,11 +103,18 @@ export function HomePage() {
         </div>
 
         {/* Greeting Sub-header */}
-        <div>
+        <div className="space-y-1">
           <h1 className="text-2xl font-bold mb-0.5 leading-tight">
             {greeting}!
           </h1>
-          <p className="text-xs text-white/90 font-medium">¿A dónde vamos a viajar hoy?</p>
+          {userAddress?.formattedAddress ? (
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-md text-xs font-semibold text-white border border-white/25 max-w-full truncate">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
+              <span className="truncate">Estás en {userAddress.formattedAddress}</span>
+            </div>
+          ) : (
+            <p className="text-xs text-white/90 font-medium">¿A dónde vamos a viajar hoy?</p>
+          )}
         </div>
 
         {/* Search trigger — navigates to the real search page */}

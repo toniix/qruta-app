@@ -1,20 +1,34 @@
 import { useState } from 'react';
-import { ChevronRight } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ChevronRight, Navigation } from 'lucide-react';
+import { useRoutes } from '../../contexts/RouteContext';
 import { formatDistance } from '../../utils/geoUtils';
 import { StopRoutesModal } from './StopRoutesModal';
 
 /** A single nearby stop card — compact summary; the full route list lives in StopRoutesModal */
 export function NearbyStopCard({ stop, routes, distanceKm }) {
+  const navigate = useNavigate();
+  const { selectStop } = useRoutes();
   const [activeModalStop, setActiveModalStop] = useState(null);
 
   // Count routes that pass through this stop (full list is fetched by the modal)
   const routeCount = routes.filter((r) => r.stops?.some((s) => s.id === stop.id))
     .length;
 
+  // Stops without routes go straight to the map; stops with routes open the modal
+  const handleCardClick = () => {
+    if (routeCount > 0) {
+      setActiveModalStop(stop);
+    } else {
+      selectStop(stop);
+      navigate('/mapa');
+    }
+  };
+
   return (
     <>
       <div
-        onClick={() => setActiveModalStop(stop)}
+        onClick={handleCardClick}
         className="bg-white rounded-2xl p-5 shadow-card border border-slate-100 animate-slide-in-bottom cursor-pointer hover:border-blue-200 transition-all group"
       >
         {/* Stop header */}
@@ -50,9 +64,12 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
             </span>
           </div>
         ) : (
-          <div className="flex items-center justify-between text-xs font-medium text-slate-500">
-            <span>Ver rutas del paradero</span>
-            <ChevronRight className="w-4 h-4 text-slate-500" />
+          <div className="flex items-center justify-between gap-1 text-xs font-bold text-blue-600 group-hover:text-blue-700 transition-colors">
+            <span className="flex items-center gap-1.5">
+              <Navigation className="w-4 h-4 shrink-0" />
+              Ver paradero en el mapa
+            </span>
+            <ChevronRight className="w-4 h-4 shrink-0" />
           </div>
         )}
       </div>

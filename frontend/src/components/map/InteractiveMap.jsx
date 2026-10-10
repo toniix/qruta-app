@@ -47,7 +47,13 @@ function shadeColor(color, percent) {
   return `#${(0x1000000 + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
 }
 
-function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recenterTrigger }) {
+function MapAutoRecenter({
+  bounds,
+  center,
+  selectedStop,
+  isRouteSelected,
+  recenterTrigger,
+}) {
   const map = useMap();
 
   useEffect(() => {
@@ -57,7 +63,7 @@ function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recent
       // Shift stop center upward into the visible top 50% of screen
       const zoom = 16;
       const targetPoint = map.project([lat, lng], zoom);
-      const offsetY = window.innerHeight * 0.20; // Shift focus point up
+      const offsetY = window.innerHeight * 0.2; // Shift focus point up
       const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
       const targetLatLng = map.unproject(offsetPoint, zoom);
 
@@ -107,7 +113,6 @@ function MapAutoRecenter({ bounds, center, selectedStop, isRouteSelected, recent
   return null;
 }
 
-
 /* MapClickHandler captures click events on the map canvas background */
 function MapClickHandler({ onMapClick }) {
   useMapEvents({
@@ -125,15 +130,7 @@ const createUserLocationIcon = (showLabel = true) =>
     className: "custom-user-pin !bg-transparent !border-none",
     html: `
       <div class="flex flex-col items-center pointer-events-auto">
-        ${
-          showLabel
-            ? `
-          <div class="px-2 py-0.5 rounded-lg bg-blue-600 text-white text-xs font-bold shadow-md whitespace-nowrap mb-1 border border-blue-400/50 backdrop-blur-md">
-          Tu ubicación actual
-          </div>
-        `
-            : ""
-        }
+    
         <div class="relative flex items-center justify-center w-7 h-7">
           <div class="absolute w-7 h-7 rounded-full bg-blue-500/30 user-location-pulse"></div>
           <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md"></div>
@@ -203,9 +200,10 @@ export function InteractiveMap({
   activeDirection = "OUTBOUND",
   recenterTrigger = 0,
   loadingRouteDetail = false,
+  userAddress = null,
 }) {
+  console.log(userLocation, "userLocation");
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
-
 
   // Fetch street-polylines (OSRM snapping) ONLY for the selected route detail directions in parallel
   useEffect(() => {
@@ -235,13 +233,11 @@ export function InteractiveMap({
     };
   }, [selectedRoute]);
 
-
   // Pull points/stops for the active direction of the selected route
   const activeDirectionMeta = useMemo(() => {
     if (!selectedRoute) return null;
     const dirs = selectedRoute.directions || [];
-    const dir =
-      dirs.find((d) => d.direction === activeDirection) || dirs[0];
+    const dir = dirs.find((d) => d.direction === activeDirection) || dirs[0];
     return dir || null;
   }, [selectedRoute, activeDirection]);
 
@@ -328,7 +324,6 @@ export function InteractiveMap({
           recenterTrigger={recenterTrigger}
         />
 
-
         {userLocation &&
           userLocation.lat != null &&
           userLocation.lng != null && (
@@ -337,8 +332,19 @@ export function InteractiveMap({
               icon={createUserLocationIcon()}
             >
               <Popup>
-                <div className="text-xs font-semibold text-slate-800">
-                  📍 Tu ubicación actual
+                <div className="p-1 max-w-[200px]">
+                  <div className="text-xs font-bold text-blue-600">
+                    📍 Tu ubicación actual
+                  </div>
+                  {userAddress?.formattedAddress ? (
+                    <div className="text-xs font-semibold text-slate-800 mt-0.5">
+                      {userAddress.formattedAddress}
+                    </div>
+                  ) : (
+                    <div className="text-xs text-slate-500 mt-0.5">
+                      Coordenadas detectadas por GPS
+                    </div>
+                  )}
                 </div>
               </Popup>
             </Marker>

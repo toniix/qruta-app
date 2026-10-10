@@ -30,7 +30,9 @@ export const stopService = {
     if (!query || query.trim() === "") {
       return this.getAllStops();
     }
-    const response = await apiClient.get("/stops/search", { params: { query } });
+    const response = await apiClient.get("/stops/search", {
+      params: { query },
+    });
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeStop).filter(Boolean);
   },
