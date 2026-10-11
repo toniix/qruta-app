@@ -26,7 +26,6 @@ export function HomeMapPage() {
     onlyNearby,
     loading,
     error,
-    nearestMatchInfo,
     activeDirection,
     selectRoute,
     selectStop,
@@ -38,6 +37,7 @@ export function HomeMapPage() {
     loadingRouteDetail,
     userAddress,
     nearbyStops,
+    nearestMatchInfo,
   } = useRoutes();
 
   // Local map & UI states
@@ -45,45 +45,29 @@ export function HomeMapPage() {
   const [isTracingMap, setIsTracingMap] = useState(false);
   const [mapInstance, setMapInstance] = useState(null);
   const carouselRef = useRef(null);
-  const prevIdRef = useRef(id);
 
   const selectedRouteId = selectedRoute?.id;
   const hasSelectedStop = Boolean(selectedStop);
 
-  // Sync URL parameter /mapa/ruta/:id with selectedRoute state
+  const isClosingRef = useRef(false);
+
+  // Sync route only when entering via a route URL (/mapa/ruta/:id)
   useEffect(() => {
     if (id) {
-      if (String(selectedRouteId) === String(id)) {
-        return;
+      if (isClosingRef.current) return;
+      if (String(selectedRouteId) !== String(id)) {
+        const found = routes?.find((r) => String(r.id) === String(id));
+        selectRoute(found || { id }, hasSelectedStop);
       }
-      const found = routes?.find((r) => String(r.id) === String(id));
-      selectRoute(found || { id }, hasSelectedStop);
     }
   }, [id, routes, selectRoute, selectedRouteId, hasSelectedStop]);
-
-  // Clear route and stop when transitioning from a route URL (/mapa/ruta/:id) back to base /mapa
-  useEffect(() => {
-    if (!id && prevIdRef.current) {
-      clearSelectedRoute();
-      selectStop(null);
-    }
-    prevIdRef.current = id;
-  }, [id, clearSelectedRoute, selectStop]);
-
-  // Cleanup on unmount: if citizen leaves the map page completely, reset selectedRoute and selectedStop
-  useEffect(() => {
-    return () => {
-      clearSelectedRoute();
-      selectStop(null);
-    };
-  }, [clearSelectedRoute, selectStop]);
 
   // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {
     if (onlyNearby && carouselRef.current) {
       carouselRef.current.scrollTo({ left: 0, behavior: "smooth" });
     }
-  }, [onlyNearby, nearestMatchInfo]);
+  }, [onlyNearby]);
 
   // Navigation & selection callbacks
   const handleSelectRoute = useCallback(
@@ -101,10 +85,17 @@ export function HomeMapPage() {
     [selectRoute, selectStop, navigate],
   );
 
+  // Close route detail explicitly in one click when user clicks X
   const handleCloseDetail = useCallback(() => {
+    isClosingRef.current = true;
+    clearSelectedRoute();
     selectStop(null);
-    navigate("/mapa");
-  }, [selectStop, navigate]);
+    navigate("/mapa", { replace: true });
+    // Reset flag after navigation completes
+    setTimeout(() => {
+      isClosingRef.current = false;
+    }, 100);
+  }, [clearSelectedRoute, selectStop, navigate]);
 
   const handleClearStop = useCallback(() => {
     selectStop(null);
@@ -192,10 +183,7 @@ export function HomeMapPage() {
             <RouteDrawer />
           </div>
         ) : selectedStop ? (
-          <StopDetailDrawer
-            stop={selectedStop}
-            onClose={handleClearStop}
-          />
+          <StopDetailDrawer stop={selectedStop} onClose={handleClearStop} />
         ) : (
           <RouteCarousel
             routes={filteredRoutes}

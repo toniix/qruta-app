@@ -1,5 +1,6 @@
 import { Home, Map, Route, Heart, MapPin } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+
 import { useRoutes } from '../../contexts/RouteContext';
 
 const NAV_ITEMS = [
@@ -13,7 +14,7 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { clearSelectedRoute, selectStop } = useRoutes();
+  const { selectedRoute } = useRoutes();
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -21,15 +22,14 @@ export function BottomNav() {
   };
 
   const handleNav = (path) => {
-    if (location.pathname === path) return;
-    if (path !== '/mapa') {
-      clearSelectedRoute();
-      selectStop(null);
-    } else if (location.pathname.startsWith('/mapa/ruta/')) {
-      clearSelectedRoute();
-      selectStop(null);
+    // If clicking on Mapa and user was viewing a route, restore that route's URL
+    let targetPath = path;
+    if (path === '/mapa' && selectedRoute?.id) {
+      targetPath = `/mapa/ruta/${selectedRoute.id}`;
     }
-    navigate(path);
+
+    if (location.pathname === targetPath) return;
+    navigate(targetPath);
   };
 
   return (

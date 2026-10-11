@@ -1,9 +1,9 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { ChevronRight, Navigation } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
-import { formatDistance } from '../../utils/geoUtils';
-import { StopRoutesModal } from './StopRoutesModal';
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { ChevronRight, Navigation } from "lucide-react";
+import { useRoutes } from "../../contexts/RouteContext";
+import { formatDistance } from "../../utils/geoUtils";
+import { StopRoutesModal } from "./StopRoutesModal";
 
 /** A single nearby stop card — compact summary; the full route list lives in StopRoutesModal */
 export function NearbyStopCard({ stop, routes, distanceKm }) {
@@ -12,17 +12,21 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
   const [activeModalStop, setActiveModalStop] = useState(null);
 
   // Count routes that pass through this stop (full list is fetched by the modal)
-  const routeCount = routes.filter((r) => r.stops?.some((s) => s.id === stop.id))
-    .length;
+  const routeCount = routes.filter((r) =>
+    r.stops?.some((s) => s.id === stop.id),
+  ).length;
 
   // Stops without routes go straight to the map; stops with routes open the modal
   const handleCardClick = () => {
+    console.log(
+      `Clicked NearbyStopCard for stop ${stop.name} (ID: ${stop.id}) with ${routeCount} routes.`,
+    );
     if (routeCount > 0) {
       setActiveModalStop(stop);
     } else {
       clearSelectedRoute();
       selectStop(stop);
-      navigate('/mapa');
+      navigate("/mapa");
     }
   };
 
@@ -57,7 +61,7 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
         {routeCount > 0 ? (
           <div className="flex items-center justify-between gap-2">
             <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 shrink-0">
-              {routeCount} {routeCount === 1 ? 'ruta' : 'rutas'}
+              {routeCount} {routeCount === 1 ? "ruta" : "rutas"}
             </span>
             <span className="text-xs font-bold text-blue-600 group-hover:text-blue-700 transition-colors flex items-center gap-1 min-w-0 truncate">
               Ver rutas del paradero

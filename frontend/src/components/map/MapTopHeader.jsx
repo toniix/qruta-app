@@ -68,9 +68,8 @@ export function MapTopHeader({
             <div className="pointer-events-auto flex items-center justify-between gap-2 bg-slate-900/90 text-white backdrop-blur-md px-3.5 py-1.5 rounded-full shadow-overlay border border-slate-700/80 text-xs animate-slide-in-top mx-auto max-w-fit">
               <div className="flex items-center gap-2 truncate">
                 <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0 ring-2 ring-amber-400/30 animate-pulse" />
-                <span className="font-semibold text-amber-300">Paradero enfocado:</span>
-                <span className="font-bold text-white truncate max-w-[170px] sm:max-w-[240px]">
-                  {selectedStop.name}
+                <span className="font-semibold text-amber-300">
+                  Punto frecuente enfocado
                 </span>
               </div>
               <button
@@ -125,4 +124,3 @@ export function MapTopHeader({
     </div>
   );
 }
-

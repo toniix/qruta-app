@@ -16,6 +16,7 @@ import { stopService } from "../../services/stopService";
 import { useRoutes } from "../../contexts/RouteContext";
 
 export function StopRoutesModal({ stop, onClose }) {
+  console.log("Rendering StopRoutesModal for stop:", stop);
   const navigate = useNavigate();
   const {
     routes: allContextRoutes,
@@ -172,7 +173,10 @@ export function StopRoutesModal({ stop, onClose }) {
                       {/* Code Badge */}
                       <div
                         className="w-13 h-9 text-white font-bold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
-                        style={{ backgroundColor: item.color || "var(--color-brand-primary)" }}
+                        style={{
+                          backgroundColor:
+                            item.color || "var(--color-brand-primary)",
+                        }}
                       >
                         {item.code || <Bus className="w-4 h-4" />}
                       </div>
