@@ -20,13 +20,15 @@ public class RouteController {
     private final RouteService routeService;
 
     @GetMapping("/cards")
-    public ResponseEntity<List<RouteSummaryResponse>> getRouteCards() {
-        return ResponseEntity.ok(routeService.findAllCards());
+    public ResponseEntity<List<RouteSummaryResponse>> getRouteCards(
+            @RequestParam(value = "cityId", required = false) UUID cityId) {
+        return ResponseEntity.ok(cityId != null ? routeService.findAllCards(cityId) : routeService.findAllCards());
     }
 
     @GetMapping("/popular")
-    public ResponseEntity<List<PopularRouteResponse>> getPopularRoutes() {
-        return ResponseEntity.ok(routeService.findPopularRoutes());
+    public ResponseEntity<List<PopularRouteResponse>> getPopularRoutes(
+            @RequestParam(value = "cityId", required = false) UUID cityId) {
+        return ResponseEntity.ok(cityId != null ? routeService.findPopularRoutes(cityId) : routeService.findPopularRoutes());
     }
 
     @GetMapping("/{id}")
@@ -35,8 +37,10 @@ public class RouteController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<List<RouteSummaryResponse>> searchRoutes(@RequestParam String query) {
-        return ResponseEntity.ok(routeService.search(query));
+    public ResponseEntity<List<RouteSummaryResponse>> searchRoutes(
+            @RequestParam String query,
+            @RequestParam(value = "cityId", required = false) UUID cityId) {
+        return ResponseEntity.ok(cityId != null ? routeService.search(query, cityId) : routeService.search(query));
     }
 
     @GetMapping("/line/{transportLineId}")

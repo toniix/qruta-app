@@ -50,3 +50,42 @@ export function getBoundsFromPoints(points) {
     [maxLat, maxLng],
   ];
 }
+
+/**
+ * Determina la ciudad más cercana dentro de su radio de cobertura.
+ * @param {number} userLat - Latitud del usuario
+ * @param {number} userLng - Longitud del usuario
+ * @param {Array} cities - Lista de ciudades con { id, name, latitude, longitude, radiusKm }
+ * @returns {{ city: Object|null, nearestCity: Object|null, distanceKm: number, isInsideCoverage: boolean }}
+ */
+export function detectCityFromCoords(userLat, userLng, cities) {
+  if (userLat == null || userLng == null || !Array.isArray(cities) || cities.length === 0) {
+    return { city: null, nearestCity: null, distanceKm: Infinity, isInsideCoverage: false };
+  }
+
+  let nearestCity = null;
+  let minDistance = Infinity;
+
+  for (const city of cities) {
+    if (city.latitude == null || city.longitude == null) continue;
+    const dist = calculateDistanceKm(userLat, userLng, Number(city.latitude), Number(city.longitude));
+    if (dist < minDistance) {
+      minDistance = dist;
+      nearestCity = city;
+    }
+  }
+
+  if (!nearestCity) {
+    return { city: null, nearestCity: null, distanceKm: Infinity, isInsideCoverage: false };
+  }
+
+  const maxRadius = Number(nearestCity.radiusKm) || 30;
+  const isInside = minDistance <= maxRadius;
+
+  return {
+    city: isInside ? nearestCity : null,
+    nearestCity,
+    distanceKm: minDistance,
+    isInsideCoverage: isInside,
+  };
+}

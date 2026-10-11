@@ -54,6 +54,15 @@ public class RouteService {
     }
 
     /**
+     * Returns a lightweight summary list filtered by city.
+     */
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> findAllCards(UUID cityId) {
+        List<Route> routes = routeRepository.findAllByCityIdWithTransportLine(cityId);
+        return toOptimizedRouteSummaryList(routes);
+    }
+
+    /**
      * Helper to batch-load key stops for a list of routes in a single query.
      */
     private List<RouteSummaryResponse> toOptimizedRouteSummaryList(List<Route> routes) {
@@ -110,6 +119,26 @@ public class RouteService {
     }
 
     @Transactional(readOnly = true)
+    public List<PopularRouteResponse> findPopularRoutes(UUID cityId) {
+        List<Route> popularRoutes = routeRepository.findPopularByCityId(cityId, PageRequest.of(0, MAX_POPULAR_ROUTES));
+        if (popularRoutes.isEmpty()) {
+            return List.of();
+        }
+
+        List<UUID> routeIds = popularRoutes.stream().map(Route::getId).toList();
+        List<Object[]> counts = routeStopRepository.countDistinctStopsByRouteIds(routeIds);
+        java.util.Map<UUID, Integer> stopsCountByRouteId = counts.stream()
+                .collect(java.util.stream.Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).intValue()
+                ));
+
+        return popularRoutes.stream()
+                .map(r -> DtoMapper.toPopularRouteResponse(r, stopsCountByRouteId.getOrDefault(r.getId(), 0)))
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public RouteDetailResponse findById(UUID id) {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + id));
@@ -120,6 +149,12 @@ public class RouteService {
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query) {
         List<Route> routes = routeRepository.searchByQuery(query);
+        return toOptimizedRouteSummaryList(routes);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> search(String query, UUID cityId) {
+        List<Route> routes = routeRepository.searchByQueryAndCityId(query, cityId);
         return toOptimizedRouteSummaryList(routes);
     }
 

@@ -40,6 +40,9 @@ public class CityService {
                 .name(request.getName())
                 .department(request.getDepartment())
                 .country(request.getCountry())
+                .latitude(request.getLatitude() != null ? java.math.BigDecimal.valueOf(request.getLatitude()) : null)
+                .longitude(request.getLongitude() != null ? java.math.BigDecimal.valueOf(request.getLongitude()) : null)
+                .radiusKm(request.getRadiusKm() != null ? java.math.BigDecimal.valueOf(request.getRadiusKm()) : java.math.BigDecimal.valueOf(30.0))
                 .build();
         return DtoMapper.toCityResponse(cityRepository.save(city));
     }
@@ -52,6 +55,9 @@ public class CityService {
         if (request.getName() != null) city.setName(request.getName());
         if (request.getDepartment() != null) city.setDepartment(request.getDepartment());
         if (request.getCountry() != null) city.setCountry(request.getCountry());
+        if (request.getLatitude() != null) city.setLatitude(java.math.BigDecimal.valueOf(request.getLatitude()));
+        if (request.getLongitude() != null) city.setLongitude(java.math.BigDecimal.valueOf(request.getLongitude()));
+        if (request.getRadiusKm() != null) city.setRadiusKm(java.math.BigDecimal.valueOf(request.getRadiusKm()));
 
         return DtoMapper.toCityResponse(cityRepository.save(city));
     }

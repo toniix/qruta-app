@@ -30,6 +30,16 @@ public class City {
     @Column(nullable = false)
     private String country;
 
+    @Column(precision = 10, scale = 7)
+    private java.math.BigDecimal latitude;
+
+    @Column(precision = 10, scale = 7)
+    private java.math.BigDecimal longitude;
+
+    @Column(name = "radius_km", precision = 6, scale = 2, nullable = false)
+    @Builder.Default
+    private java.math.BigDecimal radiusKm = java.math.BigDecimal.valueOf(30.0);
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

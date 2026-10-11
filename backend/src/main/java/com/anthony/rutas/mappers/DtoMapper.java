@@ -15,6 +15,9 @@ public class DtoMapper {
                                 .name(city.getName())
                                 .department(city.getDepartment())
                                 .country(city.getCountry())
+                                .latitude(city.getLatitude() != null ? city.getLatitude().doubleValue() : null)
+                                .longitude(city.getLongitude() != null ? city.getLongitude().doubleValue() : null)
+                                .radiusKm(city.getRadiusKm() != null ? city.getRadiusKm().doubleValue() : null)
                                 .build();
         }
 
@@ -63,6 +66,8 @@ public class DtoMapper {
                                 .color(route.getColor())
                                 .fare(route.getFare())
                                 .transportLineName(route.getTransportLine() != null ? route.getTransportLine().getName() : null)
+                                .cityId(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getId() : null)
+                                .cityName(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getName() : null)
                                 .keyStops(keyStops != null ? keyStops : List.of())
                                 .build();
         }
@@ -184,6 +189,8 @@ public class DtoMapper {
                                 .color(route.getColor())
                                 .totalStops(totalStops)
                                 .popularityScore(route.getPopularityScore())
+                                .cityId(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getId() : null)
+                                .cityName(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getName() : null)
                                 .build();
         }
 

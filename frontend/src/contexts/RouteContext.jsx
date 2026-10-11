@@ -11,8 +11,9 @@ import {
 import { routeService } from "../services/routeService";
 import { stopService } from "../services/stopService";
 import { geocodingService } from "../services/geocodingService";
+import { cityService } from "../services/cityService";
 import { useGeolocation } from "../hooks/useGeolocation";
-import { calculateDistanceKm } from "../utils/geoUtils";
+import { calculateDistanceKm, detectCityFromCoords } from "../utils/geoUtils";
 
 const RouteContext = createContext(null);
 
@@ -40,6 +41,11 @@ export function RouteProvider({ children }) {
   const [showGpsModal, setShowGpsModal] = useState(false);
   const [userAddress, setUserAddress] = useState(null);
   const [loadingAddress, setLoadingAddress] = useState(false);
+
+  const [cities, setCities] = useState([]);
+  const [currentCity, setCurrentCity] = useState(null);
+  const [isManualCity, setIsManualCity] = useState(false);
+  const [outsideCoverage, setOutsideCoverage] = useState(false);
 
   // Debounced search query to prevent hammering backend on each keystroke
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(searchQuery);
@@ -141,14 +147,14 @@ export function RouteProvider({ children }) {
 
   // Load all routes and popular routes for the initial citizen dashboard.
   // Stops are fetched by geographic proximity when GPS is active (nearbyStops) or within each route (keyStops).
-  const loadData = useCallback(async () => {
+  const loadData = useCallback(async (cityId) => {
     setLoading(true);
     setLoadingPopular(true);
     setError(null);
     try {
       const [fetchedRoutes, fetchedPopular] = await Promise.all([
-        routeService.getAllRoutes(),
-        routeService.getPopularRoutes().catch(() => []),
+        routeService.getAllRoutes(cityId),
+        routeService.getPopularRoutes(cityId).catch(() => []),
       ]);
       setRoutes(fetchedRoutes);
       setPopularRoutes(fetchedPopular);
@@ -163,17 +169,58 @@ export function RouteProvider({ children }) {
     }
   }, []);
 
+  // Load cities catalog on mount and set initial city from localStorage or default
   useEffect(() => {
     let isMounted = true;
     (async () => {
-      if (isMounted) {
-        await loadData();
+      try {
+        const fetchedCities = await cityService.getAllCities();
+        if (!isMounted) return;
+        setCities(fetchedCities);
+
+        const savedCityId = localStorage.getItem("rutasya_selected_city_id");
+        const initialCity = savedCityId
+          ? fetchedCities.find((c) => c.id === savedCityId)
+          : fetchedCities.find((c) => c.name === "Ica") || fetchedCities[0] || null;
+
+        if (initialCity) {
+          setCurrentCity(initialCity);
+          setIsManualCity(!!savedCityId);
+        }
+      } catch (err) {
+        console.error("Error al cargar ciudades:", err);
+        const fallback = { id: null, name: "Ica", latitude: -14.0678, longitude: -75.7286, radiusKm: 30 };
+        setCities([fallback]);
+        setCurrentCity(fallback);
       }
     })();
     return () => {
       isMounted = false;
     };
-  }, [loadData]);
+  }, []);
+
+  // Auto-detect city from GPS when available (unless user manually selected a different city)
+  useEffect(() => {
+    if (!hasCustomLocation && !gpsReady) return;
+    if (!userLocation?.lat || !userLocation?.lng) return;
+    if (!cities || cities.length === 0) return;
+    if (isManualCity) return;
+
+    const result = detectCityFromCoords(userLocation.lat, userLocation.lng, cities);
+    setOutsideCoverage(!result.isInsideCoverage);
+
+    if (result.city && result.city.id !== currentCity?.id) {
+      setCurrentCity(result.city);
+      localStorage.removeItem("rutasya_selected_city_id");
+    }
+  }, [hasCustomLocation, gpsReady, userLocation, cities, isManualCity, currentCity?.id]);
+
+  // Reload routes whenever currentCity changes
+  useEffect(() => {
+    if (currentCity?.id) {
+      loadData(currentCity.id);
+    }
+  }, [currentCity?.id, loadData]);
 
   // Fetch nearby stops once user location is known, avoiding re-fetches on tiny GPS jitter
   const lastCoordsRef = useRef(null);
@@ -277,7 +324,7 @@ export function RouteProvider({ children }) {
       try {
         if (debouncedSearchQuery.trim() !== "") {
           setLoadingFiltered(true);
-          const results = await routeService.searchRoutes(debouncedSearchQuery);
+          const results = await routeService.searchRoutes(debouncedSearchQuery, currentCity?.id);
           if (isMounted) setFilteredRoutes(results);
         } else if (onlyNearby && userLocation?.lat && userLocation?.lng) {
           setLoadingFiltered(true);
@@ -317,7 +364,7 @@ export function RouteProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearchQuery, onlyNearby, userLocation, routes]);
+  }, [debouncedSearchQuery, onlyNearby, userLocation, routes, currentCity?.id]);
 
   const selectRoute = useCallback(async (routeOrId, preserveStop = false) => {
     if (!routeOrId) return;
@@ -398,6 +445,23 @@ export function RouteProvider({ children }) {
     setOnlyNearby(true);
   }, [hasCustomLocation, gpsReady, triggerGpsRequest]);
 
+  const setCity = useCallback((city, isManual = true) => {
+    if (!city) return;
+    setCurrentCity(city);
+    setIsManualCity(isManual);
+    setOutsideCoverage(false);
+    if (isManual) {
+      localStorage.setItem("rutasya_selected_city_id", city.id);
+    } else {
+      localStorage.removeItem("rutasya_selected_city_id");
+    }
+  }, []);
+
+  const resetToGpsDetection = useCallback(() => {
+    setIsManualCity(false);
+    localStorage.removeItem("rutasya_selected_city_id");
+  }, []);
+
   // Stabilize context value reference to prevent redundant re-renders across all child components
   const contextValue = useMemo(
     () => ({
@@ -445,6 +509,12 @@ export function RouteProvider({ children }) {
       setGpsPermissionState,
       checkPermissionState,
       loadData,
+      cities,
+      currentCity,
+      isManualCity,
+      outsideCoverage,
+      setCity,
+      resetToGpsDetection,
     }),
     [
       routes,
@@ -489,6 +559,12 @@ export function RouteProvider({ children }) {
       setGpsPermissionState,
       checkPermissionState,
       loadData,
+      cities,
+      currentCity,
+      isManualCity,
+      outsideCoverage,
+      setCity,
+      resetToGpsDetection,
     ],
   );
 

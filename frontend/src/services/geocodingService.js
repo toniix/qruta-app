@@ -1,26 +1,34 @@
 import axios from "axios";
 
 /**
- * Geocoding Service using Photon (OSM) API for Ica, Perú
+ * Geocoding Service using Photon (OSM) API
  */
-const ICA_LAT = -14.0678;
-const ICA_LON = -75.7286;
+const DEFAULT_LAT = -14.0678;
+const DEFAULT_LON = -75.7286;
 
 export const geocodingService = {
-  async searchPlace(query) {
+  /**
+   * Busca lugares por nombre usando Photon OSM
+   * @param {string} query - Texto de búsqueda
+   * @param {Object} centerCoords - Coordenadas centrales { latitude, longitude } de la ciudad activa
+   */
+  async searchPlace(query, centerCoords) {
     if (!query || query.trim().length < 2) return [];
+
+    const lat = centerCoords?.latitude ?? DEFAULT_LAT;
+    const lon = centerCoords?.longitude ?? DEFAULT_LON;
 
     try {
       const url = `https://photon.komoot.io/api/?q=${encodeURIComponent(
         query,
-      )}&lat=${ICA_LAT}&lon=${ICA_LON}&limit=5`;
+      )}&lat=${lat}&lon=${lon}&limit=5`;
 
       const response = await axios.get(url, { timeout: 5000 });
 
       if (response.data?.features) {
         return response.data.features.map((item) => ({
           name: item.properties.name || item.properties.street || query,
-          district: item.properties.city || item.properties.state || "Ica",
+          district: item.properties.city || item.properties.state || "",
           country: item.properties.country || "Perú",
           latitude: item.geometry.coordinates[1],
           longitude: item.geometry.coordinates[0],
@@ -50,7 +58,7 @@ export const geocodingService = {
 
       const p = feature.properties;
       const streetOrName = p.name || p.street || p.locality || "";
-      const district = p.district || p.city || p.county || "Ica";
+      const district = p.district || p.city || p.county || "";
 
       let formatted = "";
       if (streetOrName) {
@@ -72,7 +80,7 @@ export const geocodingService = {
         formattedAddress: formatted,
         street: p.street || p.name || "",
         district,
-        city: p.city || "Ica",
+        city: p.city || p.district || "",
         raw: p,
       };
     } catch (err) {

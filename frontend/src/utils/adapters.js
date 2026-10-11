@@ -104,6 +104,8 @@ export function normalizeRoute(raw) {
     frequency: typeof raw.frequency === "string" ? raw.frequency : raw.schedule?.frequency || "",
     transportLineId: raw.transportLineId || null,
     transportLineName: raw.transportLineName || raw.transportLine?.name || "",
+    cityId: raw.cityId || null,
+    cityName: raw.cityName || "",
     keyStops,
     stops,
     directions,

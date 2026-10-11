@@ -6,9 +6,12 @@ export const routeService = {
   /**
    * Obtiene todas las tarjetas de rutas
    * GET /api/routes/cards
+   * @param {string} cityId - UUID de la ciudad (opcional)
    */
-  async getAllRoutes() {
-    const response = await apiClient.get("/routes/cards");
+  async getAllRoutes(cityId) {
+    const response = await apiClient.get("/routes/cards", {
+      params: cityId ? { cityId } : {},
+    });
     console.log(response.data);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
@@ -17,9 +20,12 @@ export const routeService = {
   /**
    * Obtiene rutas más populares
    * GET /api/routes/popular
+   * @param {string} cityId - UUID de la ciudad (opcional)
    */
-  async getPopularRoutes() {
-    const response = await apiClient.get("/routes/popular");
+  async getPopularRoutes(cityId) {
+    const response = await apiClient.get("/routes/popular", {
+      params: cityId ? { cityId } : {},
+    });
     console.log(response.data);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
@@ -38,13 +44,15 @@ export const routeService = {
   /**
    * Busca rutas por query (nombre, código o paraderos)
    * GET /api/routes/search?query=...
+   * @param {string} query - Texto de búsqueda
+   * @param {string} cityId - UUID de la ciudad (opcional)
    */
-  async searchRoutes(query) {
+  async searchRoutes(query, cityId) {
     if (!query || query.trim() === "") {
-      return this.getAllRoutes();
+      return this.getAllRoutes(cityId);
     }
     const response = await apiClient.get("/routes/search", {
-      params: { query },
+      params: { query, ...(cityId ? { cityId } : {}) },
     });
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);

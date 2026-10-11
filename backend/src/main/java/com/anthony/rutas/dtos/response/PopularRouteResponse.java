@@ -21,4 +21,6 @@ public class PopularRouteResponse {
     private String color;
     private Integer totalStops;
     private Integer popularityScore;
+    private UUID cityId;
+    private String cityName;
 }

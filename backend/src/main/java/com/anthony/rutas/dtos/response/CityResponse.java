@@ -14,4 +14,7 @@ public class CityResponse {
     private String name;
     private String department;
     private String country;
+    private Double latitude;
+    private Double longitude;
+    private Double radiusKm;
 }

@@ -1,11 +1,11 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Bell,
   Search,
   Navigation,
   Clock,
-  Heart,
+  MessageSquare,
   MapPin,
   Loader2,
   Bus,
@@ -14,6 +14,8 @@ import {
   Flame,
   ChevronRight,
   ChevronLeft,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
 import { getGreeting } from '../../utils/dateUtils';
@@ -21,6 +23,7 @@ import { QuickAction, NearbyStopCard, StopSkeleton } from '../../components/home
 
 export function HomePage() {
   const navigate = useNavigate();
+  const [showCitySelector, setShowCitySelector] = useState(false);
   const {
     routes,
     triggerGpsRequest,
@@ -35,6 +38,12 @@ export function HomePage() {
     displayedPopularRoutes,
     loadingPopular,
     userAddress,
+    cities,
+    currentCity,
+    isManualCity,
+    outsideCoverage,
+    setCity,
+    resetToGpsDetection,
   } = useRoutes();
 
   const nearbyStopsRef = useRef(null);
@@ -80,15 +89,20 @@ export function HomePage() {
               <Bus className="w-5 h-5 text-white" />
             </div>
 
-            {/* Brand Title & Badge */}
+            {/* Brand Title & City Selector */}
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-bold text-xl tracking-tight text-white drop-shadow-xs">
                   Ruta<span className="text-amber-300">Ya</span>
                 </span>
-                <span className="text-xs font-bold tracking-wider uppercase bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30 backdrop-blur-md flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 text-amber-300" /> Ica
-                </span>
+                <button
+                  onClick={() => setShowCitySelector(!showCitySelector)}
+                  className="text-xs font-bold tracking-wider uppercase bg-white/20 text-white px-2 py-0.5 rounded-full border border-white/30 backdrop-blur-md flex items-center gap-1 hover:bg-white/30 transition-colors"
+                >
+                  <Sparkles className="w-2.5 h-2.5 text-amber-300" />
+                  {currentCity?.name || 'Ica'}
+                  <ChevronDown className="w-3 h-3" />
+                </button>
               </div>
             </div>
           </div>
@@ -128,6 +142,62 @@ export function HomePage() {
         </button>
       </header>
 
+      {/* ── City Selector Dropdown ─────────────────────────────────────── */}
+      {showCitySelector && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center pt-24 px-4">
+          <div className="absolute inset-0 bg-black/30 backdrop-blur-sm" onClick={() => setShowCitySelector(false)} />
+          <div className="relative bg-white rounded-2xl shadow-xl border border-slate-200 w-full max-w-sm overflow-hidden animate-fade-in">
+            <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100">
+              <h3 className="font-bold text-slate-900 text-sm">Seleccionar ciudad</h3>
+              <button onClick={() => setShowCitySelector(false)} className="p-1 hover:bg-slate-100 rounded-lg transition-colors">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            <div className="max-h-64 overflow-y-auto">
+              {cities.map((city) => (
+                <button
+                  key={city.id}
+                  onClick={() => {
+                    setCity(city, true);
+                    setShowCitySelector(false);
+                  }}
+                  className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center justify-between ${
+                    currentCity?.id === city.id ? 'bg-brand-primary/5' : ''
+                  }`}
+                >
+                  <div>
+                    <p className="font-semibold text-sm text-slate-900">{city.name}</p>
+                    <p className="text-xs text-slate-500">{city.department}</p>
+                  </div>
+                  {currentCity?.id === city.id && (
+                    <span className="text-xs font-bold text-brand-primary">Actual</span>
+                  )}
+                </button>
+              ))}
+              <div className="border-t border-slate-100">
+                <button
+                  onClick={() => {
+                    resetToGpsDetection();
+                    setShowCitySelector(false);
+                  }}
+                  className="w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors"
+                >
+                  <p className="font-semibold text-sm text-slate-900">Detectar por GPS</p>
+                  <p className="text-xs text-slate-500">Usar tu ubicación actual</p>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── Outside Coverage Banner ─────────────────────────────────────── */}
+      {outsideCoverage && currentCity && (
+        <div className="mx-4 mb-2 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-800">
+          No encontramos rutas en tu ubicación actual. Mostrando rutas de {currentCity.name}
+        </div>
+      )}
+
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto hide-scrollbar -mt-4 pt-6 px-4 sm:px-6 pb-24 z-0 space-y-7">
         {/* ── Quick Actions ──────────────────────────────────────────── */}
@@ -154,11 +224,11 @@ export function HomePage() {
             onClick={() => navigate('/rutas')}
           />
           <QuickAction
-            icon={Heart}
-            label="Favoritos"
+            icon={MessageSquare}
+            label="Comunidad"
             bgClass="bg-rose-50/90 text-rose-600 border border-rose-100/80"
             iconClass="text-rose-500"
-            onClick={() => navigate('/favoritos')}
+            onClick={() => navigate('/comunidad')}
           />
         </section>
 

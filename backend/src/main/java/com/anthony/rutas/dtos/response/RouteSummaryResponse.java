@@ -22,5 +22,7 @@ public class RouteSummaryResponse {
     private String color;
     private String fare;
     private String transportLineName;
+    private UUID cityId;
+    private String cityName;
     private List<KeyStopResponse> keyStops;
 }
