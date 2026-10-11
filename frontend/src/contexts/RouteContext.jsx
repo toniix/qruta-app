@@ -14,7 +14,7 @@ import { geocodingService } from "../services/geocodingService";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { calculateDistanceKm } from "../utils/geoUtils";
 
-export const RouteContext = createContext(null);
+const RouteContext = createContext(null);
 
 export function RouteProvider({ children }) {
   const [routes, setRoutes] = useState([]);
@@ -319,8 +319,7 @@ export function RouteProvider({ children }) {
     };
   }, [debouncedSearchQuery, onlyNearby, userLocation, routes]);
 
-  // Select a route and ensure full details (directions, stops, points) are loaded
-  const selectRoute = useCallback(async (routeOrId) => {
+  const selectRoute = useCallback(async (routeOrId, preserveStop = false) => {
     if (!routeOrId) return;
 
     const routeId = typeof routeOrId === "object" ? routeOrId.id : routeOrId;
@@ -342,7 +341,9 @@ export function RouteProvider({ children }) {
       return initialRoute;
     });
 
-    setSelectedStop(null);
+    if (!preserveStop) {
+      setSelectedStop(null);
+    }
     setActiveDirection("OUTBOUND");
 
     if (hasDirections || !routeId) {
@@ -377,6 +378,12 @@ export function RouteProvider({ children }) {
     setSearchedLocation(null);
     setNearestMatchInfo(null);
     setOnlyNearby(false);
+    setLoadingRouteDetail(false);
+  }, []);
+
+  const clearSelectedRoute = useCallback(() => {
+    setSelectedRoute(null);
+    setActiveDirection("OUTBOUND");
     setLoadingRouteDetail(false);
   }, []);
 
@@ -431,6 +438,7 @@ export function RouteProvider({ children }) {
       selectRoute,
       selectStop,
       clearSelection,
+      clearSelectedRoute,
       locateNearestRoute,
       requestLocation,
       triggerGpsRequest,
@@ -474,6 +482,7 @@ export function RouteProvider({ children }) {
       selectRoute,
       selectStop,
       clearSelection,
+      clearSelectedRoute,
       locateNearestRoute,
       requestLocation,
       triggerGpsRequest,
@@ -490,6 +499,7 @@ export function RouteProvider({ children }) {
   );
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useRoutes() {
   const context = useContext(RouteContext);
   if (!context) {

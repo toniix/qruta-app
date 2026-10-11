@@ -13,7 +13,7 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { clearSelection } = useRoutes();
+  const { clearSelectedRoute, selectStop } = useRoutes();
 
   const isActive = (path) => {
     if (path === '/') return location.pathname === '/';
@@ -21,7 +21,14 @@ export function BottomNav() {
   };
 
   const handleNav = (path) => {
-    clearSelection();
+    if (location.pathname === path) return;
+    if (path !== '/mapa') {
+      clearSelectedRoute();
+      selectStop(null);
+    } else if (location.pathname.startsWith('/mapa/ruta/')) {
+      clearSelectedRoute();
+      selectStop(null);
+    }
     navigate(path);
   };
 

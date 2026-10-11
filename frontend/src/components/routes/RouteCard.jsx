@@ -14,7 +14,7 @@ import {
 import { useRoutes } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 
-export function RouteCard({ route, isNearest, distanceKm }) {
+export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
   const navigate = useNavigate();
   const { selectedRoute, selectedStop, selectRoute, selectStop } = useRoutes();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -29,6 +29,10 @@ export function RouteCard({ route, isNearest, distanceKm }) {
     route.destination || stops[stops.length - 1]?.name || "Destino";
 
   const handleRouteClick = () => {
+    if (onSelect) {
+      onSelect(route);
+      return;
+    }
     selectRoute(route);
     if (route?.id) {
       navigate(`/mapa/ruta/${route.id}`);
@@ -42,6 +46,10 @@ export function RouteCard({ route, isNearest, distanceKm }) {
 
   const handleStopClick = (e, stop) => {
     e.stopPropagation();
+    if (onSelect) {
+      onSelect(route, stop);
+      return;
+    }
     selectRoute(route);
     selectStop(stop);
     if (route?.id) {

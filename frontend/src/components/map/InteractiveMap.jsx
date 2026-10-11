@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useRef, memo } from "react";
 import {
   MapContainer,
   TileLayer,
@@ -52,18 +52,114 @@ function MapAutoRecenter({
   center,
   selectedStop,
   isRouteSelected,
+  selectedRouteId,
   recenterTrigger,
 }) {
   const map = useMap();
+  const lastActionKeyRef = useRef("");
+  const lastTriggerRef = useRef(recenterTrigger);
+  const lastFittedRouteIdRef = useRef(null);
 
   useEffect(() => {
-    const lat = selectedStop?.latitude;
-    const lng = selectedStop?.longitude;
-    if (selectedStop && lat != null && lng != null) {
-      // Shift stop center upward into the visible top 50% of screen
+    const isManualTrigger = recenterTrigger !== lastTriggerRef.current;
+    lastTriggerRef.current = recenterTrigger;
+
+    const stopLat = selectedStop?.latitude;
+    const stopLng = selectedStop?.longitude;
+    const hasStopCoords = selectedStop && stopLat != null && stopLng != null;
+
+    // Resetear ruta previa si se deseleccionó la ruta
+    if (!isRouteSelected) {
+      lastFittedRouteIdRef.current = null;
+    }
+
+    // Caso 1: Hay una ruta seleccionada
+    if (isRouteSelected) {
+      const isNewRoute =
+        String(lastFittedRouteIdRef.current) !== String(selectedRouteId);
+
+      // Si es una ruta recién seleccionada (o aún no encuadrada) y tenemos bounds:
+      // SIEMPRE encuadramos primero el recorrido completo de la ruta
+      if (isNewRoute) {
+        if (!bounds) return; // Esperar a que los puntos existan para encuadrarla bien
+
+        const boundsKey = `route:${selectedRouteId}:${bounds[0][0].toFixed(4)},${bounds[0][1].toFixed(4)},${bounds[1][0].toFixed(4)},${bounds[1][1].toFixed(4)}`;
+        if (!isManualTrigger && lastActionKeyRef.current === boundsKey) {
+          return;
+        }
+        lastActionKeyRef.current = boundsKey;
+        lastFittedRouteIdRef.current = selectedRouteId;
+
+        const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
+        map.flyToBounds(bounds, {
+          paddingTopLeft: [40, 90],
+          paddingBottomRight: [40, bottomSheetPadding + 20],
+          maxZoom: 16,
+          animate: true,
+          duration: 1.1,
+          easeLinearity: 0.25,
+        });
+        return;
+      }
+
+      // Si la ruta YA fue encuadrada inicialmente:
+      // Si el usuario hace clic en un punto frecuente (paradero) dentro de la ruta:
+      if (hasStopCoords) {
+        const stopKey = `route-stop:${selectedRouteId}:${selectedStop.id || `${stopLat},${stopLng}`}`;
+        if (!isManualTrigger && lastActionKeyRef.current === stopKey) {
+          return;
+        }
+        lastActionKeyRef.current = stopKey;
+
+        const zoom = 16;
+        const targetPoint = map.project([stopLat, stopLng], zoom);
+        // Offset vertical para que el pin quede visible arriba de RouteDrawer
+        const offsetY = Math.min(window.innerHeight * 0.22, 180);
+        const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
+        const targetLatLng = map.unproject(offsetPoint, zoom);
+
+        map.flyTo(targetLatLng, zoom, {
+          animate: true,
+          duration: 0.9,
+        });
+        return;
+      }
+
+      // Si la ruta ya estaba encuadrada y el paradero se deseleccionó (selectedStop pasó a null):
+      // Volvemos a encuadrar toda la ruta
+      if (!selectedStop && bounds) {
+        const boundsKey = `route:${selectedRouteId}:${bounds[0][0].toFixed(4)},${bounds[0][1].toFixed(4)},${bounds[1][0].toFixed(4)},${bounds[1][1].toFixed(4)}`;
+        if (!isManualTrigger && lastActionKeyRef.current === boundsKey) {
+          return;
+        }
+        lastActionKeyRef.current = boundsKey;
+
+        const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
+        map.flyToBounds(bounds, {
+          paddingTopLeft: [40, 90],
+          paddingBottomRight: [40, bottomSheetPadding + 20],
+          maxZoom: 16,
+          animate: true,
+          duration: 1.1,
+          easeLinearity: 0.25,
+        });
+        return;
+      }
+
+      return;
+    }
+
+    // Caso 2: NO hay ruta seleccionada, pero hay un paradero seleccionado (vista de solo paradero)
+    if (hasStopCoords) {
+      const stopKey = `standalone-stop:${selectedStop.id || `${stopLat},${stopLng}`}`;
+      if (!isManualTrigger && lastActionKeyRef.current === stopKey) {
+        return;
+      }
+      lastActionKeyRef.current = stopKey;
+
       const zoom = 16;
-      const targetPoint = map.project([lat, lng], zoom);
-      const offsetY = window.innerHeight * 0.2; // Shift focus point up
+      const targetPoint = map.project([stopLat, stopLng], zoom);
+      const offsetY = window.innerHeight * 0.2;
       const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
       const targetLatLng = map.unproject(offsetPoint, zoom);
 
@@ -71,32 +167,15 @@ function MapAutoRecenter({
         animate: true,
         duration: 1.0,
       });
-    } else if (bounds) {
-      // Reserve the bottom ~50% for the RouteDrawer bottom sheet smoothly
-      const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
-      map.flyToBounds(bounds, {
-        paddingTopLeft: [40, 90],
-        paddingBottomRight: [40, bottomSheetPadding + 20],
-        maxZoom: 16,
-        animate: true,
-        duration: 1.1,
-        easeLinearity: 0.25,
-      });
-    } else if (isRouteSelected && center) {
-      // If a route is selected but bounds aren't ready yet, shift map center upward smoothly
-      const bottomSheetPadding = Math.min(window.innerHeight * 0.48, 400);
-      const zoom = map.getZoom() || 14;
-      const targetPoint = map.project(center, zoom);
-      const offsetY = bottomSheetPadding * 0.4;
-      const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
-      const targetLatLng = map.unproject(offsetPoint, zoom);
+      return;
+    }
 
-      map.flyTo(targetLatLng, zoom, {
-        animate: true,
-        duration: 0.8,
-      });
-    } else if (center) {
-      // Center user location on the upper visible area
+    // Caso 3: No hay ruta ni paradero: centrar en la ubicación del usuario o centro del mapa
+    // Únicamente en el montaje inicial (sin acción previa) o si fue un recenterTrigger manual del usuario
+    if (center && (!lastActionKeyRef.current || isManualTrigger)) {
+      const centerKey = `center:${center[0].toFixed(4)},${center[1].toFixed(4)}`;
+      lastActionKeyRef.current = centerKey;
+
       const zoom = map.getZoom() || 15;
       const targetPoint = map.project(center, zoom);
       const offsetY = window.innerHeight * 0.25;
@@ -108,8 +187,27 @@ function MapAutoRecenter({
         duration: 0.8,
       });
     }
-  }, [map, bounds, center, selectedStop, isRouteSelected, recenterTrigger]);
+  }, [
+    map,
+    bounds,
+    center,
+    selectedStop,
+    isRouteSelected,
+    selectedRouteId,
+    recenterTrigger,
+  ]);
 
+  return null;
+}
+
+/* MapInstanceBridge exposes the Leaflet map instance to parent via callback */
+function MapInstanceBridge({ onMapReady }) {
+  const map = useMap();
+  useEffect(() => {
+    if (onMapReady) {
+      onMapReady(map);
+    }
+  }, [map, onMapReady]);
   return null;
 }
 
@@ -186,7 +284,7 @@ const createStopIcon = (stopName, isSelected, showLabel = false) =>
     iconAnchor: showLabel ? [70, 46] : [35, 35],
   });
 
-export function InteractiveMap({
+function InteractiveMapComponent({
   routes = [],
   selectedRoute = null,
   selectedStop = null,
@@ -201,29 +299,81 @@ export function InteractiveMap({
   recenterTrigger = 0,
   loadingRouteDetail = false,
   userAddress = null,
+  nearbyStops = [],
+  onTracingChange = null,
+  onMapReady = null,
+  zoomControl = false,
 }) {
-  console.log(userLocation, "userLocation");
+  const snappedCacheRef = useRef({});
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
+
+  // Check if all directions for the selected route are already snapped in snappedDirectionMap
+  const hasAllSnappedDirections = useMemo(() => {
+    const dirs = selectedRoute?.directions;
+    if (!dirs || dirs.length === 0) return false;
+    return dirs.every((dir) => {
+      if (!dir.routePoints || dir.routePoints.length < 2) return true;
+      const key = `${selectedRoute.id}:${dir.direction || dir.id}`;
+      return Boolean(snappedDirectionMap[key]);
+    });
+  }, [selectedRoute, snappedDirectionMap]);
+
+  // Unified tracing state: actively tracing while loading detail OR waiting for road snapping
+  const isTracing = Boolean(
+    selectedRoute && (loadingRouteDetail || !hasAllSnappedDirections),
+  );
+
+  useEffect(() => {
+    if (onTracingChange) {
+      onTracingChange(isTracing);
+    }
+  }, [isTracing, onTracingChange]);
 
   // Fetch street-polylines (OSRM snapping) ONLY for the selected route detail directions in parallel
   useEffect(() => {
     let isMounted = true;
     async function fetchSelectedRouteStreets() {
-      if (!selectedRoute?.directions?.length) return;
+      const dirs = selectedRoute?.directions;
+      if (!dirs || dirs.length === 0) return;
 
       const newDirMap = {};
-      const promises = selectedRoute.directions.map(async (dir) => {
-        const points = dir.routePoints;
-        if (points && points.length >= 2) {
-          const snapped = await routingService.getRoadPolyline(points);
-          newDirMap[`${selectedRoute.id}:${dir.direction || dir.id}`] = snapped;
+      let needsFetch = false;
+
+      dirs.forEach((dir) => {
+        const key = `${selectedRoute.id}:${dir.direction || dir.id}`;
+        if (!snappedCacheRef.current[key]) {
+          needsFetch = true;
         }
       });
 
-      await Promise.all(promises);
+      if (!needsFetch) return;
 
-      if (isMounted) {
-        setSnappedDirectionMap((prev) => ({ ...prev, ...newDirMap }));
+      try {
+        const promises = dirs.map(async (dir) => {
+          const dirKey = `${selectedRoute.id}:${dir.direction || dir.id}`;
+          if (snappedCacheRef.current[dirKey]) {
+            newDirMap[dirKey] = snappedCacheRef.current[dirKey];
+            return;
+          }
+          const points = dir.routePoints;
+          if (points && points.length >= 2) {
+            try {
+              const snapped = await routingService.getRoadPolyline(points);
+              newDirMap[dirKey] = snapped || points;
+            } catch {
+              newDirMap[dirKey] = points;
+            }
+          }
+        });
+
+        await Promise.all(promises);
+
+        if (isMounted) {
+          snappedCacheRef.current = { ...snappedCacheRef.current, ...newDirMap };
+          setSnappedDirectionMap((prev) => ({ ...prev, ...newDirMap }));
+        }
+      } catch (err) {
+        console.warn("Error al calcular trayecto por calles:", err);
       }
     }
 
@@ -262,18 +412,30 @@ export function InteractiveMap({
     return extracted.length > 0 ? extracted : null;
   }, [selectedRoute, activeDirectionMeta]);
 
-  // Extract all stops from selected route or all routes
+  // Extract all stops: selected route stops, or routes key stops + nearbyStops,
+  // and ALWAYS guarantee selectedStop is included so it is never invisible.
   const allStops = useMemo(() => {
-    if (selectedRoute) {
-      return activeDirectionMeta?.stops || selectedRoute.stops || [];
+    let list = selectedRoute
+      ? activeDirectionMeta?.stops || selectedRoute.stops || []
+      : [...routes.flatMap((r) => r.stops || []), ...(nearbyStops || [])];
+
+    // Always include selectedStop if it has coordinates and isn't in list yet
+    if (
+      selectedStop &&
+      selectedStop.latitude != null &&
+      selectedStop.longitude != null &&
+      !list.some((s) => s.id === selectedStop.id)
+    ) {
+      list = [selectedStop, ...list];
     }
-    // For summaries without stops, try to get from directions
-    return routes
-      .flatMap((r) => r.stops || [])
+
+    // Filter valid coordinates and deduplicate by id
+    return list
+      .filter((s) => s && s.latitude != null && s.longitude != null)
       .filter(
         (stop, idx, arr) => arr.findIndex((s) => s.id === stop.id) === idx,
       );
-  }, [selectedRoute, activeDirectionMeta, routes]);
+  }, [selectedRoute, activeDirectionMeta, routes, nearbyStops, selectedStop]);
 
   // Get the bounds of the active route immediately
   const activeBounds = useMemo(() => {
@@ -304,9 +466,12 @@ export function InteractiveMap({
       <MapContainer
         center={currentCenter}
         zoom={mapZoom}
+        zoomControl={zoomControl}
         scrollWheelZoom={true}
         className="w-full h-full"
       >
+        <MapInstanceBridge onMapReady={onMapReady} />
+
         <TileLayer
           attribution={TILE_ATTRIBUTION}
           url={TILE_URL}
@@ -318,9 +483,10 @@ export function InteractiveMap({
 
         <MapAutoRecenter
           bounds={activeBounds}
-          center={selectedRoute ? null : currentCenter}
+          center={currentCenter}
           selectedStop={selectedStop}
           isRouteSelected={Boolean(selectedRoute)}
+          selectedRouteId={selectedRoute?.id}
           recenterTrigger={recenterTrigger}
         />
 
@@ -447,28 +613,7 @@ export function InteractiveMap({
                   />
                 );
               })
-            : activePoints &&
-              activePoints.length >= 2 && (
-                /* Mientras carga el detalle completo, simula el trazado activo con pulso y dash animado */
-                <Polyline
-                  key={`${selectedRoute.id}-loading-preview`}
-                  positions={activePoints}
-                  pathOptions={{
-                    color: selectedRoute.color || BRAND_PRIMARY,
-                    weight: 5,
-                    opacity: 0.9,
-                    lineCap: "round",
-                    lineJoin: "round",
-                    className: "route-loading-polyline",
-                  }}
-                  eventHandlers={{
-                    click: (e) => {
-                      L.DomEvent.stopPropagation(e);
-                      if (onSelectRoute) onSelectRoute(selectedRoute);
-                    },
-                  }}
-                />
-              ))}
+            : null)}
 
         {allStops.map((stop, idx) => {
           const isSelected = selectedStop?.id === stop.id;
@@ -483,7 +628,7 @@ export function InteractiveMap({
               icon={createStopIcon(
                 stop.name,
                 isSelected,
-                Boolean(selectedRoute),
+                Boolean(selectedRoute) || isSelected,
               )}
               eventHandlers={{
                 click: (e) => {
@@ -494,8 +639,12 @@ export function InteractiveMap({
             >
               <Popup>
                 <div className="p-1 max-w-[200px]">
-                  <div className="text-xs uppercase font-bold text-blue-600">
-                    Punto frecuente
+                  <div
+                    className={`text-xs uppercase font-bold ${isSelected ? "text-amber-600" : "text-blue-600"}`}
+                  >
+                    {isSelected
+                      ? "📍 Paradero seleccionado"
+                      : "Punto frecuente"}
                   </div>
                   <div className="text-xs font-bold text-slate-900">
                     {stop.name}
@@ -514,25 +663,8 @@ export function InteractiveMap({
           );
         })}
       </MapContainer>
-
-      {/* ── Overlay "Trazando ruta..." con animación pulsante ────────────────── */}
-      {selectedRoute && loadingRouteDetail && (
-        <div className="absolute top-20 left-1/2 -translate-x-1/2 z-30 pointer-events-none animate-slide-in-top">
-          <div className="flex items-center gap-2.5 px-4 py-2 rounded-full bg-slate-900/90 text-white backdrop-blur-md shadow-overlay border border-slate-700/80">
-            <span className="relative flex h-3 w-3">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-3 w-3 bg-blue-500"></span>
-            </span>
-            <span className="text-xs font-semibold tracking-wide flex items-center gap-1.5">
-              <span>Trazando ruta</span>
-              <span className="font-bold text-blue-400">
-                {selectedRoute.code || ""}
-              </span>
-              <span className="animate-pulse">...</span>
-            </span>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+export const InteractiveMap = memo(InteractiveMapComponent);

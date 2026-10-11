@@ -17,7 +17,12 @@ import { useRoutes } from "../../contexts/RouteContext";
 
 export function StopRoutesModal({ stop, onClose }) {
   const navigate = useNavigate();
-  const { routes: allContextRoutes, selectRoute, selectStop } = useRoutes();
+  const {
+    routes: allContextRoutes,
+    selectRoute,
+    selectStop,
+    clearSelectedRoute,
+  } = useRoutes();
 
   const [stopRoutes, setStopRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -70,7 +75,7 @@ export function StopRoutesModal({ stop, onClose }) {
       });
     }
     const targetId = matched?.id || item.route?.id || item.id;
-    selectStop(stop);
+    selectStop(null);
     onClose();
     navigate(`/mapa/ruta/${targetId}`);
   };
@@ -80,7 +85,7 @@ export function StopRoutesModal({ stop, onClose }) {
       role="dialog"
       aria-modal="true"
       aria-label={`Rutas del paradero ${stop?.name || ""}`}
-      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-slate-900/60 backdrop-blur-sm p-0 sm:p-4 animate-fade-in overflow-hidden"
+      className="fixed inset-0 z-[9999] flex items-end sm:items-center justify-center bg-slate-900/35 backdrop-blur-[2px] p-0 sm:p-4 animate-fade-in overflow-hidden"
     >
       {/* Modal backdrop click */}
       <div className="absolute inset-0" onClick={onClose} />
@@ -212,6 +217,7 @@ export function StopRoutesModal({ stop, onClose }) {
         <div className="pt-2 shrink-0 border-t border-slate-100">
           <button
             onClick={() => {
+              clearSelectedRoute();
               selectStop(stop);
               onClose();
               navigate("/mapa");

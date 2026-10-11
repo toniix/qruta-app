@@ -8,7 +8,7 @@ import { StopRoutesModal } from './StopRoutesModal';
 /** A single nearby stop card — compact summary; the full route list lives in StopRoutesModal */
 export function NearbyStopCard({ stop, routes, distanceKm }) {
   const navigate = useNavigate();
-  const { selectStop } = useRoutes();
+  const { selectStop, clearSelectedRoute } = useRoutes();
   const [activeModalStop, setActiveModalStop] = useState(null);
 
   // Count routes that pass through this stop (full list is fetched by the modal)
@@ -20,6 +20,7 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
     if (routeCount > 0) {
       setActiveModalStop(stop);
     } else {
+      clearSelectedRoute();
       selectStop(stop);
       navigate('/mapa');
     }
