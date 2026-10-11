@@ -18,6 +18,7 @@ import {
   ChevronDown,
   Search,
   Check,
+  MessageSquare,
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../../services/authService';
@@ -25,6 +26,8 @@ import { adminLineService } from '../../services/adminLineService';
 import { adminStopService } from '../../services/adminStopService';
 import { adminRouteService } from '../../services/adminRouteService';
 import { cityService } from '../../services/cityService';
+import { communityService, getCategoryMeta } from '../../services/communityService';
+import { formatRelativeTime } from '../../utils/dateUtils';
 import { BRAND_PRIMARY } from '../../constants/brand';
 
 const PERU_DEPARTMENTS = [
@@ -40,6 +43,7 @@ const TABS = [
   { id: 'lines', label: 'Líneas', icon: Bus },
   { id: 'stops', label: 'Paraderos', icon: MapPin },
   { id: 'cities', label: 'Ciudades', icon: Building2 },
+  { id: 'community', label: 'Comunidad', icon: MessageSquare },
 ];
 
 // One fetcher per collection, keyed by the state it feeds. Lets a mutation
@@ -50,6 +54,7 @@ const COLLECTION_FETCHERS = {
   routes: () => adminRouteService.getAllRoutes(),
   stops: () => adminStopService.getAllStops(),
   cities: () => cityService.getAdminCities(),
+  community: () => communityService.getAdminPosts().catch(() => []),
 };
 
 const ALL_COLLECTIONS = Object.keys(COLLECTION_FETCHERS);
@@ -536,6 +541,7 @@ export function AdminDashboardPage() {
   const [routes, setRoutes] = useState([]);
   const [stops, setStops] = useState([]);
   const [cities, setCities] = useState([]);
+  const [communityPosts, setCommunityPosts] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -554,7 +560,7 @@ export function AdminDashboardPage() {
   const [editRoute, setEditRoute] = useState(null);
 
   // Form fields
-  const [cityForm, setCityForm] = useState({ name: '', department: '', country: 'Peru' });
+  const [cityForm, setCityForm] = useState({ name: '', department: '', country: 'Peru', latitude: '', longitude: '', radiusKm: 30 });
   const [lineForm, setLineForm] = useState({
     cityId: '',
     name: '',
@@ -592,6 +598,7 @@ export function AdminDashboardPage() {
     if ('routes' in data) setRoutes(data.routes);
     if ('stops' in data) setStops(data.stops);
     if ('cities' in data) setCities(data.cities);
+    if ('community' in data) setCommunityPosts(data.community);
   };
 
   const fetchCollections = async (keys) => {
@@ -667,7 +674,7 @@ export function AdminDashboardPage() {
   };
 
   const resetCityForm = () => {
-    setCityForm({ name: '', department: '', country: 'Peru' });
+    setCityForm({ name: '', department: '', country: 'Peru', latitude: '', longitude: '', radiusKm: 30 });
     setShowAddCity(false);
     setEditCity(null);
   };
@@ -904,6 +911,17 @@ export function AdminDashboardPage() {
       refreshKeys: ALL_COLLECTIONS,
     });
 
+  const requestDeleteCommunityPost = (post) =>
+    setConfirm({
+      title: 'Eliminar publicación de Comunidad',
+      description: `Se eliminará la publicación de “${post.authorAlias}” y todos sus comentarios. Esta acción no se puede deshacer.`,
+      confirmLabel: 'Eliminar publicación',
+      errorMessage: 'Error al eliminar la publicación',
+      successMessage: 'Publicación eliminada correctamente',
+      action: () => communityService.adminDeletePost(post.id),
+      refreshKeys: ['community'],
+    });
+
   const runConfirm = async () => {
     if (!confirm) return;
     setConfirmLoading(true);
@@ -926,6 +944,7 @@ export function AdminDashboardPage() {
     lines: lines.length,
     stops: stops.length,
     cities: cities.length,
+    community: communityPosts.length,
   };
 
   /* ── Render ──────────────────────────────────────────────────────── */
@@ -1800,6 +1819,39 @@ export function AdminDashboardPage() {
                           readOnly
                         />
                       </Field>
+                      <Field label="Latitud" htmlFor="city-latitude" hint="Ej. -14.0678">
+                        <input
+                          id="city-latitude"
+                          type="number"
+                          step="any"
+                          placeholder="-14.0678"
+                          value={cityForm.latitude}
+                          onChange={(e) => setCityForm({ ...cityForm, latitude: e.target.value })}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Longitud" htmlFor="city-longitude" hint="Ej. -75.7286">
+                        <input
+                          id="city-longitude"
+                          type="number"
+                          step="any"
+                          placeholder="-75.7286"
+                          value={cityForm.longitude}
+                          onChange={(e) => setCityForm({ ...cityForm, longitude: e.target.value })}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Radio de cobertura (km)" htmlFor="city-radius" hint="Ej. 30">
+                        <input
+                          id="city-radius"
+                          type="number"
+                          min="1"
+                          max="500"
+                          value={cityForm.radiusKm}
+                          onChange={(e) => setCityForm({ ...cityForm, radiusKm: e.target.value })}
+                          className={inputClass}
+                        />
+                      </Field>
                     </FormPanel>
                   )}
 
@@ -1840,6 +1892,37 @@ export function AdminDashboardPage() {
                           readOnly
                         />
                       </Field>
+                      <Field label="Latitud" htmlFor="edit-city-latitude" hint="Ej. -14.0678">
+                        <input
+                          id="edit-city-latitude"
+                          type="number"
+                          step="any"
+                          value={cityForm.latitude}
+                          onChange={(e) => setCityForm({ ...cityForm, latitude: e.target.value })}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Longitud" htmlFor="edit-city-longitude" hint="Ej. -75.7286">
+                        <input
+                          id="edit-city-longitude"
+                          type="number"
+                          step="any"
+                          value={cityForm.longitude}
+                          onChange={(e) => setCityForm({ ...cityForm, longitude: e.target.value })}
+                          className={inputClass}
+                        />
+                      </Field>
+                      <Field label="Radio de cobertura (km)" htmlFor="edit-city-radius" hint="Ej. 30">
+                        <input
+                          id="edit-city-radius"
+                          type="number"
+                          min="1"
+                          max="500"
+                          value={cityForm.radiusKm}
+                          onChange={(e) => setCityForm({ ...cityForm, radiusKm: e.target.value })}
+                          className={inputClass}
+                        />
+                      </Field>
                     </FormPanel>
                   )}
 
@@ -1857,11 +1940,12 @@ export function AdminDashboardPage() {
                   ) : (
                     <DataTable
                       caption="Ciudades registradas"
-                      minWidth={520}
+                      minWidth={720}
                       columns={[
                         { label: 'Ciudad' },
                         { label: 'Departamento' },
                         { label: 'País' },
+                        { label: 'Coordenadas / Radio' },
                         { label: 'Acciones', align: 'right' },
                       ]}
                     >
@@ -1870,6 +1954,11 @@ export function AdminDashboardPage() {
                           <td className={cx(tdClass, 'font-semibold text-slate-900')}>{c.name}</td>
                           <td className={cx(tdClass, 'text-slate-600')}>{c.department}</td>
                           <td className={cx(tdClass, 'text-slate-600')}>{c.country}</td>
+                          <td className={cx(tdClass, 'text-slate-600 text-xs')}>
+                            {c.latitude != null && c.longitude != null
+                              ? `${Number(c.latitude).toFixed(4)}, ${Number(c.longitude).toFixed(4)} (${c.radiusKm} km)`
+                              : '—'}
+                          </td>
                           <td className={tdClass}>
                             <RowActions
                               editLabel={`Editar ciudad ${c.name}`}
@@ -1880,6 +1969,128 @@ export function AdminDashboardPage() {
                           </td>
                         </tr>
                       ))}
+                    </DataTable>
+                  )}
+                </>
+              )}
+
+              {/* ── COMMUNITY MODERATION ───────────────────────────── */}
+              {activeTab === 'community' && (
+                <>
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <h2 className="text-sm font-bold text-slate-900">
+                        Moderación de Comunidad
+                      </h2>
+                      <p className="text-xs text-slate-500">
+                        {communityPosts.length}{' '}
+                        {communityPosts.length === 1
+                          ? 'publicación activa'
+                          : 'publicaciones activas'}{' '}
+                        de ciudadanos
+                      </p>
+                    </div>
+                  </div>
+
+                  {communityPosts.length === 0 ? (
+                    <EmptyState
+                      icon={MessageSquare}
+                      title="No hay publicaciones en la comunidad"
+                      description="Cuando los ciudadanos compartan alertas o preguntas aparecerán aquí para su moderación."
+                    />
+                  ) : (
+                    <DataTable
+                      caption="Publicaciones de la comunidad"
+                      minWidth={760}
+                      columns={[
+                        { label: 'Autor' },
+                        { label: 'Categoría' },
+                        { label: 'Ruta' },
+                        { label: 'Mensaje' },
+                        { label: 'Interacción' },
+                        { label: 'Fecha' },
+                        { label: 'Acciones', align: 'right' },
+                      ]}
+                    >
+                      {communityPosts.map((post) => {
+                        const catMeta = getCategoryMeta(post.category);
+                        return (
+                          <tr
+                            key={post.id}
+                            className="transition-colors hover:bg-slate-50"
+                          >
+                            <td
+                              className={cx(
+                                tdClass,
+                                'font-semibold text-slate-900 whitespace-nowrap',
+                              )}
+                            >
+                              {post.authorAlias}
+                            </td>
+                            <td className={tdClass}>
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold border ${catMeta.badgeClass}`}
+                              >
+                                {catMeta.shortLabel}
+                              </span>
+                            </td>
+                            <td className={cx(tdClass, 'text-slate-600')}>
+                              {post.routeCode ? (
+                                <span
+                                  className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-bold text-white"
+                                  style={{
+                                    backgroundColor:
+                                      post.routeColor || BRAND_PRIMARY,
+                                  }}
+                                >
+                                  {post.routeCode}
+                                </span>
+                              ) : (
+                                <span className="text-xs text-slate-400">
+                                  General
+                                </span>
+                              )}
+                            </td>
+                            <td
+                              className={cx(
+                                tdClass,
+                                'text-slate-700 max-w-md truncate',
+                              )}
+                              title={post.content}
+                            >
+                              {post.content}
+                            </td>
+                            <td
+                              className={cx(
+                                tdClass,
+                                'text-slate-500 whitespace-nowrap',
+                              )}
+                            >
+                              {post.likesCount} útiles · {post.commentsCount}{' '}
+                              coment.
+                            </td>
+                            <td
+                              className={cx(
+                                tdClass,
+                                'text-slate-500 whitespace-nowrap',
+                              )}
+                            >
+                              {formatRelativeTime(post.createdAt)}
+                            </td>
+                            <td className={cx(tdClass, 'text-right')}>
+                              <button
+                                type="button"
+                                onClick={() => requestDeleteCommunityPost(post)}
+                                aria-label={`Eliminar publicación de ${post.authorAlias}`}
+                                title="Eliminar publicación"
+                                className="inline-flex h-8 w-8 items-center justify-center rounded-lg text-slate-500 transition-colors hover:bg-red-50 hover:text-red-600"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </DataTable>
                   )}
                 </>

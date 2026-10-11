@@ -6,7 +6,7 @@ const CITIZEN_LINKS = [
   { label: 'Inicio', path: '/' },
   { label: 'Mapa', path: '/mapa' },
   { label: 'Rutas', path: '/rutas' },
-  { label: 'Favoritos', path: '/favoritos' },
+  { label: 'Comunidad', path: '/comunidad' },
   { label: 'Lugares', path: '/lugares' },
 ];
 

@@ -1,0 +1,346 @@
+package com.anthony.rutas.services;
+
+import com.anthony.rutas.dtos.request.CreateCommunityCommentRequest;
+import com.anthony.rutas.dtos.request.CreateCommunityPostRequest;
+import com.anthony.rutas.dtos.response.CommunityCommentResponse;
+import com.anthony.rutas.dtos.response.CommunityPostResponse;
+import com.anthony.rutas.dtos.response.RouteCommunitySummaryResponse;
+import com.anthony.rutas.entities.*;
+import com.anthony.rutas.exceptions.BadRequestException;
+import com.anthony.rutas.exceptions.ResourceNotFoundException;
+import com.anthony.rutas.repositories.*;
+import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.text.Normalizer;
+import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+
+@Service
+@RequiredArgsConstructor
+public class CommunityService {
+
+    private final CommunityPostRepository postRepository;
+    private final CommunityCommentRepository commentRepository;
+    private final CommunityPostLikeRepository likeRepository;
+    private final RouteRepository routeRepository;
+    private final CityRepository cityRepository;
+
+    private static final int MAX_POSTS_LIMIT = 60;
+    private static final long COOLDOWN_MS = 8_000L;
+
+    // Simple in-memory rate limiter per deviceId to prevent rapid spam
+    private final Map<String, Long> lastActionByDevice = new ConcurrentHashMap<>();
+
+    // Basic list of offensive words in Spanish to keep the community respectful
+    private static final Set<String> BANNED_WORDS = Set.of(
+            "mierda", "puto", "puta", "carajo", "conchatumadre", "ctm",
+            "huevon", "weon", "imbecil", "idiota", "estupido", "pendejo",
+            "cojudo", "malparido", "hdp"
+    );
+
+    private static final Pattern WORD_SPLIT = Pattern.compile("[^a-z0-9]+");
+
+    @Transactional(readOnly = true)
+    public List<CommunityPostResponse> getPosts(
+            PostCategory category,
+            UUID routeId,
+            UUID cityId,
+            Integer limit,
+            String deviceId
+    ) {
+        int safeLimit = (limit != null && limit > 0 && limit <= MAX_POSTS_LIMIT) ? limit : 40;
+        List<CommunityPost> posts = postRepository.findFilteredPosts(
+                category,
+                routeId,
+                cityId,
+                PageRequest.of(0, safeLimit)
+        );
+
+        if (posts.isEmpty()) {
+            return List.of();
+        }
+
+        Set<UUID> likedIds = resolveLikedPostIds(deviceId, posts);
+
+        return posts.stream()
+                .map(post -> toPostResponse(post, deviceId, likedIds.contains(post.getId())))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public RouteCommunitySummaryResponse getRouteSummary(UUID routeId, String deviceId) {
+        long totalCount = postRepository.countByRoute_Id(routeId);
+        long alertsCount = postRepository.countByRoute_IdAndCategory(routeId, PostCategory.ALERTA);
+
+        List<CommunityPost> latestList = postRepository.findLatestByRouteId(routeId, PageRequest.of(0, 1));
+        CommunityPostResponse latestPost = null;
+        if (!latestList.isEmpty()) {
+            CommunityPost post = latestList.get(0);
+            Set<UUID> likedIds = resolveLikedPostIds(deviceId, List.of(post));
+            latestPost = toPostResponse(post, deviceId, likedIds.contains(post.getId()));
+        }
+
+        return RouteCommunitySummaryResponse.builder()
+                .routeId(routeId)
+                .totalPostsCount(totalCount)
+                .activeAlertsCount(alertsCount)
+                .latestPost(latestPost)
+                .build();
+    }
+
+    @Transactional
+    public CommunityPostResponse createPost(CreateCommunityPostRequest request, String deviceId) {
+        String cleanDeviceId = requireDeviceId(deviceId);
+        enforceRateLimit(cleanDeviceId);
+
+        String cleanAlias = sanitizeText(request.getAuthorAlias());
+        String cleanContent = sanitizeText(request.getContent());
+
+        validateCleanContent(cleanAlias);
+        validateCleanContent(cleanContent);
+
+        Route route = null;
+        if (request.getRouteId() != null) {
+            route = routeRepository.findById(request.getRouteId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Ruta no encontrada con ID: " + request.getRouteId()));
+        }
+
+        City city = null;
+        if (request.getCityId() != null) {
+            city = cityRepository.findById(request.getCityId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Ciudad no encontrada con ID: " + request.getCityId()));
+        }
+
+        CommunityPost post = CommunityPost.builder()
+                .authorAlias(cleanAlias)
+                .authorDeviceId(cleanDeviceId)
+                .category(request.getCategory())
+                .content(cleanContent)
+                .route(route)
+                .city(city)
+                .likesCount(0)
+                .commentsCount(0)
+                .build();
+
+        CommunityPost saved = postRepository.save(post);
+        return toPostResponse(saved, cleanDeviceId, false);
+    }
+
+    @Transactional
+    public void deleteOwnPost(UUID postId, String deviceId) {
+        String cleanDeviceId = requireDeviceId(deviceId);
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Publicación no encontrada"));
+
+        if (!post.getAuthorDeviceId().equals(cleanDeviceId)) {
+            throw new BadRequestException("Solo puedes eliminar tus propias publicaciones");
+        }
+
+        postRepository.delete(post);
+    }
+
+    @Transactional
+    public CommunityPostResponse toggleLike(UUID postId, String deviceId) {
+        String cleanDeviceId = requireDeviceId(deviceId);
+        CommunityPost post = postRepository.findByIdWithDetails(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Publicación no encontrada"));
+
+        Optional<CommunityPostLike> existing = likeRepository.findByPost_IdAndDeviceId(postId, cleanDeviceId);
+        boolean likedByMe;
+
+        if (existing.isPresent()) {
+            likeRepository.delete(existing.get());
+            post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+            likedByMe = false;
+        } else {
+            CommunityPostLike newLike = CommunityPostLike.builder()
+                    .post(post)
+                    .deviceId(cleanDeviceId)
+                    .build();
+            likeRepository.save(newLike);
+            post.setLikesCount(post.getLikesCount() + 1);
+            likedByMe = true;
+        }
+
+        CommunityPost saved = postRepository.save(post);
+        return toPostResponse(saved, cleanDeviceId, likedByMe);
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityCommentResponse> getComments(UUID postId, String deviceId) {
+        if (!postRepository.existsById(postId)) {
+            throw new ResourceNotFoundException("Publicación no encontrada");
+        }
+
+        return commentRepository.findByPost_IdOrderByCreatedAtAsc(postId)
+                .stream()
+                .map(c -> toCommentResponse(c, deviceId))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public CommunityCommentResponse addComment(UUID postId, CreateCommunityCommentRequest request, String deviceId) {
+        String cleanDeviceId = requireDeviceId(deviceId);
+        enforceRateLimit(cleanDeviceId);
+
+        String cleanAlias = sanitizeText(request.getAuthorAlias());
+        String cleanContent = sanitizeText(request.getContent());
+
+        validateCleanContent(cleanAlias);
+        validateCleanContent(cleanContent);
+
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Publicación no encontrada"));
+
+        CommunityComment comment = CommunityComment.builder()
+                .post(post)
+                .authorAlias(cleanAlias)
+                .authorDeviceId(cleanDeviceId)
+                .content(cleanContent)
+                .build();
+
+        CommunityComment saved = commentRepository.save(comment);
+        post.setCommentsCount(post.getCommentsCount() + 1);
+        postRepository.save(post);
+
+        return toCommentResponse(saved, cleanDeviceId);
+    }
+
+    @Transactional
+    public void deleteOwnComment(UUID commentId, String deviceId) {
+        String cleanDeviceId = requireDeviceId(deviceId);
+        CommunityComment comment = commentRepository.findByIdWithPost(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comentario no encontrado"));
+
+        if (!comment.getAuthorDeviceId().equals(cleanDeviceId)) {
+            throw new BadRequestException("Solo puedes eliminar tus propios comentarios");
+        }
+
+        CommunityPost post = comment.getPost();
+        commentRepository.delete(comment);
+
+        if (post != null) {
+            post.setCommentsCount(Math.max(0, post.getCommentsCount() - 1));
+            postRepository.save(post);
+        }
+    }
+
+    /* ── Admin Moderation Methods ─────────────────────────────────────── */
+
+    @Transactional(readOnly = true)
+    public List<CommunityPostResponse> getAdminPosts() {
+        return postRepository.findFilteredPosts(null, null, null, PageRequest.of(0, 100))
+                .stream()
+                .map(p -> toPostResponse(p, null, false))
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void adminDeletePost(UUID postId) {
+        CommunityPost post = postRepository.findById(postId)
+                .orElseThrow(() -> new ResourceNotFoundException("Publicación no encontrada con ID: " + postId));
+        postRepository.delete(post);
+    }
+
+    @Transactional
+    public void adminDeleteComment(UUID commentId) {
+        CommunityComment comment = commentRepository.findByIdWithPost(commentId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comentario no encontrado con ID: " + commentId));
+        CommunityPost post = comment.getPost();
+        commentRepository.delete(comment);
+        if (post != null) {
+            post.setCommentsCount(Math.max(0, post.getCommentsCount() - 1));
+            postRepository.save(post);
+        }
+    }
+
+    /* ── Helpers ──────────────────────────────────────────────────────── */
+
+    private String requireDeviceId(String deviceId) {
+        if (deviceId == null || deviceId.isBlank() || deviceId.trim().length() < 6) {
+            throw new BadRequestException("Identificador de dispositivo inválido (X-Device-Id)");
+        }
+        String trimmed = deviceId.trim();
+        return trimmed.length() > 64 ? trimmed.substring(0, 64) : trimmed;
+    }
+
+    private void enforceRateLimit(String deviceId) {
+        long now = System.currentTimeMillis();
+        Long previous = lastActionByDevice.get(deviceId);
+        if (previous != null && (now - previous) < COOLDOWN_MS) {
+            throw new BadRequestException("Por favor espera unos segundos antes de volver a publicar.");
+        }
+        lastActionByDevice.put(deviceId, now);
+    }
+
+    private String sanitizeText(String raw) {
+        if (raw == null) return "";
+        return raw.trim().replaceAll("\\s{3,}", "  ");
+    }
+
+    private void validateCleanContent(String text) {
+        String normalized = Normalizer.normalize(text.toLowerCase(Locale.ROOT), Normalizer.Form.NFD)
+                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "");
+
+        String[] tokens = WORD_SPLIT.split(normalized);
+        for (String token : tokens) {
+            if (BANNED_WORDS.contains(token)) {
+                throw new BadRequestException("El mensaje contiene lenguaje inapropiado. Mantengamos el respeto en la comunidad.");
+            }
+        }
+    }
+
+    private Set<UUID> resolveLikedPostIds(String deviceId, List<CommunityPost> posts) {
+        if (deviceId == null || deviceId.isBlank() || posts.isEmpty()) {
+            return Collections.emptySet();
+        }
+        List<UUID> postIds = posts.stream().map(CommunityPost::getId).toList();
+        return likeRepository.findLikedPostIdsByDeviceIdAndPostIds(deviceId.trim(), postIds);
+    }
+
+    private CommunityPostResponse toPostResponse(CommunityPost post, String deviceId, boolean likedByMe) {
+        boolean ownedByMe = deviceId != null && !deviceId.isBlank()
+                && deviceId.trim().equals(post.getAuthorDeviceId());
+
+        Route route = post.getRoute();
+        City city = post.getCity();
+
+        return CommunityPostResponse.builder()
+                .id(post.getId())
+                .authorAlias(post.getAuthorAlias())
+                .category(post.getCategory())
+                .content(post.getContent())
+                .likesCount(post.getLikesCount())
+                .commentsCount(post.getCommentsCount())
+                .likedByMe(likedByMe)
+                .ownedByMe(ownedByMe)
+                .createdAt(post.getCreatedAt())
+                .routeId(route != null ? route.getId() : null)
+                .routeCode(route != null ? route.getCode() : null)
+                .routeName(route != null ? route.getName() : null)
+                .routeColor(route != null ? route.getColor() : null)
+                .cityId(city != null ? city.getId() : null)
+                .cityName(city != null ? city.getName() : null)
+                .build();
+    }
+
+    private CommunityCommentResponse toCommentResponse(CommunityComment comment, String deviceId) {
+        boolean ownedByMe = deviceId != null && !deviceId.isBlank()
+                && deviceId.trim().equals(comment.getAuthorDeviceId());
+
+        return CommunityCommentResponse.builder()
+                .id(comment.getId())
+                .postId(comment.getPost() != null ? comment.getPost().getId() : null)
+                .authorAlias(comment.getAuthorAlias())
+                .content(comment.getContent())
+                .ownedByMe(ownedByMe)
+                .createdAt(comment.getCreatedAt())
+                .build();
+    }
+}
+

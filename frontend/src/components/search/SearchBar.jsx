@@ -314,7 +314,7 @@ export function SearchBar() {
           </button>
 
           <button
-            onClick={() => navigate("/favoritos")}
+            onClick={() => navigate("/lugares?tab=rutas")}
             className="flex-shrink-0 bg-white rounded-full shadow-sm px-3.5 py-1.5 flex items-center gap-1.5 border border-slate-100 text-slate-700 font-medium hover:bg-slate-50 transition-all active:scale-95"
           >
             <Star className="w-3.5 h-3.5 text-amber-500" />

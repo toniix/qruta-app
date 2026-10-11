@@ -21,9 +21,9 @@ const NearbyRoutesPage = lazy(() =>
     default: m.NearbyRoutesPage,
   })),
 );
-const FavoritesPage = lazy(() =>
-  import("../pages/citizen/FavoritesPage").then((m) => ({
-    default: m.FavoritesPage,
+const CommunityPage = lazy(() =>
+  import("../pages/citizen/CommunityPage").then((m) => ({
+    default: m.CommunityPage,
   })),
 );
 const PlacesPage = lazy(() =>
@@ -68,7 +68,11 @@ export function AppRoutes() {
           <Route path="/mapa" element={<HomeMapPage />} />
           <Route path="/mapa/ruta/:id" element={<HomeMapPage />} />
           <Route path="/rutas" element={<RoutesListPage />} />
-          <Route path="/favoritos" element={<FavoritesPage />} />
+          <Route path="/comunidad" element={<CommunityPage />} />
+          <Route
+            path="/favoritos"
+            element={<Navigate to="/lugares?tab=rutas" replace />}
+          />
           <Route path="/lugares" element={<PlacesPage />} />
           <Route path="/admin/login" element={<AdminLoginPage />} />
           <Route

@@ -33,6 +33,8 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/stops/nearby").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/routes/nearby").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/community/**").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api/community/**").permitAll()
                 .requestMatchers("/api/admin/**").authenticated()
                 .anyRequest().authenticated()
             )

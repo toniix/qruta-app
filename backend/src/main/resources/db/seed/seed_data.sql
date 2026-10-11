@@ -26,9 +26,9 @@ TRUNCATE TABLE vehicle_locations, vehicles, route_points, route_stops,
 -- ===========================================================================
 -- CIUDADES
 -- ===========================================================================
-INSERT INTO cities (id, name, department, country, created_at, updated_at) VALUES
-('10000000-0000-4000-8000-000000000001', 'Lima', 'Lima',     'Perú',  NOW(), NOW()),
-('10000000-0000-4000-8000-000000000002', 'Ica',  'Ica',      'Perú',  NOW(), NOW());
+INSERT INTO cities (id, name, department, country, latitude, longitude, radius_km, created_at, updated_at) VALUES
+('10000000-0000-4000-8000-000000000001', 'Lima', 'Lima',     'Perú', -12.0463740, -77.0427930, 60.00, NOW(), NOW()),
+('10000000-0000-4000-8000-000000000002', 'Ica',  'Ica',      'Perú', -14.0677700, -75.7286100, 30.00, NOW(), NOW());
 
 -- ===========================================================================
 -- LÍNEAS DE TRANSPORTE
@@ -311,6 +311,53 @@ INSERT INTO vehicle_locations (id, vehicle_id, latitude, longitude, speed, headi
 ('90000000-0000-4000-8000-000000000005', '80000000-0000-4000-8000-000000000005', -14.0700, -75.7320, 25.0, 120.0, NOW()),
 ('90000000-0000-4000-8000-000000000006', '80000000-0000-4000-8000-000000000005', -14.0800, -75.7400, 20.0, 110.0, NOW() - INTERVAL '5 minutes');
 
+-- ===========================================================================
+-- COMUNIDAD: PUBLICACIONES Y COMENTARIOS (demo)
+-- ===========================================================================
+CREATE TABLE IF NOT EXISTS community_posts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    author_alias VARCHAR(50) NOT NULL,
+    author_device_id VARCHAR(64) NOT NULL,
+    category VARCHAR(30) NOT NULL,
+    content VARCHAR(600) NOT NULL,
+    route_id UUID REFERENCES routes(id) ON DELETE SET NULL,
+    city_id UUID REFERENCES cities(id) ON DELETE SET NULL,
+    likes_count INTEGER NOT NULL DEFAULT 0,
+    comments_count INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS community_comments (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+    author_alias VARCHAR(50) NOT NULL,
+    author_device_id VARCHAR(64) NOT NULL,
+    content VARCHAR(400) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS community_post_likes (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
+    device_id VARCHAR(64) NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    CONSTRAINT uq_community_post_like_device UNIQUE (post_id, device_id)
+);
+
+TRUNCATE TABLE community_post_likes, community_comments, community_posts RESTART IDENTITY CASCADE;
+
+INSERT INTO community_posts (id, author_alias, author_device_id, category, content, route_id, city_id, likes_count, comments_count, created_at, updated_at) VALUES
+('a0000000-0000-4000-8000-000000000001', 'Carlos M.',    'seed-device-1', 'ALERTA',           'Tráfico lento cerca de Av. Los Maestros frente a El Quinde por obras en la vía. Tomen precauciones si van hacia Huacachina.', '40000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000002', 5, 2, NOW() - INTERVAL '25 minutes', NOW() - INTERVAL '25 minutes'),
+('a0000000-0000-4000-8000-000000000002', 'Lucía Vargas', 'seed-device-2', 'PREGUNTA',         '¿Alguien sabe hasta qué hora están pasando las unidades hacia la UNICA hoy por la noche?',                                     '40000000-0000-4000-8000-000000000009', '10000000-0000-4000-8000-000000000002', 3, 1, NOW() - INTERVAL '1 hour',     NOW() - INTERVAL '1 hour'),
+('a0000000-0000-4000-8000-000000000003', 'Jorge R.',     'seed-device-3', 'RECOMENDACION',    'La ruta ICA-06 está pasando súper puntual cada 8-10 minutos en el paradero de Parcona hacia El Quinde.',                      '40000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000002', 7, 0, NOW() - INTERVAL '3 hours',    NOW() - INTERVAL '3 hours'),
+('a0000000-0000-4000-8000-000000000004', 'Mariana P.',   'seed-device-4', 'OBJETOS_PERDIDOS', 'Buenas tardes, dejé una carpeta azul con documentos en la unidad hacia Plaza de Armas hace media hora. Si alguien la vio, por favor avise por aquí.', '40000000-0000-4000-8000-000000000010', '10000000-0000-4000-8000-000000000002', 4, 0, NOW() - INTERVAL '4 hours', NOW() - INTERVAL '4 hours');
+
+INSERT INTO community_comments (id, post_id, author_alias, author_device_id, content, created_at) VALUES
+('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'Pedro Ica',    'seed-device-5', 'Confirmo, están desviando una cuadra antes de llegar al centro comercial.', NOW() - INTERVAL '18 minutes'),
+('b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001', 'Ana Torres',   'seed-device-6', '¡Gracias por el dato! Mejor bajo en el paradero anterior.',                 NOW() - INTERVAL '10 minutes'),
+('b0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000002', 'Diego UNICA',  'seed-device-7', 'Normalmente pasan hasta las 9:30 pm por el Mercado Modelo.',                 NOW() - INTERVAL '40 minutes');
+
 -- ---------------------------------------------------------------------------
 -- VERIFICACIÓN: conteo por tabla
 -- ---------------------------------------------------------------------------
@@ -322,7 +369,9 @@ UNION ALL SELECT 'direcciones', COUNT(*) FROM route_directions
 UNION ALL SELECT 'parada-dirección', COUNT(*) FROM route_stops
 UNION ALL SELECT 'puntos-ruta', COUNT(*) FROM route_points
 UNION ALL SELECT 'vehículos', COUNT(*) FROM vehicles
-UNION ALL SELECT 'ubicaciones', COUNT(*) FROM vehicle_locations;
+UNION ALL SELECT 'ubicaciones', COUNT(*) FROM vehicle_locations
+UNION ALL SELECT 'comunidad-posts', COUNT(*) FROM community_posts
+UNION ALL SELECT 'comunidad-comentarios', COUNT(*) FROM community_comments;
 
 -- Hubs (paraderos por donde pasan ≥3 rutas)
 SELECT s.name AS paradero, COUNT(DISTINCT d.route_id) AS n_rutas

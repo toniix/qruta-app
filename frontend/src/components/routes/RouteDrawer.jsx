@@ -1,3 +1,5 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Clock,
   Calendar,
@@ -6,10 +8,16 @@ import {
   Info,
   Route as RouteIcon,
   Heart,
+  MessageSquare,
+  AlertTriangle,
+  ArrowRight,
+  Plus,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
 import { useFavorites } from '../../hooks/useFavorites';
+import { communityService, getCategoryMeta } from '../../services/communityService';
 import { formatDistance } from '../../utils/geoUtils';
+import { formatRelativeTime } from '../../utils/dateUtils';
 
 export function RouteDrawerSkeleton({ route }) {
   const code = route?.code || 'Ruta';
@@ -114,6 +122,7 @@ export function RouteDrawerSkeleton({ route }) {
 }
 
 export function RouteDrawer() {
+  const navigate = useNavigate();
   const {
     selectedRoute,
     selectedStop,
@@ -124,6 +133,26 @@ export function RouteDrawer() {
   } = useRoutes();
 
   const { isFavorite, toggleFavorite } = useFavorites();
+  const [communitySummary, setCommunitySummary] = useState(null);
+
+  useEffect(() => {
+    let isMounted = true;
+    if (!selectedRoute?.id) {
+      return;
+    }
+    communityService
+      .getRouteSummary(selectedRoute.id)
+      .then((data) => {
+        if (isMounted) setCommunitySummary(data);
+      })
+      .catch(() => {
+        if (isMounted) setCommunitySummary(null);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [selectedRoute?.id]);
 
   if (!selectedRoute) return null;
 
@@ -295,6 +324,84 @@ export function RouteDrawer() {
             <p className="font-bold text-slate-900 text-sm mt-1">—</p>
           )}
         </div>
+      </div>
+
+      {/* ── Community Reports & Alerts Box ────────────────────────────────── */}
+      <div className="rounded-2xl border border-slate-200/80 bg-slate-50/70 p-3.5 space-y-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <MessageSquare className="w-4 h-4 text-brand-primary shrink-0" />
+            <span className="text-xs font-bold text-slate-900">
+              Comunidad en esta ruta
+            </span>
+            {communitySummary?.totalPostsCount > 0 && (
+              <span className="text-[11px] font-bold bg-blue-100 text-brand-primary px-2 py-0.5 rounded-full">
+                {communitySummary.totalPostsCount}
+              </span>
+            )}
+            {communitySummary?.activeAlertsCount > 0 && (
+              <span className="inline-flex items-center gap-1 text-[10px] font-bold bg-rose-50 text-rose-700 border border-rose-200 px-2 py-0.5 rounded-full">
+                <AlertTriangle className="w-3 h-3" />
+                {communitySummary.activeAlertsCount}{' '}
+                {communitySummary.activeAlertsCount === 1 ? 'alerta' : 'alertas'}
+              </span>
+            )}
+          </div>
+
+          <button
+            type="button"
+            onClick={() =>
+              navigate(`/comunidad?routeId=${selectedRoute.id}&compose=1`)
+            }
+            className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-primary hover:text-brand-primary-dark shrink-0"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>Reportar</span>
+          </button>
+        </div>
+
+        {communitySummary?.latestPost ? (
+          <div className="bg-white rounded-xl p-2.5 border border-slate-200/70 space-y-1">
+            <div className="flex items-center justify-between gap-2 text-[11px]">
+              <div className="flex items-center gap-1.5 min-w-0">
+                <span
+                  className={`font-bold px-1.5 py-0.2 rounded border text-[10px] ${
+                    getCategoryMeta(communitySummary.latestPost.category)
+                      .badgeClass
+                  }`}
+                >
+                  {getCategoryMeta(communitySummary.latestPost.category).shortLabel}
+                </span>
+                <span className="font-semibold text-slate-700 truncate">
+                  {communitySummary.latestPost.authorAlias}
+                </span>
+              </div>
+              <span className="text-slate-400 shrink-0">
+                {formatRelativeTime(communitySummary.latestPost.createdAt)}
+              </span>
+            </div>
+            <p className="text-xs text-slate-700 line-clamp-2">
+              {communitySummary.latestPost.content}
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-slate-500">
+            Sin reportes recientes. ¿Estás viajando en esta ruta? Comparte el estado con otros pasajeros.
+          </p>
+        )}
+
+        <button
+          type="button"
+          onClick={() => navigate(`/comunidad?routeId=${selectedRoute.id}`)}
+          className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-bold text-brand-primary bg-white hover:bg-blue-50 py-2 px-3 rounded-xl border border-slate-200/80 transition-colors"
+        >
+          <span>
+            {communitySummary?.totalPostsCount > 0
+              ? `Ver las ${communitySummary.totalPostsCount} publicaciones de esta ruta`
+              : 'Abrir foro de esta ruta'}
+          </span>
+          <ArrowRight className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* ── Segmented Control Tabs (Ida / Vuelta) ─────────────────────────── */}

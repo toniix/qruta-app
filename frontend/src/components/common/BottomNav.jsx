@@ -1,4 +1,4 @@
-import { Home, Map, Route, Heart, MapPin } from 'lucide-react';
+import { Home, Map, Route, MessageSquare, MapPin } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useRoutes } from '../../contexts/RouteContext';
@@ -7,7 +7,7 @@ const NAV_ITEMS = [
   { label: 'Inicio', icon: Home, path: '/' },
   { label: 'Mapa', icon: Map, path: '/mapa' },
   { label: 'Rutas', icon: Route, path: '/rutas' },
-  { label: 'Favoritos', icon: Heart, path: '/favoritos' },
+  { label: 'Comunidad', icon: MessageSquare, path: '/comunidad' },
   { label: 'Lugares', icon: MapPin, path: '/lugares' },
 ];
 
