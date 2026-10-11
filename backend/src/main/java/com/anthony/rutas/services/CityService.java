@@ -20,12 +20,14 @@ public class CityService {
 
     private final CityRepository cityRepository;
 
+    @Transactional(readOnly = true)
     public List<CityResponse> findAll() {
         return cityRepository.findAll().stream()
                 .map(DtoMapper::toCityResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public CityResponse findById(UUID id) {
         City city = cityRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + id));

@@ -23,14 +23,16 @@ public class TransportLineService {
     private final TransportLineRepository transportLineRepository;
     private final CityRepository cityRepository;
 
+    @Transactional(readOnly = true)
     public List<TransportLineResponse> findAll() {
-        return transportLineRepository.findAll().stream()
+        return transportLineRepository.findAllWithCity().stream()
                 .map(DtoMapper::toTransportLineResponse)
                 .collect(Collectors.toList());
     }
 
+    @Transactional(readOnly = true)
     public List<TransportLineResponse> findByCity(UUID cityId) {
-        return transportLineRepository.findByCityId(cityId).stream()
+        return transportLineRepository.findByCityIdWithCity(cityId).stream()
                 .map(DtoMapper::toTransportLineResponse)
                 .collect(Collectors.toList());
     }

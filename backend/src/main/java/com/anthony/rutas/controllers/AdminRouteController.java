@@ -19,7 +19,7 @@ public class AdminRouteController {
     private final RouteService routeService;
 
     @GetMapping("/routes")
-    public ResponseEntity<List<RouteSummaryResponse>> getAllRoutes() {
+    public ResponseEntity<List<AdminRouteSummaryResponse>> getAllRoutes() {
         return ResponseEntity.ok(routeService.findAll());
     }
 
@@ -34,8 +34,8 @@ public class AdminRouteController {
     }
 
     @PutMapping("/routes/{id}")
-    public ResponseEntity<RouteSummaryResponse> updateRoute(@PathVariable UUID id,
-                                                             @Valid @RequestBody UpdateRouteRequest request) {
+    public ResponseEntity<AdminRouteSummaryResponse> updateRoute(@PathVariable UUID id,
+                                                                 @Valid @RequestBody UpdateRouteRequest request) {
         return ResponseEntity.ok(routeService.update(id, request));
     }
 

@@ -32,10 +32,12 @@ public class StopService {
     private final RouteStopRepository routeStopRepository;
     private final GeometryFactory geometryFactory = new GeometryFactory();
 
+    @Transactional(readOnly = true)
     public List<StopResponse> findAll() {
         return DtoMapper.toStopList(stopRepository.findAll());
     }
 
+    @Transactional(readOnly = true)
     public StopResponse findById(UUID id) {
         Stop stop = stopRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + id));
@@ -59,6 +61,9 @@ public class StopService {
      */
     @Transactional(readOnly = true)
     public List<StopRouteResponse> findRoutesByStop(UUID stopId) {
+        // Resolve the stop first so a missing id still yields 404 rather than an
+        // empty list. The route-stop query below then joins direction and route,
+        // so dereferencing them costs no extra round trips.
         if (!stopRepository.existsById(stopId)) {
             throw new ResourceNotFoundException("Stop not found with id: " + stopId);
         }
@@ -66,7 +71,7 @@ public class StopService {
         Map<UUID, Route> routesByRoute = new LinkedHashMap<>();
         Map<UUID, Set<String>> directionsByRoute = new LinkedHashMap<>();
 
-        for (RouteStop routeStop : routeStopRepository.findByStopId(stopId)) {
+        for (RouteStop routeStop : routeStopRepository.findWithDirectionAndRouteByStopId(stopId)) {
             Route route = routeStop.getDirection().getRoute();
             routesByRoute.putIfAbsent(route.getId(), route);
             directionsByRoute.computeIfAbsent(route.getId(), id -> new TreeSet<>())
@@ -91,6 +96,7 @@ public class StopService {
         return hasOutbound ? "IDA" : "VUELTA";
     }
 
+    @Transactional(readOnly = true)
     public List<StopResponse> search(String query) {
         return DtoMapper.toStopList(stopRepository.findByNameContainingIgnoreCase(query));
     }

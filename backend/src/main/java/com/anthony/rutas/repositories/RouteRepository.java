@@ -6,12 +6,11 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 
 public interface RouteRepository extends JpaRepository<Route, UUID> {
-
-    List<Route> findByTransportLineId(UUID transportLineId);
 
     List<Route> findByNameContainingIgnoreCase(String name);
 
@@ -32,6 +31,12 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
      */
     @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine")
     List<Route> findAllWithTransportLine();
+
+    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine WHERE r.id IN :ids")
+    List<Route> findAllByIdWithTransportLine(@Param("ids") Collection<UUID> ids);
+
+    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine WHERE r.transportLine.id = :transportLineId")
+    List<Route> findByTransportLineIdWithLine(@Param("transportLineId") UUID transportLineId);
 
     /**
      * Fetch the most popular active routes, ordered by popularity score

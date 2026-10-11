@@ -32,16 +32,27 @@ public class DtoMapper {
                                 .build();
         }
 
-        public static RouteSummaryResponse toRouteSummaryResponse(Route route) {
-                List<KeyStopResponse> keyStops = route.getDirections().stream()
-                                .flatMap(dir -> dir.getRouteStops().stream())
-                                .map(rs -> rs.getStop())
-                                .filter(stop -> stop != null && Boolean.TRUE.equals(stop.getKeyStop()))
-                                .distinct()
-                                .map(DtoMapper::toKeyStopResponse)
-                                .collect(Collectors.toList());
+        public static AdminRouteSummaryResponse toAdminRouteSummaryResponse(Route route) {
+                TransportLine line = route.getTransportLine();
+                return AdminRouteSummaryResponse.builder()
+                                .id(route.getId())
+                                .code(route.getCode())
+                                .name(route.getName())
+                                .color(route.getColor())
+                                .fare(route.getFare())
+                                .schedule(route.getSchedule())
+                                .frequency(route.getFrequency())
+                                .description(route.getDescription())
+                                .status(route.getStatus())
+                                .transportLineId(line != null ? line.getId() : null)
+                                .transportLineName(line != null ? line.getName() : null)
+                                .build();
+        }
 
-                return toRouteSummaryResponse(route, keyStops);
+        public static List<AdminRouteSummaryResponse> toAdminRouteSummaryList(List<Route> routes) {
+                return routes.stream()
+                                .map(DtoMapper::toAdminRouteSummaryResponse)
+                                .collect(Collectors.toList());
         }
 
         public static RouteSummaryResponse toRouteSummaryResponse(Route route, List<KeyStopResponse> keyStops) {
@@ -152,12 +163,6 @@ public class DtoMapper {
                                 .address(stop.getAddress())
                                 .isAccessible(stop.isAccessible())
                                 .build();
-        }
-
-        public static List<RouteSummaryResponse> toRouteSummaryList(List<Route> routes) {
-                return routes.stream()
-                                .map(DtoMapper::toRouteSummaryResponse)
-                                .collect(Collectors.toList());
         }
 
         public static PopularRouteResponse toPopularRouteResponse(Route route) {

@@ -33,8 +33,14 @@ public class RouteService {
     private final StopRepository stopRepository;
     private final GeometryFactory geometryFactory = new GeometryFactory();
 
-    public List<RouteSummaryResponse> findAll() {
-        return DtoMapper.toRouteSummaryList(routeRepository.findAll());
+    /**
+     * Flat route list for the admin panel. Uses a single {@code JOIN FETCH} query
+     * and never touches directions, route stops or key stops, so it stays at 1 SQL
+     * statement regardless of how many routes exist.
+     */
+    @Transactional(readOnly = true)
+    public List<AdminRouteSummaryResponse> findAll() {
+        return DtoMapper.toAdminRouteSummaryList(routeRepository.findAllWithTransportLine());
     }
 
     /**
@@ -119,22 +125,30 @@ public class RouteService {
 
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> findByTransportLine(UUID transportLineId) {
-        List<Route> routes = routeRepository.findByTransportLineId(transportLineId);
+        List<Route> routes = routeRepository.findByTransportLineIdWithLine(transportLineId);
         return toOptimizedRouteSummaryList(routes);
     }
 
     /**
      * Finds routes nearby a geographic coordinate within radius meters.
+     * Runs in a fixed 4 queries regardless of how many stops fall inside the
+     * radius: nearby stops, their route ids in one batch, the routes joined to
+     * their transport line, then the key-stop batch.
      */
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> findNearbyRoutes(double latitude, double longitude, double radiusMeters) {
         List<Stop> nearbyStops = stopRepository.findNearby(latitude, longitude, radiusMeters);
-        List<Route> routes = nearbyStops.stream()
-                .flatMap(stop -> routeStopRepository.findByStopId(stop.getId()).stream())
-                .map(routeStop -> routeStop.getDirection().getRoute())
-                .distinct()
-                .toList();
+        if (nearbyStops.isEmpty()) {
+            return List.of();
+        }
 
+        List<UUID> routeIds = routeStopRepository.findRouteIdsByStopIds(
+                nearbyStops.stream().map(Stop::getId).toList());
+        if (routeIds.isEmpty()) {
+            return List.of();
+        }
+
+        List<Route> routes = routeRepository.findAllByIdWithTransportLine(routeIds);
         return toOptimizedRouteSummaryList(routes);
     }
 
@@ -206,7 +220,7 @@ public class RouteService {
     }
 
     @Transactional
-    public RouteSummaryResponse update(UUID id, UpdateRouteRequest request) {
+    public AdminRouteSummaryResponse update(UUID id, UpdateRouteRequest request) {
         Route route = routeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + id));
 
@@ -229,7 +243,7 @@ public class RouteService {
         if (request.getPopularityScore() != null)
             route.setPopularityScore(request.getPopularityScore());
 
-        return DtoMapper.toRouteSummaryResponse(routeRepository.save(route));
+        return DtoMapper.toAdminRouteSummaryResponse(routeRepository.save(route));
     }
 
     @Transactional
