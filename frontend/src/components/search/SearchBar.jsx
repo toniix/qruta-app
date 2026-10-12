@@ -156,15 +156,32 @@ export function SearchBar({ onPickDestination = null }) {
       ) : (
         /* Expanded Dual Input Card (Origen + Destino + Swap) */
         <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-raised relative space-y-3 animate-slide-in-top">
-          {/* Swap Button Floating on Right edge */}
-          <button
-            type="button"
-            onClick={handleSwap}
-            className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center absolute right-4 top-1/2 -translate-y-1/2 shadow-2xs hover:bg-slate-200 transition-transform active:rotate-180 duration-300 z-10"
-            title="Intercambiar origen y destino"
-          >
-            <ArrowUpDown className="w-3.5 h-3.5" />
-          </button>
+          {/* Map shortcut floating on right edge: jump straight to pin mode.
+              Replaces swap here: when typing a destination, going to the map
+              beats swapping fields. Falls back to swap if no handler. */}
+          {onPickDestination ? (
+            <button
+              type="button"
+              onClick={() => {
+                setIsExpanded(false);
+                onPickDestination();
+              }}
+              className="w-8 h-8 rounded-full bg-slate-900 border border-slate-900 text-white flex items-center justify-center absolute right-4 top-1/2 -translate-y-1/2 shadow-2xs hover:bg-slate-700 transition-all active:scale-95 z-10"
+              title="Buscar en el mapa"
+              aria-label="Buscar destino en el mapa"
+            >
+              <MapPinned className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleSwap}
+              className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center absolute right-4 top-1/2 -translate-y-1/2 shadow-2xs hover:bg-slate-200 transition-transform active:rotate-180 duration-300 z-10"
+              title="Intercambiar origen y destino"
+            >
+              <ArrowUpDown className="w-3.5 h-3.5" />
+            </button>
+          )}
 
           {/* Origin Row */}
           <div className="flex items-center gap-3 pr-10">
