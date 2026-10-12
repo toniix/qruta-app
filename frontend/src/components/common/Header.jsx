@@ -1,4 +1,4 @@
-import { Bus, Navigation, ShieldCheck, MapPin } from 'lucide-react';
+import { Bus, Navigation, ShieldCheck, MapPin, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useRoutes } from '../../contexts/RouteContext';
 
@@ -72,6 +72,17 @@ export function Header() {
 
         {/* Header Action Buttons */}
         <div className="flex items-center gap-2 shrink-0">
+          {!isAdmin && (
+            <Link
+              to="/buscar"
+              aria-label="Buscar rutas en todas las ciudades"
+              title="Buscar rutas"
+              className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors text-slate-700 bg-slate-100 hover:bg-slate-200"
+            >
+              <Search className="w-3.5 h-3.5 shrink-0" />
+              <span className="hidden md:inline">Buscar</span>
+            </Link>
+          )}
           {!isAdmin && (
             <button
               onClick={triggerGpsRequest}

@@ -40,18 +40,28 @@ export const routeService = {
   },
 
   /**
-   * Busca rutas por query (nombre, código o paraderos)
-   * GET /api/routes/search?query=...
+   * Busca rutas por query (nombre, código, empresa o paraderos)
+   * GET /api/routes/search?query=...&cityId=...&size=...
+   * Global by default: omit cityId to search across all cities.
    * @param {string} query - Texto de búsqueda
-   * @param {string} cityId - UUID de la ciudad (opcional)
+   * @param {string|null} cityId - UUID de la ciudad (opcional; ausente = todas las ciudades)
+   * @param {number|null} size - Máximo de resultados (opcional, 1–100, el backend usa 50 por defecto)
    */
-  async searchRoutes(query, cityId) {
+  async searchRoutes(query, cityId = null, size = null) {
     if (!query || query.trim() === "") {
       return this.getAllRoutes(cityId);
     }
-    const response = await apiClient.get("/routes/search", {
-      params: { query, ...(cityId ? { cityId } : {}) },
-    });
+    // Allow options-object style: searchRoutes(query, { cityId, size })
+    if (cityId && typeof cityId === "object") {
+      ({ cityId = null, size = null } = cityId);
+    }
+    const params = { query: query.trim() };
+    if (cityId) params.cityId = cityId;
+    if (size != null) {
+      const bounded = Math.min(100, Math.max(1, Number(size) || 50));
+      params.size = bounded;
+    }
+    const response = await apiClient.get("/routes/search", { params });
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },
