@@ -173,6 +173,17 @@ export function RoutesListPage() {
             >
               Restablecer filtros
             </button>
+            {searchQuery.trim() !== '' && (
+              <button
+                onClick={() =>
+                  navigate('/buscar', { state: { query: searchQuery.trim() } })
+                }
+                className="text-xs font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5"
+              >
+                <Search className="w-3.5 h-3.5" />
+                ¿Buscás rutas de otra ciudad? Buscar en todas las ciudades
+              </button>
+            )}
           </div>
         ) : (
           filteredRoutes.map((route) => {
