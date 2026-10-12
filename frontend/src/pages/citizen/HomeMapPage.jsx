@@ -276,13 +276,14 @@ export function HomeMapPage() {
     setDestinationRadius(DESTINATION_DEFAULT_RADIUS_M);
   }, []);
 
-  // Result selection: route ONLY (no stop pre-selection), same journey as search.
+  // Result selection: keep the destination context (pin + ranked results)
+  // behind the detail — closing the detail returns to the results.
+  // Route ONLY (no stop pre-selection), same journey as search.
   const handleSelectDestinationRoute = useCallback(
     (route) => {
-      handleCloseDestination();
       handleSelectRoute(route, null);
     },
-    [handleCloseDestination, handleSelectRoute],
+    [handleSelectRoute],
   );
 
   // Map controls (Zoom & Recenter)
@@ -357,7 +358,9 @@ export function HomeMapPage() {
             ? handleEnterDestinationMode
             : null
         }
-        destinationActive={destinationActive}
+        destinationActive={
+          isPinMode || (showingDestinationResults && selectedRoute == null)
+        }
         onCloseDestination={handleCloseDestination}
       />
 
@@ -371,7 +374,9 @@ export function HomeMapPage() {
           isLocating={isLocating}
         />
 
-        {/* Dynamic Bottom Panels */}
+        {/* Dynamic Bottom Panels.
+            Route detail wins over destination results so the preserved
+            pin + ranking wait behind; closing the detail reveals them. */}
         {isPinMode ? (
           <DestinationPinSheet
             label={
@@ -383,6 +388,10 @@ export function HomeMapPage() {
             onCancel={handleCloseDestination}
             onConfirm={handleConfirmDestination}
           />
+        ) : selectedRoute ? (
+          <div className="pointer-events-auto mb-16 lg:mb-4">
+            <RouteDrawer />
+          </div>
         ) : showingDestinationResults ? (
           <DestinationResults
             label={destinationLabel}
@@ -396,10 +405,6 @@ export function HomeMapPage() {
             onClose={handleCloseDestination}
             onRetry={handleRetryDestinationSearch}
           />
-        ) : selectedRoute ? (
-          <div className="pointer-events-auto mb-16 lg:mb-4">
-            <RouteDrawer />
-          </div>
         ) : selectedStop ? (
           <StopDetailDrawer stop={selectedStop} onClose={handleClearStop} />
         ) : (
