@@ -44,7 +44,7 @@ function readRecentQueries() {
 export function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectRoute, cities, routes, popularRoutes, userAddress } =
+  const { selectRoute, cities, currentCity, routes, popularRoutes, userAddress } =
     useRoutes();
 
   const FALLBACK_ORIGIN = 'Mi ubicación';
@@ -487,7 +487,7 @@ export function SearchPage() {
               <section className="space-y-2.5">
                 <h2 className="flex items-center gap-1.5 text-sm font-bold text-slate-800 px-1">
                   <Star className="w-4 h-4 text-amber-500" />
-                  Rutas populares
+                  Rutas populares en {currentCity?.name || 'tu ciudad'}
                 </h2>
                 <div className="space-y-2">
                   {popularSuggestions.map((route) => (
