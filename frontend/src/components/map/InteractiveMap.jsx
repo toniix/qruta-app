@@ -371,6 +371,10 @@ function InteractiveMapComponent({
   pinMode = false,
   destinationPin = null,
   onPinMove = null,
+  // Drag affordance for the destination flag. Kept separate from pinMode
+  // (which also gates tap-to-move) so results mode can allow dragging
+  // without changing tap-to-select behavior.
+  canDragDestinationPin = false,
 }) {
   const snappedCacheRef = useRef({});
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
@@ -666,16 +670,16 @@ function InteractiveMapComponent({
           </Marker>
         )}
 
-        {/* Destination pin: draggable while picking, fixed once results show */}
+        {/* Destination pin: draggable while picking or while results show (no route detail) */}
         {destinationPin &&
           destinationPin.lat != null &&
           destinationPin.lng != null && (
             <Marker
               position={[destinationPin.lat, destinationPin.lng]}
               icon={createDestinationPinIcon()}
-              draggable={pinMode}
+              draggable={canDragDestinationPin}
               eventHandlers={
-                pinMode && onPinMove
+                canDragDestinationPin && onPinMove
                   ? {
                       dragend: (e) => {
                         const moved = e.target.getLatLng();
@@ -684,20 +688,7 @@ function InteractiveMapComponent({
                     }
                   : {}
               }
-            >
-              <Popup>
-                <div className="p-1">
-                  <div className="text-xs font-bold text-red-600">
-                    📍 Destino elegido
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {pinMode
-                      ? "Arrastra el pin o toca el mapa para moverlo"
-                      : "Punto de búsqueda de rutas cercanas"}
-                  </div>
-                </div>
-              </Popup>
-            </Marker>
+            />
           )}
 
         {/* Other routes (summaries) — single polyline */}

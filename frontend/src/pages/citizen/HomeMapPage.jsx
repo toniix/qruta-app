@@ -7,6 +7,7 @@ import {
   DESTINATION_DEFAULT_RADIUS_M,
   clampRadiusMeters,
   sortRoutesByDistance,
+  sortRoutesByOriginDestination,
 } from "../../utils/distanceBands";
 
 // Components
@@ -121,8 +122,24 @@ export function HomeMapPage() {
   const [destinationRanked, setDestinationRanked] = useState([]);
   const [destinationLoading, setDestinationLoading] = useState(false);
   const [destinationError, setDestinationError] = useState(null);
+  // Snapshot of whether the last search filtered by the origin too (false
+  // when GPS was missing and we fell back to destination-only).
+  const [destinationUsedOrigin, setDestinationUsedOrigin] = useState(false);
   const [showingDestinationResults, setShowingDestinationResults] =
     useState(false);
+
+  // Sequence guard so a slow older destination search never overwrites a
+  // newer one, plus a trailing-debounce timer for move-triggered re-search.
+  const destinationSearchSeqRef = useRef(0);
+  const destinationResearchTimerRef = useRef(null);
+
+  // Clear any pending debounced re-search (unmount or flow transitions).
+  useEffect(() => {
+    const timerRef = destinationResearchTimerRef;
+    return () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    };
+  }, []);
 
   const destinationActive = isPinMode || showingDestinationResults;
 
@@ -190,8 +207,24 @@ export function HomeMapPage() {
     setDestinationRanked([]);
     setDestinationError(null);
     setDestinationLoading(false);
+    setDestinationUsedOrigin(false);
     setShowingDestinationResults(false);
     setIsPinMode(true);
+    // Strong zoom onto the pin: exploration starts from the user's point.
+    // A missing map never blocks the flow.
+    if (initialPin) {
+      try {
+        if (typeof mapInstance?.flyTo === "function") {
+          mapInstance.flyTo([initialPin.lat, initialPin.lng], 17, {
+            duration: 1.2,
+          });
+        } else if (typeof mapInstance?.setView === "function") {
+          mapInstance.setView([initialPin.lat, initialPin.lng], 17);
+        }
+      } catch {
+        // Map not ready: pin mode still works without the zoom.
+      }
+    }
   }, [
     clearSelectedRoute,
     selectStop,
@@ -200,43 +233,105 @@ export function HomeMapPage() {
     resolveDestinationLabel,
   ]);
 
+  // Destination search: keep ONLY routes passing near BOTH the user's
+  // origin and the picked destination (same radius for both endpoints).
+  // Without GPS there is no origin to filter by — fall back to a
+  // destination-only search exactly as before, so the flow never dead-ends.
+  // A sequence guard drops stale responses: only the latest call may write
+  // results, error, or loading state.
+  const runDestinationSearch = useCallback(
+    async (point, radiusMeters) => {
+      if (point == null || point.lat == null || point.lng == null) return;
+      const seq = destinationSearchSeqRef.current + 1;
+      destinationSearchSeqRef.current = seq;
+      const radius = clampRadiusMeters(
+        radiusMeters ?? DESTINATION_DEFAULT_RADIUS_M,
+      );
+      setDestinationRadius(radius);
+      setDestinationLoading(true);
+      setDestinationError(null);
+      const hasOrigin =
+        userLocation?.lat != null && userLocation?.lng != null;
+      setDestinationUsedOrigin(hasOrigin);
+      try {
+        if (!hasOrigin) {
+          const results = await routeService.getNearbyRoutes(
+            point.lat,
+            point.lng,
+            radius,
+          );
+          if (destinationSearchSeqRef.current !== seq) return;
+          setDestinationRanked(
+            sortRoutesByDistance(results, point.lat, point.lng),
+          );
+          return;
+        }
+        const [originRoutes, destRoutes] = await Promise.all([
+          routeService.getNearbyRoutes(
+            userLocation.lat,
+            userLocation.lng,
+            radius,
+          ),
+          routeService.getNearbyRoutes(point.lat, point.lng, radius),
+        ]);
+        if (destinationSearchSeqRef.current !== seq) return;
+        const destIds = new Set(
+          (destRoutes || []).map((route) => String(route?.id)),
+        );
+        const both = (originRoutes || []).filter((route) =>
+          destIds.has(String(route?.id)),
+        );
+        setDestinationRanked(
+          sortRoutesByOriginDestination(
+            both,
+            userLocation.lat,
+            userLocation.lng,
+            point.lat,
+            point.lng,
+          ),
+        );
+      } catch {
+        if (destinationSearchSeqRef.current !== seq) return;
+        setDestinationRanked([]);
+        setDestinationError(
+          "No se pudieron cargar las rutas cerca del punto. Revisa tu conexión e inténtalo de nuevo.",
+        );
+      } finally {
+        if (destinationSearchSeqRef.current === seq) {
+          setDestinationLoading(false);
+        }
+      }
+    },
+    [userLocation],
+  );
+
   // Pin moves (map tap or marker drag) → update point + re-resolve label.
+  // While results show (no route detail open), marker drags also schedule a
+  // debounced re-search around the new point. Map taps never reach here in
+  // results mode (MapClickHandler gates tap-to-move on pinMode only).
   const handlePinMove = useCallback(
     (point) => {
       if (point == null || point.lat == null || point.lng == null) return;
       const next = { lat: point.lat, lng: point.lng };
       setDestinationPin(next);
       setDestinationLabel(resolveDestinationLabel(next));
+      if (showingDestinationResults && selectedRoute == null) {
+        if (destinationResearchTimerRef.current) {
+          clearTimeout(destinationResearchTimerRef.current);
+        }
+        destinationResearchTimerRef.current = setTimeout(() => {
+          runDestinationSearch(next, destinationRadius);
+        }, 500);
+      }
     },
-    [resolveDestinationLabel],
+    [
+      resolveDestinationLabel,
+      showingDestinationResults,
+      selectedRoute,
+      destinationRadius,
+      runDestinationSearch,
+    ],
   );
-
-  const runDestinationSearch = useCallback(async (point, radiusMeters) => {
-    if (point == null || point.lat == null || point.lng == null) return;
-    const radius = clampRadiusMeters(
-      radiusMeters ?? DESTINATION_DEFAULT_RADIUS_M,
-    );
-    setDestinationRadius(radius);
-    setDestinationLoading(true);
-    setDestinationError(null);
-    try {
-      const results = await routeService.getNearbyRoutes(
-        point.lat,
-        point.lng,
-        radius,
-      );
-      setDestinationRanked(
-        sortRoutesByDistance(results, point.lat, point.lng),
-      );
-    } catch {
-      setDestinationRanked([]);
-      setDestinationError(
-        "No se pudieron cargar las rutas cerca del punto. Revisa tu conexión e inténtalo de nuevo.",
-      );
-    } finally {
-      setDestinationLoading(false);
-    }
-  }, []);
 
   // Confirm → leave pin mode, show results, run nearby around the picked point.
   const handleConfirmDestination = useCallback(() => {
@@ -260,12 +355,18 @@ export function HomeMapPage() {
 
   // Back to pin mode keeping the picked point.
   const handleMovePinBack = useCallback(() => {
+    if (destinationResearchTimerRef.current) {
+      clearTimeout(destinationResearchTimerRef.current);
+    }
     setShowingDestinationResults(false);
     setIsPinMode(true);
   }, []);
 
   // Exit the destination flow entirely: no pin, no sheet, no results.
   const handleCloseDestination = useCallback(() => {
+    if (destinationResearchTimerRef.current) {
+      clearTimeout(destinationResearchTimerRef.current);
+    }
     setIsPinMode(false);
     setShowingDestinationResults(false);
     setDestinationPin(null);
@@ -273,6 +374,7 @@ export function HomeMapPage() {
     setDestinationRanked([]);
     setDestinationError(null);
     setDestinationLoading(false);
+    setDestinationUsedOrigin(false);
     setDestinationRadius(DESTINATION_DEFAULT_RADIUS_M);
   }, []);
 
@@ -319,6 +421,12 @@ export function HomeMapPage() {
 
   const isRouteLoading = Boolean(loadingRouteDetail || isTracingMap);
 
+  // Flag stays draggable while picking AND while results show with no route
+  // detail open. Dedicated boolean — pinMode alone also gates tap-to-move
+  // and must stay exclusive to pin mode.
+  const canDragDestinationPin =
+    isPinMode || (showingDestinationResults && selectedRoute == null);
+
   return (
     <div className="relative w-full h-full flex-1 overflow-hidden bg-slate-100 flex flex-col">
       {/* ── Interactive Leaflet Map Background ────────────────────────────── */}
@@ -343,6 +451,7 @@ export function HomeMapPage() {
           pinMode={isPinMode}
           destinationPin={destinationPin}
           onPinMove={handlePinMove}
+          canDragDestinationPin={canDragDestinationPin}
         />
       </div>
 
@@ -399,6 +508,7 @@ export function HomeMapPage() {
             loading={destinationLoading}
             error={destinationError}
             ranked={destinationRanked}
+            originApplied={destinationUsedOrigin}
             onSelectRoute={handleSelectDestinationRoute}
             onRadiusChange={handleDestinationRadiusChange}
             onMovePin={handleMovePinBack}

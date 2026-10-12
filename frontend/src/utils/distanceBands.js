@@ -73,6 +73,36 @@ export function sortRoutesByDistance(routes, lat, lng) {
 }
 
 /**
+ * Ranks routes by combined proximity to BOTH an origin and a destination
+ * point (nearest to the whole trip first). Each endpoint may match a
+ * different stop of the same route. Routes without a usable stop near
+ * either endpoint are excluded — the caller intersects the nearby sets
+ * first and this helper ranks the survivors.
+ * @returns {Array<{ route: object, origin: { distanceMeters, stop } | null, destination: { distanceMeters, stop } | null }>}
+ */
+export function sortRoutesByOriginDestination(
+  routes,
+  originLat,
+  originLng,
+  destLat,
+  destLng,
+) {
+  return (routes || [])
+    .map((route) => ({
+      route,
+      origin: nearestStopDistance(route, originLat, originLng),
+      destination: nearestStopDistance(route, destLat, destLng),
+    }))
+    .filter((item) => item.origin != null && item.destination != null)
+    .sort(
+      (a, b) =>
+        a.origin.distanceMeters +
+        a.destination.distanceMeters -
+        (b.origin.distanceMeters + b.destination.distanceMeters),
+    );
+}
+
+/**
  * Walking-distance hint band for one result (1 cuadra ≈ 100 m).
  * Same thresholds for every screen rendering nearby results.
  */
@@ -81,7 +111,8 @@ export function formatDistanceBand(distanceMeters) {
   const meters = Number(distanceMeters);
   if (meters < 150) return "Muy cerca";
   if (meters < 500) {
-    const blocks = Math.max(1, Math.round(meters / 100));
+    // Straight-line Haversine underestimates walked distance on a street grid (typically 20-40%), so scale up conservatively.
+    const blocks = Math.max(1, Math.round((meters * 1.3) / 100));
     return blocks === 1 ? "A 1 cuadra" : `A ${blocks} cuadras`;
   }
   return "A más de 5 cuadras";

@@ -7,9 +7,12 @@ import {
 
 /**
  * Results sheet for a picked destination point.
- * Renders ranked routes (nearest-first) with RouteCard + city badge and a
- * shared walking-distance hint per result. Empty state offers radius widen
- * presets (same point, no re-picking) and "move the pin".
+ * Renders routes passing near BOTH the user's origin and the destination
+ * (nearest to the whole trip first) with RouteCard + city badge and a
+ * walking-distance hint per endpoint. Without GPS the search falls back to
+ * destination-only results (legacy `{ route, nearest }` items) with an
+ * inline hint. Empty state offers radius widen presets (re-runs both
+ * endpoints, no re-picking) and "move the pin".
  */
 export function DestinationResults({
   label = "",
@@ -17,6 +20,7 @@ export function DestinationResults({
   loading = false,
   error = null,
   ranked = [],
+  originApplied = true,
   onSelectRoute,
   onRadiusChange,
   onMovePin,
@@ -24,6 +28,13 @@ export function DestinationResults({
   onRetry,
 }) {
   const isEmpty = !loading && !error && ranked.length === 0;
+
+  // Dual-endpoint items carry `{ route, origin, destination }`; the no-GPS
+  // fallback keeps the legacy `{ route, nearest }` shape.
+  const getHints = (item) => ({
+    origin: item?.origin ?? null,
+    destination: item?.destination ?? item?.nearest ?? null,
+  });
 
   return (
     <div className="pointer-events-auto mb-16 lg:mb-4 animate-slide-in-top">
@@ -49,6 +60,13 @@ export function DestinationResults({
             <X className="w-4 h-4" />
           </button>
         </div>
+
+        {/* No-GPS fallback notice: results only filtered by destination */}
+        {!originApplied && !loading && (
+          <p className="text-xs text-slate-500 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2">
+            Activa tu ubicación para filtrar también por tu origen
+          </p>
+        )}
 
         {/* Radius presets: re-run around the same point */}
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-0.5">
@@ -101,7 +119,9 @@ export function DestinationResults({
           <div className="py-6 text-center text-slate-500 text-xs space-y-3">
             <MapPin className="w-6 h-6 mx-auto text-slate-300" />
             <p className="font-semibold text-slate-700">
-              No pasan rutas cerca de este punto
+              {originApplied
+                ? "Ninguna ruta pasa cerca de tu origen y del destino a la vez"
+                : "No pasan rutas cerca de este punto"}
             </p>
             <p>Prueba con un radio más amplio o mueve el pin.</p>
             <div className="flex items-center justify-center gap-2 flex-wrap">
@@ -134,29 +154,50 @@ export function DestinationResults({
                 ? "1 ruta encontrada"
                 : `${ranked.length} rutas encontradas`}
             </p>
-            {ranked.map(({ route, nearest }, index) => (
-              <div key={route.id} className="space-y-1">
-                <p className="text-xs font-semibold text-slate-500 px-1 flex items-center gap-1">
-                  <span>🚶 {formatDistanceBand(nearest?.distanceMeters)}</span>
-                  {nearest?.stop?.name && (
-                    <span className="truncate">
-                      · cerca de {nearest.stop.name}
-                    </span>
-                  )}
-                </p>
-                <RouteCard
-                  route={route}
-                  showCity
-                  isNearest={index === 0}
-                  distanceKm={
-                    nearest?.distanceMeters != null
-                      ? nearest.distanceMeters / 1000
-                      : null
-                  }
-                  onSelect={onSelectRoute}
-                />
-              </div>
-            ))}
+            {ranked.map((item, index) => {
+              const { route } = item;
+              const { origin, destination } = getHints(item);
+              return (
+                <div key={route.id} className="space-y-1">
+                  <div className="px-1 space-y-0.5">
+                    {origin && (
+                      <p className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                        <span>
+                          🚶 {formatDistanceBand(origin?.distanceMeters)} de tu
+                          origen
+                        </span>
+                        {origin?.stop?.name && (
+                          <span className="truncate">
+                            · cerca de {origin.stop.name}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                    <p className="text-xs font-semibold text-slate-500 flex items-center gap-1">
+                      <span>
+                        🚶 {formatDistanceBand(destination?.distanceMeters)}
+                      </span>
+                      {destination?.stop?.name && (
+                        <span className="truncate">
+                          · cerca de {destination.stop.name}
+                        </span>
+                      )}
+                    </p>
+                  </div>
+                  <RouteCard
+                    route={route}
+                    showCity
+                    isNearest={index === 0}
+                    distanceKm={
+                      destination?.distanceMeters != null
+                        ? destination.distanceMeters / 1000
+                        : null
+                    }
+                    onSelect={onSelectRoute}
+                  />
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
