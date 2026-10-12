@@ -1,6 +1,7 @@
 import { apiClient } from "./apiClient";
 import { normalizeRoute } from "../utils/adapters";
 import { calculateDistanceKm } from "../utils/geoUtils";
+import { clampRadiusMeters } from "../utils/distanceBands";
 
 export const routeService = {
   /**
@@ -77,14 +78,15 @@ export const routeService = {
   },
 
   /**
-   * Encuentra rutas cercanas a coordenadas GPS
+   * Encuentra rutas cercanas a coordenadas arbitrarias (GPS o punto elegido)
    * POST /api/routes/nearby
+   * El radio se limita a los bordes del backend (NearbySearchRequest: (0, 100000]).
    */
   async getNearbyRoutes(latitude, longitude, radiusMeters = 1500) {
     const response = await apiClient.post("/routes/nearby", {
       latitude,
       longitude,
-      radiusMeters,
+      radiusMeters: clampRadiusMeters(radiusMeters),
     });
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);

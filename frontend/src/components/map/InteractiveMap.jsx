@@ -245,9 +245,14 @@ function MapInstanceBridge({ onMapReady }) {
 }
 
 /* MapClickHandler captures click events on the map canvas background */
-function MapClickHandler({ onMapClick }) {
+function MapClickHandler({ onMapClick, pinMode, onPinMove }) {
   useMapEvents({
     click: (e) => {
+      // In pin mode a tap moves the destination pin instead of selecting stops
+      if (pinMode && onPinMove) {
+        onPinMove({ lat: e.latlng.lat, lng: e.latlng.lng });
+        return;
+      }
       if (onMapClick) {
         onMapClick(e);
       }
@@ -285,6 +290,24 @@ const createSearchedLocationIcon = () =>
     `,
     iconSize: [32, 32],
     iconAnchor: [16, 16],
+  });
+
+const createDestinationPinIcon = () =>
+  L.divIcon({
+    className: "custom-destination-pin !bg-transparent !border-none",
+    html: `
+      <div class="flex flex-col items-center pointer-events-auto">
+        <div class="flex items-center justify-center p-2 rounded-xl bg-red-500 text-white border-2 border-white shadow-overlay">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
+            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
+            <circle cx="12" cy="10" r="3"/>
+          </svg>
+        </div>
+        <div class="w-1.5 h-4 bg-red-500/70 rounded-b-full"></div>
+      </div>
+    `,
+    iconSize: [40, 56],
+    iconAnchor: [20, 52],
   });
 
 const escapeHtml = (value) =>
@@ -346,6 +369,9 @@ function InteractiveMapComponent({
   onTracingChange = null,
   onMapReady = null,
   zoomControl = false,
+  pinMode = false,
+  destinationPin = null,
+  onPinMove = null,
 }) {
   const snappedCacheRef = useRef({});
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
@@ -576,7 +602,11 @@ function InteractiveMapComponent({
           maxZoom={TILE_MAX_ZOOM}
         />
 
-        <MapClickHandler onMapClick={handleMapBackgroundClick} />
+        <MapClickHandler
+          onMapClick={handleMapBackgroundClick}
+          pinMode={pinMode}
+          onPinMove={onPinMove}
+        />
 
         <MapAutoRecenter
           bounds={activeBounds}
@@ -636,6 +666,40 @@ function InteractiveMapComponent({
             </Popup>
           </Marker>
         )}
+
+        {/* Destination pin: draggable while picking, fixed once results show */}
+        {destinationPin &&
+          destinationPin.lat != null &&
+          destinationPin.lng != null && (
+            <Marker
+              position={[destinationPin.lat, destinationPin.lng]}
+              icon={createDestinationPinIcon()}
+              draggable={pinMode}
+              eventHandlers={
+                pinMode && onPinMove
+                  ? {
+                      dragend: (e) => {
+                        const moved = e.target.getLatLng();
+                        onPinMove({ lat: moved.lat, lng: moved.lng });
+                      },
+                    }
+                  : {}
+              }
+            >
+              <Popup>
+                <div className="p-1">
+                  <div className="text-xs font-bold text-red-600">
+                    📍 Destino elegido
+                  </div>
+                  <div className="text-xs text-slate-500">
+                    {pinMode
+                      ? "Arrastra el pin o toca el mapa para moverlo"
+                      : "Punto de búsqueda de rutas cercanas"}
+                  </div>
+                </div>
+              </Popup>
+            </Marker>
+          )}
 
         {/* Other routes (summaries) — single polyline */}
         {routes
