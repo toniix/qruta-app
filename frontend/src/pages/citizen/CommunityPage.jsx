@@ -27,6 +27,17 @@ import {
   getCategoryMeta,
 } from '../../services/communityService';
 import { formatRelativeTime } from '../../utils/dateUtils';
+import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
+
+const COMPOSE_DRAFT_KEY = 'rutasya:compose-draft';
+
+function readComposeDraft() {
+  try {
+    return localStorage.getItem(COMPOSE_DRAFT_KEY) || '';
+  } catch {
+    return '';
+  }
+}
 
 const CATEGORY_ICONS = {
   ALERTA: AlertTriangle,
@@ -61,9 +72,22 @@ export function CommunityPage() {
   const [formAlias, setFormAlias] = useState(alias);
   const [formCategory, setFormCategory] = useState('ALERTA');
   const [formRouteId, setFormRouteId] = useState(routeFilterId);
-  const [formContent, setFormContent] = useState('');
+  const [formContent, setFormContent] = useState(readComposeDraft);
   const [submittingPost, setSubmittingPost] = useState(false);
   const [formError, setFormError] = useState(null);
+
+  // Keep the compose draft across navigation/refresh; cleared on successful post via setFormContent('')
+  useEffect(() => {
+    try {
+      if (formContent) {
+        localStorage.setItem(COMPOSE_DRAFT_KEY, formContent);
+      } else {
+        localStorage.removeItem(COMPOSE_DRAFT_KEY);
+      }
+    } catch {
+      /* private mode or storage full — in-memory draft still works */
+    }
+  }, [formContent]);
 
   // Edit alias inline modal
   const [showAliasModal, setShowAliasModal] = useState(false);
@@ -71,6 +95,11 @@ export function CommunityPage() {
 
   // Expanded comments per post: { [postId]: { open: boolean, loading: boolean, items: [], text: '', sending: boolean } }
   const [commentsMap, setCommentsMap] = useState({});
+
+  // Delete-post confirm dialog + inline action errors (replaces window.confirm/alert)
+  const [deletePostTarget, setDeletePostTarget] = useState(null);
+  const [deletingPost, setDeletingPost] = useState(false);
+  const [actionError, setActionError] = useState(null);
 
   const filteredRouteObj = useMemo(() => {
     if (!routeFilterId) return null;
@@ -206,14 +235,17 @@ export function CommunityPage() {
   };
 
   const handleDeletePost = async (postId) => {
-    if (!window.confirm('¿Deseas eliminar tu publicación?')) return;
+    setDeletingPost(true);
     try {
       await communityService.deleteOwnPost(postId);
       setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
+      setDeletePostTarget(null);
     } catch (err) {
-      alert(
+      setActionError(
         err.response?.data?.message || 'No se pudo eliminar la publicación.',
       );
+    } finally {
+      setDeletingPost(false);
     }
   };
 
@@ -314,7 +346,7 @@ export function CommunityPage() {
         ...prev,
         [postId]: { ...prev[postId], sending: false },
       }));
-      alert(
+      setActionError(
         err.response?.data?.message || 'No se pudo enviar el comentario.',
       );
     }
@@ -340,7 +372,7 @@ export function CommunityPage() {
         ),
       );
     } catch (err) {
-      alert(
+      setActionError(
         err.response?.data?.message || 'No se pudo eliminar el comentario.',
       );
     }
@@ -461,6 +493,24 @@ export function CommunityPage() {
 
       {/* ── Feed Content ────────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto hide-scrollbar p-4 sm:p-5 space-y-4 max-w-2xl mx-auto w-full pb-28">
+        {/* Inline action error banner (replaces window.alert) */}
+        {actionError && (
+          <div
+            role="alert"
+            className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-3 text-xs font-semibold flex items-center justify-between gap-2"
+          >
+            <span>{actionError}</span>
+            <button
+              type="button"
+              onClick={() => setActionError(null)}
+              aria-label="Descartar error"
+              className="shrink-0 text-rose-500 hover:text-rose-700"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        )}
+
         {/* Quick Prompt Banner */}
         <button
           type="button"
@@ -474,7 +524,7 @@ export function CommunityPage() {
             <p className="text-xs font-semibold text-slate-500 truncate">
               ¿Hay tráfico, desvío o buscas qué ruta tomar hoy?
             </p>
-            <p className="text-[11px] text-brand-primary font-bold mt-0.5">
+            <p className="text-xs text-brand-primary font-bold mt-0.5">
               Toca aquí para compartir con otros pasajeros →
             </p>
           </div>
@@ -580,8 +630,8 @@ export function CommunityPage() {
                     {post.ownedByMe && (
                       <button
                         type="button"
-                        onClick={() => handleDeletePost(post.id)}
-                        className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                        onClick={() => setDeletePostTarget(post.id)}
+                        className="relative p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors after:absolute after:-inset-2 after:content-['']"
                         title="Eliminar mi publicación"
                         aria-label="Eliminar mi publicación"
                       >
@@ -624,7 +674,7 @@ export function CommunityPage() {
                   <button
                     type="button"
                     onClick={() => handleToggleLike(post.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-all active:scale-95 ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-xl text-xs font-bold transition-all active:scale-95 ${
                       post.likedByMe
                         ? 'bg-blue-50 text-brand-primary border border-blue-200/80'
                         : 'text-slate-600 hover:bg-slate-100 border border-transparent'
@@ -645,7 +695,7 @@ export function CommunityPage() {
                   <button
                     type="button"
                     onClick={() => handleToggleComments(post.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-bold transition-colors ${
+                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-xl text-xs font-bold transition-colors ${
                       commentState.open
                         ? 'bg-slate-100 text-slate-900'
                         : 'text-slate-600 hover:bg-slate-100'
@@ -685,11 +735,11 @@ export function CommunityPage() {
                                   {comment.authorAlias}
                                 </span>
                                 {comment.ownedByMe && (
-                                  <span className="text-[10px] font-bold text-brand-primary">
+                                  <span className="text-[11px] font-bold text-brand-primary">
                                     • Tú
                                   </span>
                                 )}
-                                <span className="text-[10px] text-slate-400">
+                                <span className="text-[11px] text-slate-500">
                                   {formatRelativeTime(comment.createdAt)}
                                 </span>
                               </div>
@@ -703,8 +753,9 @@ export function CommunityPage() {
                                 onClick={() =>
                                   handleDeleteComment(post.id, comment.id)
                                 }
-                                className="p-1 text-slate-400 hover:text-rose-600 rounded-lg"
+                                className="relative p-1 text-slate-500 hover:text-rose-600 rounded-lg after:absolute after:-inset-3 after:content-['']"
                                 title="Eliminar comentario"
+                                aria-label="Eliminar comentario"
                               >
                                 <Trash2 className="w-3.5 h-3.5" />
                               </button>
@@ -739,7 +790,7 @@ export function CommunityPage() {
                           commentState.sending ||
                           !(commentState.text || '').trim()
                         }
-                        className="p-2 rounded-xl bg-brand-primary text-white hover:bg-brand-primary-dark disabled:opacity-50 transition-colors shrink-0"
+                        className="relative p-2 rounded-xl bg-brand-primary text-white hover:bg-brand-primary-dark disabled:opacity-50 transition-colors shrink-0 after:absolute after:-inset-1.5 after:content-['']"
                         aria-label="Enviar comentario"
                       >
                         {commentState.sending ? (
@@ -779,7 +830,8 @@ export function CommunityPage() {
               <button
                 type="button"
                 onClick={() => setShowComposeModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-slate-700 hover:bg-slate-100"
+                className="relative p-1.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 after:absolute after:-inset-1.5 after:content-['']"
+                aria-label="Cerrar"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -863,7 +915,7 @@ export function CommunityPage() {
                   <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">
                     Mensaje *
                   </label>
-                  <span className="text-[11px] text-slate-400">
+                  <span className="text-[11px] text-slate-500">
                     {formContent.length}/600
                   </span>
                 </div>
@@ -923,7 +975,8 @@ export function CommunityPage() {
               <button
                 type="button"
                 onClick={() => setShowAliasModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600"
+                className="relative p-1 text-slate-500 hover:text-slate-600 after:absolute after:-inset-3 after:content-['']"
+                aria-label="Cerrar"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -959,6 +1012,19 @@ export function CommunityPage() {
           </form>
         </div>
       )}
+
+      {/* Delete Post Confirm Dialog */}
+      <ConfirmDialog
+        open={deletePostTarget != null}
+        title="¿Eliminar tu publicación?"
+        description="Esta acción no se puede deshacer. Tu publicación y sus comentarios se eliminarán permanentemente."
+        confirmLabel="Eliminar"
+        cancelLabel="Cancelar"
+        tone="danger"
+        loading={deletingPost}
+        onCancel={() => setDeletePostTarget(null)}
+        onConfirm={() => handleDeletePost(deletePostTarget)}
+      />
     </div>
   );
 }

@@ -38,6 +38,8 @@ export function HomeMapPage() {
     userAddress,
     nearbyStops,
     nearestMatchInfo,
+    loadData,
+    currentCity,
   } = useRoutes();
 
   // Local map & UI states
@@ -179,7 +181,7 @@ export function HomeMapPage() {
 
         {/* Dynamic Bottom Panels */}
         {selectedRoute ? (
-          <div className="pointer-events-auto mb-16 sm:mb-20">
+          <div className="pointer-events-auto mb-16 lg:mb-4">
             <RouteDrawer />
           </div>
         ) : selectedStop ? (
@@ -193,6 +195,7 @@ export function HomeMapPage() {
             loading={loading}
             loadingFiltered={loadingFiltered}
             error={error}
+            onRetry={() => loadData(currentCity?.id)}
             carouselRef={carouselRef}
             onScroll={handleScrollCarousel}
           />

@@ -99,11 +99,11 @@ export function StopRoutesModal({ stop, onClose }) {
         {/* Header: Stop Name & Close */}
         <div className="flex items-start justify-between gap-4 pb-3 border-b border-slate-100 shrink-0">
           <div className="flex items-start gap-3.5 min-w-0 flex-1">
-            <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
-              <MapPin className="w-5.5 h-5.5 text-blue-600" />
+            <div className="w-11 h-11 rounded-2xl bg-blue-50 border border-blue-100 text-brand-primary flex items-center justify-center shrink-0 mt-0.5 shadow-2xs">
+              <MapPin className="w-5.5 h-5.5 text-brand-primary" />
             </div>
             <div className="min-w-0 flex-1">
-              <span className="text-xs font-bold tracking-wider uppercase bg-blue-50 text-blue-700 px-2 py-0.5 rounded-md border border-blue-200/50">
+              <span className="text-xs font-bold tracking-wider uppercase bg-blue-50 text-brand-primary-dark px-2 py-0.5 rounded-md border border-blue-200/50">
                 Paradero
               </span>
               <h3 className="font-bold text-slate-900 text-lg leading-tight truncate mt-1">
@@ -129,11 +129,11 @@ export function StopRoutesModal({ stop, onClose }) {
         {/* Subheader: Route Count */}
         <div className="flex items-center justify-between shrink-0">
           <h4 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <Route className="w-4 h-4 text-blue-600 shrink-0" />
+            <Route className="w-4 h-4 text-brand-primary shrink-0" />
             <span>Rutas que transitan por aquí</span>
           </h4>
           {!loading && !error && (
-            <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 shrink-0">
+            <span className="text-xs font-bold text-brand-primary-dark bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 shrink-0">
               {groupedRoutes.length}{" "}
               {groupedRoutes.length === 1 ? "ruta" : "rutas"}
             </span>
@@ -144,7 +144,7 @@ export function StopRoutesModal({ stop, onClose }) {
         <div className="flex-1 min-h-0 overflow-y-auto space-y-2.5 pr-1.5 scroll-smooth">
           {loading ? (
             <div className="py-12 text-center text-slate-500">
-              <Loader2 className="w-7 h-7 animate-spin text-blue-600 mx-auto mb-2" />
+              <Loader2 className="w-7 h-7 animate-spin text-brand-primary mx-auto mb-2" />
               <p className="text-xs font-semibold text-slate-500">
                 Cargando rutas de este paradero...
               </p>
@@ -183,7 +183,7 @@ export function StopRoutesModal({ stop, onClose }) {
 
                       {/* Name & Direction Tag */}
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-blue-600 transition-colors">
+                        <h4 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-brand-primary transition-colors">
                           {item.name.replace(/^Ruta \w+:\s*/i, "")}
                         </h4>
 
@@ -194,8 +194,8 @@ export function StopRoutesModal({ stop, onClose }) {
                               <span>Ida y Vuelta</span>
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-xs font-bold bg-blue-50 text-blue-700 border border-blue-200/80 px-2 py-0.5 rounded-full">
-                              <ArrowRight className="w-3 h-3 text-blue-600" />
+                            <span className="inline-flex items-center gap-1 text-xs font-bold bg-blue-50 text-brand-primary-dark border border-blue-200/80 px-2 py-0.5 rounded-full">
+                              <ArrowRight className="w-3 h-3 text-brand-primary" />
                               <span>{item.directionLabel || "IDA"}</span>
                             </span>
                           )}
@@ -206,7 +206,7 @@ export function StopRoutesModal({ stop, onClose }) {
                     {/* Fare & Chevron */}
                     <div className="flex items-center gap-2 shrink-0">
                       <span className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/60">
-                        {item.fare || "S/ 2.00"}
+                        {item.fare || "—"}
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-colors" />
                     </div>
@@ -226,7 +226,7 @@ export function StopRoutesModal({ stop, onClose }) {
               onClose();
               navigate("/mapa");
             }}
-            className="w-full bg-blue-600 text-white font-bold text-xs py-3.5 rounded-2xl hover:bg-blue-700 transition-all active:scale-[0.98] shadow-xs flex items-center justify-center gap-2"
+            className="w-full bg-brand-primary text-white font-bold text-xs py-3.5 rounded-2xl hover:bg-brand-primary-dark transition-all active:scale-[0.98] shadow-xs flex items-center justify-center gap-2"
           >
             <Navigation className="w-4 h-4" />
             <span>Ver paradero en el mapa</span>

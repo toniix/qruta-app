@@ -8,11 +8,10 @@ import {
   ArrowUpDown,
   Navigation,
   Layers,
-  Home,
-  Briefcase,
   Star,
 } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
+import { usePlaces } from "../../hooks/usePlaces";
 
 export function SearchBar() {
   const navigate = useNavigate();
@@ -28,6 +27,8 @@ export function SearchBar() {
     isLocating,
     loadingFiltered,
   } = useRoutes();
+  const { places } = usePlaces();
+  const quickPlaces = places.slice(0, 2);
 
   const [isExpanded, setIsExpanded] = useState(false);
   const [origin, setOrigin] = useState("Mi ubicación");
@@ -129,7 +130,7 @@ export function SearchBar() {
 
           {/* Origin Row */}
           <div className="flex items-center gap-3 pr-10">
-            <Target className="w-4.5 h-4.5 text-blue-600 shrink-0" />
+            <Target className="w-4.5 h-4.5 text-brand-primary shrink-0" />
             <input
               type="text"
               value={origin}
@@ -180,7 +181,7 @@ export function SearchBar() {
                   setIsExpanded(false);
                 }
               }}
-              className="flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-2xs transition-all active:scale-95"
+              className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-2xs transition-all active:scale-95"
             >
               <Search className="w-3.5 h-3.5" />
               <span>Ver en mapa</span>
@@ -209,8 +210,17 @@ export function SearchBar() {
               {searchResults.map((route) => (
                 <div
                   key={route.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => handleSelectOption(route)}
-                  className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs space-y-1.5 hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer group active:scale-[0.99]"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSelectOption(route);
+                    }
+                  }}
+                  aria-label={`Seleccionar ruta ${route.code}: ${route.name}`}
+                  className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs space-y-1.5 hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
@@ -283,35 +293,23 @@ export function SearchBar() {
             <span>Ver Todas</span>
           </button>
 
-          <button
-            onClick={() => {
-              setSearchQuery("Centro");
-              setIsExpanded(true);
-            }}
-            className={`flex-shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
-              searchQuery === "Centro"
-                ? "bg-blue-600 text-white border-blue-600 font-bold"
-                : "bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium"
-            }`}
-          >
-            <Home className="w-3.5 h-3.5 text-slate-500" />
-            <span>Casa (Centro)</span>
-          </button>
-
-          <button
-            onClick={() => {
-              setSearchQuery("UNICA");
-              setIsExpanded(true);
-            }}
-            className={`flex-shrink-0 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
-              searchQuery === "UNICA"
-                ? "bg-purple-600 text-white border-purple-600 font-bold"
-                : "bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium"
-            }`}
-          >
-            <Briefcase className="w-3.5 h-3.5 text-blue-600" />
-            <span>Trabajo (UNICA)</span>
-          </button>
+          {quickPlaces.map((place) => (
+            <button
+              key={place.id}
+              onClick={() => {
+                setSearchQuery(place.name);
+                setIsExpanded(true);
+              }}
+              className={`flex-shrink-0 max-w-44 rounded-full px-3.5 py-1.5 flex items-center gap-1.5 border shadow-sm transition-all active:scale-95 ${
+                searchQuery === place.name
+                  ? "bg-brand-primary text-white border-brand-primary font-bold"
+                  : "bg-white text-slate-700 border-slate-100 hover:bg-slate-50 font-medium"
+              }`}
+            >
+              <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
+              <span className="truncate">{place.name}</span>
+            </button>
+          ))}
 
           <button
             onClick={() => navigate("/lugares?tab=rutas")}

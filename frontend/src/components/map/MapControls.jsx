@@ -39,8 +39,8 @@ export function MapControls({
         <Target
           className={`w-5 h-5 ${
             isLocating
-              ? "animate-spin text-blue-600"
-              : "text-blue-600 hover:scale-110 transition-transform"
+              ? "animate-spin text-brand-primary"
+              : "text-brand-primary hover:scale-110 transition-transform"
           }`}
         />
       </button>

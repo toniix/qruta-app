@@ -102,7 +102,7 @@ export function NearbyRoutesPage() {
 
         <div>
           <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-            <Navigation className="w-5 h-5 text-blue-600 shrink-0" />
+            <Navigation className="w-5 h-5 text-brand-primary shrink-0" />
             Cerca de ti
           </h1>
           <p className="text-xs text-slate-500 font-medium mt-0.5">
@@ -159,7 +159,7 @@ export function NearbyRoutesPage() {
               Rutas Cercanas
             </h2>
             {isLocating && (
-              <span className="text-xs text-blue-600 font-bold flex items-center gap-1">
+              <span className="text-xs text-brand-primary font-bold flex items-center gap-1">
                 <Loader2 className="w-3.5 h-3.5 animate-spin" /> Actualizando...
               </span>
             )}
@@ -167,7 +167,7 @@ export function NearbyRoutesPage() {
 
           {loading ? (
             <div className="py-8 text-center text-slate-500 bg-white rounded-2xl border border-slate-100">
-              <Loader2 className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+              <Loader2 className="w-6 h-6 animate-spin text-brand-primary mx-auto mb-2" />
               <p className="text-xs font-medium">Buscando rutas cercanas...</p>
             </div>
           ) : error ? (
@@ -216,8 +216,17 @@ export function NearbyRoutesPage() {
                 return (
                   <div
                     key={route.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelectRoute(route)}
-                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between gap-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelectRoute(route);
+                      }
+                    }}
+                    aria-label={`Ver recorrido de la ruta ${route.code || 'Ruta'}: ${route.name.replace(/^Ruta \w+:\s*/i, '')}`}
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between gap-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
                     {/* Left: Pill Code Badge */}
                     <div
@@ -229,17 +238,17 @@ export function NearbyRoutesPage() {
 
                     {/* Middle: Title & Details */}
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-blue-600 transition-colors">
+                      <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-brand-primary transition-colors">
                         {route.name.replace(/^Ruta \w+:\s*/i, '')}
                       </h3>
                       <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
-                        {route.fare || 'S/ 2.00'} • {route.transportLineName || 'Línea urbana'}
+                        {route.fare || '—'} • {route.transportLineName || 'Línea urbana'}
                       </p>
                     </div>
 
                     {/* Right: Distance & Walk time */}
                     <div className="text-right shrink-0">
-                      <span className="text-blue-600 font-bold text-sm block">
+                      <span className="text-brand-primary font-bold text-sm block">
                         a {distMeters < 1000 ? `${distMeters} m` : `${(distMeters / 1000).toFixed(1)} km`}
                       </span>
                       <span className="text-xs font-medium text-slate-500 flex items-center justify-end gap-1 mt-0.5">
@@ -281,17 +290,26 @@ export function NearbyRoutesPage() {
                 return (
                   <div
                     key={stop.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleOpenStopModal(stop)}
-                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between gap-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleOpenStopModal(stop);
+                      }
+                    }}
+                    aria-label={`Paradero ${stop.name}, a ${distMeters} metros`}
+                    className="bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between gap-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
                     {/* Left: Stop Icon Container */}
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0 border border-blue-100">
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-brand-primary flex items-center justify-center shrink-0 border border-blue-100">
                       <Bus className="w-5 h-5" />
                     </div>
 
                     {/* Middle: Stop Name & Reference */}
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-blue-600 transition-colors">
+                      <h3 className="font-bold text-slate-900 text-sm truncate leading-tight group-hover:text-brand-primary transition-colors">
                         {stop.name}
                       </h3>
                       {(stop.reference || stop.address) && (
@@ -310,7 +328,7 @@ export function NearbyRoutesPage() {
 
                     {/* Right: Distance & Chevron */}
                     <div className="text-right shrink-0 flex items-center gap-1">
-                      <span className="text-blue-600 font-bold text-sm block">
+                      <span className="text-brand-primary font-bold text-sm block">
                         {distMeters}m
                       </span>
                       <ChevronRight className="w-4 h-4 text-slate-500 group-hover:text-slate-700 transition-colors" />

@@ -30,7 +30,8 @@ const QUICK_SUGGESTIONS = [
 
 export function SearchPage() {
   const navigate = useNavigate();
-  const { selectRoute, selectStop } = useRoutes();
+  const { selectRoute, selectStop, currentCity } = useRoutes();
+  const cityName = currentCity?.name || 'Ica';
 
   const [origin, setOrigin] = useState('Mi ubicación');
   const [destination, setDestination] = useState('');
@@ -125,15 +126,16 @@ export function SearchPage() {
           <button
             type="button"
             onClick={handleSwap}
-            className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center absolute right-4 top-10 -translate-y-1/2 shadow-xs hover:bg-slate-200 transition-transform active:rotate-180 duration-300 z-10"
+            className="w-9 h-9 rounded-full bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center absolute right-4 top-10 -translate-y-1/2 shadow-xs hover:bg-slate-200 transition-transform active:rotate-180 duration-300 z-10 after:absolute after:-inset-1 after:content-['']"
             title="Intercambiar origen y destino"
+            aria-label="Intercambiar origen y destino"
           >
             <ArrowUpDown className="w-4 h-4" />
           </button>
 
           {/* Origin Row */}
           <div className="flex items-center gap-3 pr-12">
-            <Target className="w-5 h-5 text-blue-600 shrink-0" />
+            <Target className="w-5 h-5 text-brand-primary shrink-0" />
             <input
               type="text"
               value={origin}
@@ -161,8 +163,9 @@ export function SearchPage() {
               <button
                 type="button"
                 onClick={handleClear}
-                className="p-1 rounded-full text-slate-400 hover:text-slate-600"
-                title="Limpiar"
+                className="relative p-1 rounded-full text-slate-500 hover:text-slate-600 after:absolute after:-inset-3 after:content-['']"
+                title="Limpiar destino"
+                aria-label="Limpiar destino"
               >
                 <X className="w-4 h-4" />
               </button>
@@ -173,7 +176,7 @@ export function SearchPage() {
           <button
             type="submit"
             disabled={isSearching || !destination.trim()}
-            className="w-full mt-2 flex items-center justify-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none shadow-md shadow-blue-500/20"
+            className="w-full mt-2 flex items-center justify-center gap-2 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold py-3 px-4 rounded-xl text-sm transition-all active:scale-[0.98] disabled:opacity-50 disabled:pointer-events-none shadow-md shadow-blue-500/20"
           >
             {isSearching ? (
               <>
@@ -202,7 +205,7 @@ export function SearchPage() {
           <div className="space-y-4 animate-fade-in pt-1">
             <div className="flex items-center gap-2 text-slate-500 text-xs font-bold uppercase tracking-wider px-1">
               <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-              <span>Destinos frecuentes en Ica</span>
+              <span>Destinos frecuentes en {cityName}</span>
             </div>
 
             <div className="flex flex-wrap gap-2">
@@ -227,7 +230,7 @@ export function SearchPage() {
             {/* Results Header Count */}
             <div className="flex items-center justify-between px-1">
               <h2 className="text-base font-bold text-slate-900 flex items-center gap-2">
-                <Bus className="w-4 h-4 text-blue-600 shrink-0" />
+                <Bus className="w-4 h-4 text-brand-primary shrink-0" />
                 <span>
                   {searchResults.length === 1
                     ? '1 ruta encontrada'
@@ -256,7 +259,7 @@ export function SearchPage() {
                 <button
                   type="button"
                   onClick={() => navigate('/rutas')}
-                  className="mt-2 text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors"
+                  className="mt-2 text-xs font-bold text-brand-primary bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors"
                 >
                   Ver todo el catálogo de rutas
                 </button>
@@ -267,8 +270,17 @@ export function SearchPage() {
                 {searchResults.map((route) => (
                   <div
                     key={route.id}
+                    role="button"
+                    tabIndex={0}
                     onClick={() => handleSelectRoute(route)}
-                    className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-card space-y-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleSelectRoute(route);
+                      }
+                    }}
+                    aria-label={`Ver recorrido de la ruta ${route.code}: ${route.name}`}
+                    className="bg-white rounded-2xl p-4 sm:p-5 border border-slate-100 shadow-card space-y-3 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
                   >
                     {/* Header Row: Code Pill + Line Name + Fare */}
                     <div className="flex items-center justify-between gap-3">
@@ -294,7 +306,7 @@ export function SearchPage() {
 
                     {/* Route Name Title */}
                     <div>
-                      <h3 className="font-bold text-slate-900 text-sm group-hover:text-blue-600 transition-colors leading-snug">
+                      <h3 className="font-bold text-slate-900 text-sm group-hover:text-brand-primary transition-colors leading-snug">
                         {route.name}
                       </h3>
                     </div>
@@ -311,7 +323,7 @@ export function SearchPage() {
                     )}
 
                     {/* View in Map Footer */}
-                    <div className="pt-2 border-t border-slate-50 flex items-center justify-between text-xs font-bold text-blue-600 group-hover:text-blue-700">
+                    <div className="pt-2 border-t border-slate-50 flex items-center justify-between text-xs font-bold text-brand-primary group-hover:text-brand-primary-dark">
                       <span>Ver recorrido en el mapa</span>
                       <ChevronRight className="w-4 h-4 group-hover:translate-x-0.5 transition-transform" />
                     </div>

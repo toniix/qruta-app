@@ -35,7 +35,7 @@ export function MapTopHeader({
                 }}
               />
               {isRouteLoading ? (
-                <span className="truncate text-blue-600 font-semibold flex items-center gap-1.5 animate-pulse">
+                <span className="truncate text-brand-primary font-semibold flex items-center gap-1.5 animate-pulse">
                   <span>Trazando trayecto</span>
                   {selectedRoute.code && (
                     <span className="font-bold text-slate-800">

@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Search, X, MapPin, Route } from 'lucide-react';
+import { Search, X, MapPin, Route, AlertCircle, RefreshCw } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
 
 /** Categories dynamically generated or default */
@@ -11,8 +11,19 @@ const CATEGORIES = [
   { id: 'nocturno', label: 'Nocturno' },
 ];
 
+/** Match category as a whole word so "interurbano" never matches "urbano". */
+const matchesCategory = (route, catId) => {
+  const pattern = new RegExp(`\\b${catId}\\b`, 'i');
+  return (
+    pattern.test(route.name || '') ||
+    pattern.test(route.transportLineName || '') ||
+    pattern.test(route.description || '')
+  );
+};
+
 export function RoutesListPage() {
-  const { routes, selectRoute, selectStop } = useRoutes();
+  const { routes, selectRoute, selectStop, currentCity, loading, error, loadData } = useRoutes();
+  const cityName = currentCity?.name || 'Ica';
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,13 +34,7 @@ export function RoutesListPage() {
     let result = routes;
 
     if (activeCategory !== 'all') {
-      const cat = activeCategory.toLowerCase();
-      result = result.filter(
-        (r) =>
-          r.name.toLowerCase().includes(cat) ||
-          r.transportLineName?.toLowerCase().includes(cat) ||
-          r.description?.toLowerCase().includes(cat),
-      );
+      result = result.filter((r) => matchesCategory(r, activeCategory));
     }
 
     if (searchQuery.trim() !== '') {
@@ -60,22 +65,27 @@ export function RoutesListPage() {
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Route className="w-5 h-5 text-blue-600 shrink-0" />
-              Catálogo de Rutas
+              <Route className="w-5 h-5 text-brand-primary shrink-0" />
+              Catálogo de Rutas en {cityName}
             </h1>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Líneas y recorridos de transporte público en Ica
+              Líneas y recorridos de transporte público en {cityName}
             </p>
           </div>
 
-          <span className="text-xs font-bold text-blue-600 bg-blue-50 px-3 py-1 rounded-full border border-blue-200/60">
-            {filteredRoutes.length} disponibles
+          <span
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+            className="text-xs font-bold text-brand-primary bg-blue-50 px-3 py-1 rounded-full border border-blue-200/60"
+          >
+            {loading ? 'Cargando…' : `${filteredRoutes.length} disponibles`}
           </span>
         </div>
 
         {/* Search bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
@@ -86,7 +96,8 @@ export function RoutesListPage() {
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full"
+              aria-label="Limpiar búsqueda"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-600 rounded-full after:absolute after:-inset-3 after:content-['']"
             >
               <X className="w-4 h-4" />
             </button>
@@ -103,7 +114,7 @@ export function RoutesListPage() {
                 onClick={() => setActiveCategory(cat.id)}
                 className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
                   isActive
-                    ? 'bg-blue-600 text-white shadow-xs'
+                    ? 'bg-brand-primary text-white shadow-xs'
                     : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/60'
                 }`}
               >
@@ -116,19 +127,58 @@ export function RoutesListPage() {
 
       {/* ── Routes Scrollable Vertical List ──────────────────────────────── */}
       <main className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
-        {filteredRoutes.length === 0 ? (
+        {loading ? (
+          <div className="space-y-4" role="status" aria-label="Cargando rutas">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-card animate-pulse"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-14 h-9 rounded-2xl bg-slate-200/80 shrink-0" />
+                  <div className="flex-1 space-y-2">
+                    <div className="h-4 bg-slate-200/80 rounded w-3/4" />
+                    <div className="h-3 bg-slate-100 rounded w-1/2" />
+                  </div>
+                </div>
+                <div className="border-t border-slate-100/90 mt-4 pt-4 space-y-2.5">
+                  <div className="h-3 bg-slate-100 rounded w-2/3" />
+                  <div className="h-3 bg-slate-100 rounded w-1/2" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div
+            role="alert"
+            className="bg-red-50 text-red-700 text-xs font-semibold p-4 rounded-2xl border border-red-100 shadow-2xs flex flex-wrap items-center gap-3"
+          >
+            <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
+            <span className="flex-1 min-w-40">{error}</span>
+            <button
+              type="button"
+              onClick={() => loadData(currentCity?.id)}
+              className="inline-flex items-center gap-1.5 bg-red-600 text-white px-3.5 py-2 rounded-xl hover:bg-red-700 transition-colors shrink-0 min-h-11"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Reintentar
+            </button>
+          </div>
+        ) : filteredRoutes.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-2xs space-y-3 animate-fade-in">
             <MapPin className="w-8 h-8 text-slate-400 mx-auto" />
             <h3 className="text-sm font-bold text-slate-800">No se encontraron rutas</h3>
             <p className="text-xs text-slate-500">
-              Intenta cambiando los términos de búsqueda o filtrando por otra categoría.
+              {activeCategory !== 'all' && searchQuery.trim() === ''
+                ? `No hay rutas de tipo “${CATEGORIES.find((c) => c.id === activeCategory)?.label}” registradas en ${cityName} todavía.`
+                : 'Prueba con otro término de búsqueda o revisa las paradas cercanas en el mapa.'}
             </p>
             <button
               onClick={() => {
                 setSearchQuery('');
                 setActiveCategory('all');
               }}
-              className="text-xs font-bold text-blue-600 bg-blue-50 px-4 py-2 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors inline-block"
+              className="text-xs font-bold text-brand-primary bg-blue-50 px-4 py-2 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors inline-block"
             >
               Restablecer filtros
             </button>
@@ -147,8 +197,17 @@ export function RoutesListPage() {
             return (
               <div
                 key={route.id}
+                role="button"
+                tabIndex={0}
                 onClick={() => handleSelectRoute(route)}
-                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-card space-y-3.5 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99]"
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    handleSelectRoute(route);
+                  }
+                }}
+                aria-label={`Ver recorrido de la ruta ${route.code || 'Ruta'}: ${route.name.replace(/^Ruta \w+:\s*/i, '')}`}
+                className="bg-white rounded-2xl p-5 border border-slate-100 shadow-card space-y-3.5 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
                 {/* Header Row: Badge | Name & Subtitle | Fare */}
                 <div className="flex items-start justify-between gap-3">
@@ -163,7 +222,7 @@ export function RoutesListPage() {
 
                     {/* Name & Subtitle */}
                     <div className="min-w-0 flex-1">
-                      <h3 className="font-bold text-slate-900 text-base leading-tight group-hover:text-blue-600 transition-colors truncate">
+                      <h3 className="font-bold text-slate-900 text-base leading-tight group-hover:text-brand-primary transition-colors truncate">
                         {route.name.replace(/^Ruta \w+:\s*/i, '')}
                       </h3>
                       <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
@@ -174,11 +233,11 @@ export function RoutesListPage() {
 
                   {/* Fare */}
                   <div className="text-right shrink-0">
-                    <span className="text-blue-600 font-bold text-base block">
-                      {route.fare || 'S/ 2.00'}
+                    <span className="text-brand-primary font-bold text-base block">
+                      {route.fare || '—'}
                     </span>
                     <span className="text-xs text-slate-500 font-medium block">
-                      {route.frequency || 'Cada 8 min'}
+                      {route.frequency || '—'}
                     </span>
                   </div>
                 </div>
@@ -204,7 +263,7 @@ export function RoutesListPage() {
 
                   {/* Destination */}
                   <div className="relative flex items-center justify-between text-xs">
-                    <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-blue-600 bg-blue-600 shrink-0" />
+                    <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-brand-primary bg-brand-primary shrink-0" />
                     <span className="font-bold text-slate-900 truncate">{destination}</span>
                   </div>
                 </div>

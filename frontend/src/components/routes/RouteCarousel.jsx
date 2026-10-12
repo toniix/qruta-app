@@ -1,5 +1,6 @@
 import { Route as RouteIcon, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, MapPin } from "lucide-react";
 import { RouteCard } from "./RouteCard";
+import { useRoutes } from "../../contexts/RouteContext";
 
 export function RouteCarousel({
   routes = [],
@@ -9,16 +10,20 @@ export function RouteCarousel({
   loading = false,
   loadingFiltered = false,
   error = null,
+  onRetry,
   carouselRef,
   onScroll,
 }) {
+  const { currentCity } = useRoutes();
+  const cityName = currentCity?.name || "Ica";
+
   const getCategoryTitle = () => {
-    if (onlyNearby) return "Rutas cercanas a ti";
-    return "Rutas disponibles";
+    if (onlyNearby) return `Rutas cercanas a ti en ${cityName}`;
+    return `Rutas disponibles en ${cityName}`;
   };
 
   return (
-    <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/95 backdrop-blur-xl rounded-t-2xl sm:rounded-2xl shadow-overlay border border-slate-100/90 animate-slide-in-bottom mb-16 sm:mb-20">
+    <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/95 backdrop-blur-xl rounded-t-2xl sm:rounded-2xl shadow-overlay border border-slate-100/90 animate-slide-in-bottom mb-16 lg:mb-4">
       {/* Sheet Handle Indicator */}
       <div className="w-10 h-1 bg-slate-200 rounded-full mx-auto -mt-1 mb-1 shrink-0" />
 
@@ -26,9 +31,9 @@ export function RouteCarousel({
       <div className="flex items-center justify-between px-1">
         <div>
           <h2 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-            <RouteIcon className="w-4 h-4 text-blue-600 shrink-0" />
+            <RouteIcon className="w-4 h-4 text-brand-primary shrink-0" />
             <span>{getCategoryTitle()}</span>
-            <span className="text-xs bg-blue-50 text-blue-700 font-bold px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
+            <span className="text-xs bg-blue-50 text-brand-primary-dark font-bold px-2.5 py-0.5 rounded-full border border-blue-200/60 shadow-2xs">
               {routes.length}
             </span>
           </h2>
@@ -39,9 +44,9 @@ export function RouteCarousel({
           </p>
         </div>
 
-        {/* Navigation Arrows */}
+        {/* Navigation Arrows (desktop; on mobile the carousel is swipeable) */}
         {routes.length > 1 && (
-          <div className="flex items-center gap-1.5 shrink-0 pr-2">
+          <div className="hidden sm:flex items-center gap-1.5 shrink-0 pr-2">
             <button
               onClick={() => onScroll?.("left")}
               className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 shadow-2xs"
@@ -64,16 +69,29 @@ export function RouteCarousel({
 
       {/* Error banner */}
       {error && (
-        <div className="bg-red-50 text-red-700 text-xs font-semibold p-3.5 rounded-2xl flex items-center gap-2 border border-red-100 shadow-2xs">
+        <div
+          role="alert"
+          className="bg-red-50 text-red-700 text-xs font-semibold p-3.5 rounded-2xl flex flex-wrap items-center gap-2 border border-red-100 shadow-2xs"
+        >
           <AlertCircle className="w-4 h-4 shrink-0 text-red-600" />
-          <span>{error}</span>
+          <span className="flex-1 min-w-32">{error}</span>
+          {onRetry && (
+            <button
+              type="button"
+              onClick={onRetry}
+              className="inline-flex items-center gap-1.5 bg-red-600 text-white px-3 py-1.5 rounded-xl hover:bg-red-700 transition-colors shrink-0 min-h-11"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Reintentar
+            </button>
+          )}
         </div>
       )}
 
       {/* Loading state */}
       {(loading || loadingFiltered) && (
         <div className="py-8 text-center text-slate-500">
-          <RefreshCw className="w-6 h-6 animate-spin text-blue-600 mx-auto mb-2" />
+          <RefreshCw className="w-6 h-6 animate-spin text-brand-primary mx-auto mb-2" />
           <p className="text-xs font-semibold text-slate-500">
             {loadingFiltered
               ? "Buscando rutas cercanas a tu ubicación..."

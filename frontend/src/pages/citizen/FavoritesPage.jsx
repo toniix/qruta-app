@@ -78,7 +78,7 @@ export function FavoritesPage() {
                 <button
                   onClick={() => removeFavorite(fav.id)}
                   aria-label={`Quitar ${fav.name || 'ruta'} de favoritos`}
-                  className="p-2 rounded-xl text-slate-500 hover:text-state-error hover:bg-red-50 transition-colors shrink-0"
+                  className="relative p-2 rounded-xl text-slate-500 hover:text-state-error hover:bg-red-50 transition-colors shrink-0 after:absolute after:-inset-1.5 after:content-['']"
                 >
                   <Trash2 className="w-4 h-4" />
                 </button>

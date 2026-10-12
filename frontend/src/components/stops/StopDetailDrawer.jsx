@@ -11,6 +11,8 @@ import {
   ArrowLeftRight,
   ArrowRight,
   X,
+  AlertCircle,
+  RefreshCw,
 } from "lucide-react";
 import { stopService } from "../../services/stopService";
 import { useRoutes } from "../../contexts/RouteContext";
@@ -23,6 +25,7 @@ export function StopDetailDrawer({ stop, onClose }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(true);
+  const [reloadKey, setReloadKey] = useState(0);
 
   useEffect(() => {
     if (!stop?.id) return;
@@ -52,12 +55,11 @@ export function StopDetailDrawer({ stop, onClose }) {
     return () => {
       isMounted = false;
     };
-  }, [stop?.id]);
+  }, [stop?.id, reloadKey]);
 
   if (!stop) return null;
 
   const handleSelectRouteItem = (item) => {
-    console.log("Selected route item:", item);
     const matched = allContextRoutes.find(
       (r) => r.id === item.id || r.code === item.code,
     );
@@ -79,7 +81,7 @@ export function StopDetailDrawer({ stop, onClose }) {
   };
 
   return (
-    <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/98 backdrop-blur-xl rounded-t-2xl sm:rounded-2xl shadow-overlay border border-slate-100/90 animate-slide-in-bottom mb-16 sm:mb-20 transition-all duration-300">
+    <div className="pointer-events-auto p-4 sm:p-5 space-y-3 bg-white/98 backdrop-blur-xl rounded-t-2xl sm:rounded-2xl shadow-overlay border border-slate-100/90 animate-slide-in-bottom mb-16 lg:mb-4 transition-all duration-300">
       {/* Drag / Touch Handle Indicator */}
       <div
         onClick={() => setIsCollapsed((prev) => !prev)}
@@ -123,8 +125,9 @@ export function StopDetailDrawer({ stop, onClose }) {
           <button
             type="button"
             onClick={() => setIsCollapsed((prev) => !prev)}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+            className="relative w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all active:scale-90 cursor-pointer after:absolute after:-inset-1.5 after:content-['']"
             title={isCollapsed ? "Ver rutas de este paradero" : "Ocultar rutas"}
+            aria-label={isCollapsed ? "Ver rutas de este paradero" : "Ocultar rutas"}
           >
             {isCollapsed ? (
               <ChevronDown className="w-4 h-4" />
@@ -136,8 +139,9 @@ export function StopDetailDrawer({ stop, onClose }) {
           <button
             type="button"
             onClick={onClose}
-            className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 cursor-pointer"
+            className="relative w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 cursor-pointer after:absolute after:-inset-1.5 after:content-['']"
             title="Cerrar paradero"
+            aria-label="Cerrar paradero"
           >
             <X className="w-4 h-4" />
           </button>
@@ -149,10 +153,10 @@ export function StopDetailDrawer({ stop, onClose }) {
         <button
           type="button"
           onClick={() => setIsCollapsed(false)}
-          className="w-full flex items-center justify-between bg-blue-50/80 hover:bg-blue-100 text-blue-700 px-3.5 py-2.5 rounded-xl border border-blue-200/60 font-bold text-xs transition-colors cursor-pointer group active:scale-[0.99]"
+          className="w-full flex items-center justify-between bg-blue-50/80 hover:bg-blue-100 text-brand-primary-dark px-3.5 py-2.5 rounded-xl border border-blue-200/60 font-bold text-xs transition-colors cursor-pointer group active:scale-[0.99]"
         >
           <div className="flex items-center gap-2">
-            <RouteIcon className="w-4 h-4 text-blue-600 shrink-0" />
+            <RouteIcon className="w-4 h-4 text-brand-primary shrink-0" />
             <span>Ver rutas de este paradero</span>
           </div>
         </button>
@@ -164,12 +168,12 @@ export function StopDetailDrawer({ stop, onClose }) {
           {/* Subheader: Route Counter */}
           <div className="flex items-center justify-between">
             <div className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-              <RouteIcon className="w-3.5 h-3.5 text-blue-600" />
+              <RouteIcon className="w-3.5 h-3.5 text-brand-primary" />
               <span>Rutas que transitan por aquí</span>
             </div>
 
             {!loading && !error && (
-              <span className="text-xs font-bold text-blue-700 bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/60">
+              <span className="text-xs font-bold text-brand-primary-dark bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/60">
                 {stopRoutes.length} {stopRoutes.length === 1 ? "ruta" : "rutas"}
               </span>
             )}
@@ -179,14 +183,28 @@ export function StopDetailDrawer({ stop, onClose }) {
           <div className="max-h-52 sm:max-h-60 overflow-y-auto space-y-2 pr-1 hide-scrollbar">
             {loading ? (
               <div className="py-6 text-center text-slate-500">
-                <Loader2 className="w-5 h-5 animate-spin text-blue-600 mx-auto mb-1.5" />
+                <Loader2 className="w-5 h-5 animate-spin text-brand-primary mx-auto mb-1.5" />
                 <p className="text-xs text-slate-500 font-medium">
                   Cargando rutas de este paradero...
                 </p>
               </div>
             ) : error ? (
-              <div className="bg-red-50 text-red-700 text-xs p-3 rounded-xl border border-red-100 font-medium">
-                {error}
+              <div
+                role="alert"
+                className="bg-red-50 text-red-700 text-xs p-3 rounded-xl border border-red-100 font-medium space-y-2.5"
+              >
+                <div className="flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 text-red-600 mt-0.5" />
+                  <span>{error}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setReloadKey((k) => k + 1)}
+                  className="inline-flex items-center gap-1.5 bg-red-600 text-white px-3 py-2 rounded-lg hover:bg-red-700 transition-colors min-h-11"
+                >
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  Reintentar
+                </button>
               </div>
             ) : stopRoutes.length === 0 ? (
               <div className="bg-slate-50 rounded-xl p-4 text-center text-slate-500 text-xs font-medium border border-slate-100">
@@ -216,7 +234,7 @@ export function StopDetailDrawer({ stop, onClose }) {
                       </div>
 
                       <div className="min-w-0 flex-1">
-                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate leading-tight group-hover:text-blue-600 transition-colors">
+                        <h4 className="font-bold text-slate-900 text-xs sm:text-sm truncate leading-tight group-hover:text-brand-primary transition-colors">
                           {item.name?.replace(/^Ruta \w+:\s*/i, "")}
                         </h4>
 
@@ -227,7 +245,7 @@ export function StopDetailDrawer({ stop, onClose }) {
                               Vuelta
                             </span>
                           ) : (
-                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-blue-700 bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200/60">
+                            <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-primary-dark bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200/60">
                               <ArrowRight className="w-2.5 h-2.5" />{" "}
                               {item.directionLabel || "IDA"}
                             </span>
@@ -238,9 +256,9 @@ export function StopDetailDrawer({ stop, onClose }) {
 
                     <div className="flex items-center gap-1.5 shrink-0">
                       <span className="text-xs font-bold text-slate-700 bg-white px-2 py-0.5 rounded-full border border-slate-200/60 shadow-2xs">
-                        {item.fare || "S/ 2.00"}
+                        {item.fare || "—"}
                       </span>
-                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-blue-600 transition-colors" />
+                      <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-brand-primary transition-colors" />
                     </div>
                   </button>
                 );

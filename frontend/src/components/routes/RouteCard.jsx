@@ -1,9 +1,5 @@
-import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  MapPin,
-  ChevronDown,
-  ChevronUp,
   ExternalLink,
   Wifi,
   Bus,
@@ -16,9 +12,8 @@ import { useFavorites } from "../../hooks/useFavorites";
 
 export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
   const navigate = useNavigate();
-  const { selectedRoute, selectedStop, selectRoute, selectStop } = useRoutes();
+  const { selectedRoute, selectRoute } = useRoutes();
   const { isFavorite, toggleFavorite } = useFavorites();
-  const [isStopsExpanded, setIsStopsExpanded] = useState(false);
 
   const isSelected = selectedRoute?.id === route.id;
 
@@ -39,24 +34,6 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
     }
   };
 
-  const handleToggleStopsDropdown = (e) => {
-    e.stopPropagation();
-    setIsStopsExpanded((prev) => !prev);
-  };
-
-  const handleStopClick = (e, stop) => {
-    e.stopPropagation();
-    if (onSelect) {
-      onSelect(route, stop);
-      return;
-    }
-    selectRoute(route);
-    selectStop(stop);
-    if (route?.id) {
-      navigate(`/mapa/ruta/${route.id}`);
-    }
-  };
-
   const handleViewMore = (e) => {
     e.stopPropagation();
     handleRouteClick();
@@ -70,13 +47,22 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
     route.transportLineName ||
     route.transportLine?.name ||
     "Línea de transporte";
-  const fare = route.fare || "S/ 2.00";
-  const frequency = route.frequency || "Cada 8 min";
+  const fare = route.fare || "—";
+  const frequency = route.frequency || "—";
 
   return (
     <div
+      role="button"
+      tabIndex={0}
       onClick={handleRouteClick}
-      className={`bg-white rounded-2xl p-4 border transition-all duration-200 cursor-pointer ${
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleRouteClick();
+        }
+      }}
+      aria-label={`Ver recorrido de la ruta ${code}: ${name}`}
+      className={`bg-white rounded-2xl p-4 border transition-all duration-200 cursor-pointer focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500 ${
         isSelected
           ? "border-blue-500 ring-2 ring-blue-500/20 shadow-md scale-[1.01]"
           : "border-slate-100 shadow-card hover:border-blue-200 hover:shadow-md"
@@ -116,7 +102,7 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
             e.stopPropagation();
             toggleFavorite(route);
           }}
-          className={`p-2 rounded-xl transition-all shrink-0 active:scale-90 ${
+          className={`relative p-2 rounded-xl transition-all shrink-0 active:scale-90 after:absolute after:-inset-1.5 after:content-[''] ${
             isFavorite(route.id)
               ? "text-red-500 bg-red-50 hover:bg-red-100"
               : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
@@ -187,93 +173,18 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
         </div>
       </div>
 
-      {/* ── Footer Action Buttons ────────────────────────────────────────── */}
-      <div className="flex items-center gap-2 pt-3 mt-3 border-t border-slate-100">
-        {/* Puntos frecuentes button */}
-        <button
-          type="button"
-          onClick={handleToggleStopsDropdown}
-          className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold transition-all border ${
-            isStopsExpanded
-              ? "bg-blue-600 text-white border-blue-600 shadow-2xs"
-              : "text-slate-700 bg-slate-100 hover:bg-slate-200/80 border-slate-200/60"
-          }`}
-        >
-          <MapPin className="w-3.5 h-3.5 text-blue-500 shrink-0" />
-          <span className="truncate">Puntos frecuentes</span>
-          {isStopsExpanded ? (
-            <ChevronUp className="w-3.5 h-3.5 shrink-0" />
-          ) : (
-            <ChevronDown className="w-3.5 h-3.5 shrink-0" />
-          )}
-        </button>
-
+      {/* ── Footer Action Button ─────────────────────────────────────────── */}
+      <div className="pt-3 mt-3 border-t border-slate-100">
         {/* Ver recorrido button */}
         <button
           type="button"
           onClick={handleViewMore}
-          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-700 transition-colors shadow-2xs active:scale-95 shrink-0"
+          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold text-white bg-brand-primary hover:bg-brand-primary-dark transition-colors shadow-2xs active:scale-[0.99]"
         >
           <span className="truncate">Ver recorrido</span>
           <ExternalLink className="w-3.5 h-3.5 shrink-0" />
         </button>
       </div>
-
-      {/* ── Key stops dropdown ──────────────────────────────────────────── */}
-      {isStopsExpanded && (
-        <div
-          onClick={(e) => e.stopPropagation()}
-          className="mt-3 pt-3 border-t border-slate-100 space-y-2 animate-slide-in-top"
-        >
-          <div className="flex items-center justify-between text-xs font-bold text-slate-500 uppercase tracking-wider px-0.5">
-            <span>Puntos frecuentes del trayecto</span>
-            <span className="text-blue-600 font-semibold normal-case">
-              Toca para enfocar
-            </span>
-          </div>
-
-          <div className="grid grid-cols-2 gap-1.5 max-h-56 overflow-y-auto pr-1 hide-scrollbar">
-            {stops.map((stop, idx) => {
-              const isStopActive = selectedStop?.id === stop.id;
-              return (
-                <div
-                  key={`${stop.id}-${idx}`}
-                  onClick={(e) => handleStopClick(e, stop)}
-                  className={`p-2 rounded-xl text-xs flex items-center justify-between cursor-pointer transition-all border ${
-                    isStopActive
-                      ? "bg-amber-50 border-amber-400 font-semibold text-slate-900 shadow-2xs"
-                      : "bg-slate-50/80 border-slate-100 hover:bg-blue-50/80 hover:border-blue-200 text-slate-700"
-                  }`}
-                >
-                  <div className="flex items-center gap-2 truncate min-w-0">
-                    <span
-                      className="w-4 h-4 rounded-full text-white text-xs font-bold flex items-center justify-center shrink-0"
-                      style={{ backgroundColor: color }}
-                    >
-                      {idx + 1}
-                    </span>
-                    <div className="truncate min-w-0">
-                      <p className="font-bold text-xs leading-snug truncate">
-                        {stop.name}
-                      </p>
-                      {(stop.address || stop.reference) && (
-                        <p className="text-xs text-slate-500 truncate">
-                          {stop.address || stop.reference}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                  {stop.accessible && (
-                    <span className="text-xs text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 shrink-0 font-medium">
-                      ♿
-                    </span>
-                  )}
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
     </div>
   );
 }

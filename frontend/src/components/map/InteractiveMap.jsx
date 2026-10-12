@@ -9,7 +9,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
-import { getBoundsFromPoints } from "../../utils/geoUtils";
+import { getBoundsFromPoints, calculateDistanceKm } from "../../utils/geoUtils";
 import { BRAND_PRIMARY } from "../../constants/brand";
 import { routingService } from "../../services/routingService";
 
@@ -25,6 +25,11 @@ const TILE_ATTRIBUTION =
   '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 const TILE_MAX_ZOOM = Number(import.meta.env.VITE_CARTO_MAX_ZOOM) || 19;
 const TILE_SUBDOMAINS = "abcd";
+
+// Máximo (km) para trazar GPS → paradero. Si el usuario está en otra ciudad
+// (ej. Cusco) y ve rutas de Ica por fallback, la distancia supera este umbral
+// y el trazado se omite: solo se muestra el detalle del paradero.
+const MAX_TRACE_DISTANCE_KM = 10;
 
 if (import.meta.env.DEV && !CARTO_KEY) {
   console.warn(
@@ -54,6 +59,7 @@ function MapAutoRecenter({
   isRouteSelected,
   selectedRouteId,
   recenterTrigger,
+  userLocation,
 }) {
   const map = useMap();
   const lastActionKeyRef = useRef("");
@@ -157,6 +163,32 @@ function MapAutoRecenter({
       }
       lastActionKeyRef.current = stopKey;
 
+      // Si tenemos GPS y el paradero está a distancia razonable,
+      // encuadrar ambos puntos (traza GPS → paradero)
+      const userLat = userLocation?.lat;
+      const userLng = userLocation?.lng;
+      const traceDistanceKm =
+        userLat != null && userLng != null
+          ? calculateDistanceKm(userLat, userLng, stopLat, stopLng)
+          : null;
+      if (traceDistanceKm != null && traceDistanceKm <= MAX_TRACE_DISTANCE_KM) {
+        const traceBounds = L.latLngBounds(
+          [userLat, userLng],
+          [stopLat, stopLng],
+        );
+        const bottomSheetPadding = Math.min(window.innerHeight * 0.28, 220);
+        map.flyToBounds(traceBounds, {
+          paddingTopLeft: [40, 90],
+          paddingBottomRight: [40, bottomSheetPadding + 20],
+          maxZoom: 17,
+          animate: true,
+          duration: 1.0,
+          easeLinearity: 0.25,
+        });
+        return;
+      }
+
+      // Sin GPS: centrar solo en el paradero
       const zoom = 16;
       const targetPoint = map.project([stopLat, stopLng], zoom);
       const offsetY = window.innerHeight * 0.2;
@@ -195,6 +227,7 @@ function MapAutoRecenter({
     isRouteSelected,
     selectedRouteId,
     recenterTrigger,
+    userLocation,
   ]);
 
   return null;
@@ -231,7 +264,7 @@ const createUserLocationIcon = (showLabel = true) =>
     
         <div class="relative flex items-center justify-center w-7 h-7">
           <div class="absolute w-7 h-7 rounded-full bg-blue-500/30 user-location-pulse"></div>
-          <div class="w-4 h-4 rounded-full bg-blue-600 border-2 border-white shadow-md"></div>
+          <div class="w-4 h-4 rounded-full bg-brand-primary border-2 border-white shadow-md"></div>
         </div>
       </div>
     `,
@@ -254,16 +287,25 @@ const createSearchedLocationIcon = () =>
     iconAnchor: [16, 16],
   });
 
-const createStopIcon = (stopName, isSelected, showLabel = false) =>
-  L.divIcon({
+const escapeHtml = (value) =>
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+
+const createStopIcon = (stopName, isSelected, showLabel = false) => {
+  const safeName = escapeHtml(stopName);
+  return L.divIcon({
     className: "custom-stop-pin",
     html: `
-      <div class="flex flex-col items-center group cursor-pointer pointer-events-auto">
+      <div class="flex flex-col items-center group cursor-pointer pointer-events-auto" role="button" tabindex="0" aria-label="Paradero ${safeName}${isSelected ? ", seleccionado" : ""}">
         ${
           showLabel
             ? `
           <div class="px-2 py-0.5 rounded-lg bg-slate-900/90 text-white text-xs font-bold shadow-lg whitespace-nowrap mb-1 border border-slate-700/80 backdrop-blur-md flex items-center gap-1 transition-transform group-hover:scale-105">
-            <span>${stopName}</span>
+            <span>${safeName}</span>
           </div>
         `
             : ""
@@ -273,7 +315,7 @@ const createStopIcon = (stopName, isSelected, showLabel = false) =>
             ? "bg-amber-500 text-white border-amber-600 scale-125 z-50 ring-4 ring-amber-500/30 shadow-lg"
             : "bg-white text-slate-800 border-slate-200 group-hover:scale-110"
         }">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
             <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
             <circle cx="12" cy="10" r="3"/>
           </svg>
@@ -283,6 +325,7 @@ const createStopIcon = (stopName, isSelected, showLabel = false) =>
     iconSize: showLabel ? [140, 52] : [70, 46],
     iconAnchor: showLabel ? [70, 46] : [35, 35],
   });
+};
 
 function InteractiveMapComponent({
   routes = [],
@@ -328,6 +371,58 @@ function InteractiveMapComponent({
       onTracingChange(isTracing);
     }
   }, [isTracing, onTracingChange]);
+
+  // GPS → selected-stop trace: straight line derived from state, road-snapped polyline set async via OSRM
+  const [roadTrace, setRoadTrace] = useState(null); // { key, points } | null
+
+  const straightTracePoints = useMemo(() => {
+    if (!userLocation || selectedStop?.latitude == null || selectedStop?.longitude == null) {
+      return null;
+    }
+    // Sin trazado si el paradero queda demasiado lejos (usuario en otra ciudad
+    // que la de las rutas mostradas por fallback)
+    const distanceKm = calculateDistanceKm(
+      userLocation.lat,
+      userLocation.lng,
+      selectedStop.latitude,
+      selectedStop.longitude,
+    );
+    if (distanceKm > MAX_TRACE_DISTANCE_KM) {
+      return null;
+    }
+    return [
+      [userLocation.lat, userLocation.lng],
+      [selectedStop.latitude, selectedStop.longitude],
+    ];
+  }, [userLocation, selectedStop]);
+
+  const traceKey = straightTracePoints
+    ? `${straightTracePoints[0][0]},${straightTracePoints[0][1]}→${straightTracePoints[1][0]},${straightTracePoints[1][1]}`
+    : null;
+
+  useEffect(() => {
+    if (!straightTracePoints || !traceKey) return;
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const roadPoints = await routingService.getRoadPolyline(straightTracePoints);
+        if (!cancelled && roadPoints.length >= 2) {
+          setRoadTrace({ key: traceKey, points: roadPoints });
+        }
+      } catch {
+        // Keep straight-line fallback
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [straightTracePoints, traceKey]);
+
+  // Only use road points if they match the current trace; otherwise show straight line
+  const displayTracePoints =
+    roadTrace && roadTrace.key === traceKey ? roadTrace.points : straightTracePoints;
 
   // Fetch street-polylines (OSRM snapping) ONLY for the selected route detail directions in parallel
   useEffect(() => {
@@ -469,6 +564,8 @@ function InteractiveMapComponent({
         zoomControl={zoomControl}
         scrollWheelZoom={true}
         className="w-full h-full"
+        aria-label="Mapa de rutas y paraderos"
+        role="region"
       >
         <MapInstanceBridge onMapReady={onMapReady} />
 
@@ -488,6 +585,7 @@ function InteractiveMapComponent({
           isRouteSelected={Boolean(selectedRoute)}
           selectedRouteId={selectedRoute?.id}
           recenterTrigger={recenterTrigger}
+          userLocation={userLocation}
         />
 
         {userLocation &&
@@ -499,7 +597,7 @@ function InteractiveMapComponent({
             >
               <Popup>
                 <div className="p-1 max-w-[200px]">
-                  <div className="text-xs font-bold text-blue-600">
+                  <div className="text-xs font-bold text-brand-primary">
                     📍 Tu ubicación actual
                   </div>
                   {userAddress?.formattedAddress ? (
@@ -615,6 +713,21 @@ function InteractiveMapComponent({
               })
             : null)}
 
+        {/* GPS → selected-stop trace: straight while OSRM loads, road-snapped when ready */}
+        {displayTracePoints && (
+          <Polyline
+            positions={displayTracePoints}
+            pathOptions={{
+              color: "#f59e0b",
+              weight: 4,
+              opacity: 0.75,
+              dashArray: roadTrace?.key === traceKey ? null : "10, 8",
+              lineCap: "round",
+              lineJoin: "round",
+            }}
+          />
+        )}
+
         {allStops.map((stop, idx) => {
           const isSelected = selectedStop?.id === stop.id;
           const lat = stop.latitude;
@@ -640,7 +753,7 @@ function InteractiveMapComponent({
               <Popup>
                 <div className="p-1 max-w-[200px]">
                   <div
-                    className={`text-xs uppercase font-bold ${isSelected ? "text-amber-600" : "text-blue-600"}`}
+                    className={`text-xs uppercase font-bold ${isSelected ? "text-amber-600" : "text-brand-primary"}`}
                   >
                     {isSelected
                       ? "📍 Paradero seleccionado"

@@ -101,11 +101,16 @@ export function GpsPermissionModal() {
           to   { opacity: 1; }
         }
         @keyframes modal-slide-up {
-          from { transform: translateY(32px); opacity: 0; }
+          from { transform: translateY(24px); opacity: 0; }
           to   { transform: translateY(0);    opacity: 1; }
         }
         .gps-modal-card {
-          animation: modal-slide-up 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+          animation: modal-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .gps-modal-card {
+            animation: modal-fade-in 0.15s ease-out;
+          }
         }
       `}</style>
 
@@ -167,7 +172,7 @@ export function GpsPermissionModal() {
             <ul className="space-y-3 mb-5">
               {[
                 {
-                  icon: <Route className="w-4 h-4 text-blue-600" />,
+                  icon: <Route className="w-4 h-4 text-brand-primary" />,
                   bg: "bg-blue-50",
                   title: "Rutas más cercanas",
                   desc: "Filtra automáticamente las rutas a menos de 1.5 km de ti.",
