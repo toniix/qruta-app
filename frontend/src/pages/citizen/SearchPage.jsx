@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Target,
@@ -43,10 +43,13 @@ function readRecentQueries() {
 
 export function SearchPage() {
   const navigate = useNavigate();
-  const { selectRoute, selectStop, cities, routes, popularRoutes, setCity } =
+  const location = useLocation();
+  const { selectRoute, selectStop, cities, routes, popularRoutes, userAddress } =
     useRoutes();
 
-  const [origin, setOrigin] = useState('Mi ubicación');
+  const FALLBACK_ORIGIN = 'Mi ubicación';
+  const defaultOrigin = userAddress?.formattedAddress || FALLBACK_ORIGIN;
+  const [origin, setOrigin] = useState(defaultOrigin);
   const [destination, setDestination] = useState('');
   const [searchResults, setSearchResults] = useState(null);
   const [isSearching, setIsSearching] = useState(false);
@@ -57,12 +60,20 @@ export function SearchPage() {
   const [recentQueries, setRecentQueries] = useState(readRecentQueries);
   // Sequence guard so a slow response never overwrites a newer search
   const searchSeqRef = useRef(0);
+  // GPS-backed origin default: sync until the user edits the field manually
+  const originTouchedRef = useRef(false);
+  useEffect(() => {
+    if (!originTouchedRef.current) {
+      setOrigin(defaultOrigin);
+    }
+  }, [defaultOrigin]);
 
   /* Swap origin and destination */
   const handleSwap = () => {
     const temp = origin;
-    setOrigin(destination || 'Mi ubicación');
-    setDestination(temp === 'Mi ubicación' ? '' : temp);
+    originTouchedRef.current = true;
+    setOrigin(destination || defaultOrigin);
+    setDestination(temp === defaultOrigin ? '' : temp);
   };
 
   /* Global search across all cities (no cityId = backend default scope) */
@@ -139,6 +150,20 @@ export function SearchPage() {
     }, DEBOUNCE_MS);
     return () => clearTimeout(handler);
   }, [destination, lastQuery, executeSearch]);
+
+  /* One-time handoff from the map search sheet: run the carried query once */
+  const consumedNavQueryRef = useRef(false);
+  useEffect(() => {
+    if (consumedNavQueryRef.current) return;
+    consumedNavQueryRef.current = true;
+    const navQuery = location.state?.query;
+    if (typeof navQuery === 'string' && navQuery.trim()) {
+      const term = navQuery.trim();
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- mount-once navigation handoff: consumes one-time router state into local search state
+      setDestination(term);
+      executeSearch(term);
+    }
+  }, [location.state, executeSearch]);
 
   /* City chips are derived from the result set (distinct cities present) */
   const cityOptions = useMemo(() => {
@@ -224,12 +249,34 @@ export function SearchPage() {
     executeSearch(term);
   };
 
-  const handleCityShortcut = (cityEntry) => {
-    if (cityEntry.ref) {
-      setCity(cityEntry.ref, true);
-      navigate('/rutas');
-    } else {
+  const handleCityShortcut = async (cityEntry) => {
+    if (!cityEntry.ref) {
       handleQuickSearch(cityEntry.name);
+      return;
+    }
+    // Search-local only: never switch the global city or navigate — the
+    // global city context must stay untouched.
+    setIsSearching(true);
+    setSearchError(null);
+    const seq = searchSeqRef.current + 1;
+    searchSeqRef.current = seq;
+    try {
+      const cityRoutes = await routeService.getAllRoutes(cityEntry.id);
+      // A newer search started while this one was in flight: drop it
+      if (searchSeqRef.current !== seq) return;
+      setSearchResults(Array.isArray(cityRoutes) ? cityRoutes : []);
+      setLastQuery(`Rutas en ${cityEntry.name}`);
+      setActiveCity(cityEntry.id);
+      setActiveCategory('all');
+    } catch (err) {
+      console.error('Error al cargar rutas de la ciudad:', err);
+      if (searchSeqRef.current !== seq) return;
+      setSearchError(
+        'No se pudo conectar con el servidor para buscar rutas. Revisa tu conexión.',
+      );
+      setSearchResults([]);
+    } finally {
+      if (searchSeqRef.current === seq) setIsSearching(false);
     }
   };
 
@@ -306,7 +353,10 @@ export function SearchPage() {
             <input
               type="text"
               value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
+              onChange={(e) => {
+                originTouchedRef.current = true;
+                setOrigin(e.target.value);
+              }}
               placeholder="Punto de partida"
               className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
             />
