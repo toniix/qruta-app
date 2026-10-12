@@ -21,7 +21,6 @@ export function SearchBar() {
     setSearchQuery,
     clearSelection,
     selectRoute,
-    selectStop,
     locateNearestRoute,
     onlyNearby,
     isLocating,
@@ -71,11 +70,9 @@ export function SearchBar() {
   }, [routes, searchQuery]);
 
   const handleSelectOption = (route) => {
+    // Select the route only: pre-selecting a stop would open the stop
+    // drawer on the map instead of the route detail.
     selectRoute(route);
-    const firstStop = route.keyStops?.[0] || route.stops?.[0];
-    if (firstStop) {
-      selectStop(firstStop);
-    }
     setIsExpanded(false);
     navigate(`/mapa/ruta/${route.id}`);
   };
