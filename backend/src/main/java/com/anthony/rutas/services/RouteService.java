@@ -19,7 +19,11 @@ import org.springframework.transaction.annotation.Transactional;
 import java.text.Normalizer;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -165,9 +169,13 @@ public class RouteService {
         if (normalized.isEmpty()) {
             return List.of();
         }
-        List<Route> routes = routeRepository.searchByQuery(
+        List<UUID> ids = routeRepository.searchRankedRouteIds(
                 normalized, PageRequest.of(0, clampSearchSize(size)));
-        return toOptimizedRouteSummaryList(routes);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<Route> routes = routeRepository.findAllByIdsWithTransportLineAndCity(ids);
+        return toOptimizedRouteSummaryList(reorderByIds(routes, ids));
     }
 
     @Transactional(readOnly = true)
@@ -181,9 +189,27 @@ public class RouteService {
         if (normalized.isEmpty()) {
             return List.of();
         }
-        List<Route> routes = routeRepository.searchByQueryAndCityId(
+        List<UUID> ids = routeRepository.searchRankedRouteIdsByCityId(
                 normalized, cityId, PageRequest.of(0, clampSearchSize(size)));
-        return toOptimizedRouteSummaryList(routes);
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<Route> routes = routeRepository.findAllByIdsWithTransportLineAndCity(ids);
+        return toOptimizedRouteSummaryList(reorderByIds(routes, ids));
+    }
+
+    /**
+     * Restores step-1 ranked ID order after hydration: the {@code IN} query
+     * preserves no order, so entities are re-sequenced to the ranked IDs here.
+     * Unknown IDs are dropped defensively.
+     */
+    private List<Route> reorderByIds(List<Route> routes, List<UUID> ids) {
+        Map<UUID, Route> byId = routes.stream()
+                .collect(Collectors.toMap(Route::getId, Function.identity(), (a, b) -> a));
+        return ids.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .toList();
     }
 
     /**

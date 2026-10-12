@@ -330,7 +330,7 @@ export function SearchPage() {
       </div>
 
       {/* ── Main Content Container ─────────────────────────────────────── */}
-      <main className="flex-1 p-5 max-w-lg mx-auto w-full space-y-5">
+      <main className="flex-1 min-h-0 overflow-y-auto hide-scrollbar p-5 max-w-lg mx-auto w-full space-y-5">
         {/* ── Dual Input Form Container ──────────────────────────────────── */}
         <form
           onSubmit={handleFormSubmit}
