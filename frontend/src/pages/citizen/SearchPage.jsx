@@ -309,7 +309,7 @@ export function SearchPage() {
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-slate-50/70 pb-24">
       {/* ── Top Header ─────────────────────────────────────────────────── */}
-      <div className="bg-white px-5 pt-12 pb-4 border-b border-slate-100 flex items-center gap-3">
+      <div className="bg-white px-5 pt-12 pb-4 border-b border-slate-100 flex items-center gap-3 sticky top-0 z-20 shadow-2xs">
         <button
           onClick={() => navigate(-1)}
           className="w-10 h-10 rounded-full bg-slate-100/80 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-transform active:scale-90 shrink-0"
@@ -332,7 +332,7 @@ export function SearchPage() {
         {/* ── Dual Input Form Container ──────────────────────────────────── */}
         <form
           onSubmit={handleFormSubmit}
-          className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-card relative space-y-3 sticky top-0 z-10"
+          className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-card relative space-y-3"
         >
           {/* Swap Button Floating on Right edge */}
           <button
