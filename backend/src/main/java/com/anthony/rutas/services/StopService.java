@@ -34,7 +34,7 @@ public class StopService {
 
     @Transactional(readOnly = true)
     public List<StopResponse> findAll() {
-        return DtoMapper.toStopList(stopRepository.findAll());
+        return DtoMapper.toStopList(stopRepository.findAllWithCity());
     }
 
     @Transactional(readOnly = true)

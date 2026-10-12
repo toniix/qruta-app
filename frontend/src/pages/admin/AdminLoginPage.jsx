@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { ShieldCheck, Lock, User, AlertCircle, ArrowRight } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ShieldCheck, Lock, User, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
 export function AdminLoginPage() {
@@ -17,17 +17,17 @@ export function AdminLoginPage() {
 
     try {
       await authService.login(email, password);
-      navigate('/admin/dashboard');
+      navigate('/admin/overview');
     } catch (err) {
-      setError(err.message || 'Error al iniciar sesión');
+      setError(err.response?.data?.message || err.message || 'Error al iniciar sesión');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="min-h-[calc(100vh-4rem)] flex items-center justify-center p-4 bg-slate-100">
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-overlay border border-slate-200/80 p-6 sm:p-8 space-y-6">
+    <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-slate-100">
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-overlay border border-slate-200/80 p-6 sm:p-8 space-y-6 text-slate-800">
         <div className="text-center space-y-2">
           <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30">
             <ShieldCheck className="w-6 h-6" />
@@ -88,13 +88,25 @@ export function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2"
+            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <span>{loading ? 'Ingresando...' : 'Iniciar Sesión'}</span>
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>
+
+        <div className="pt-2 text-center">
+          <Link
+            to="/"
+            className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 hover:text-blue-600 transition"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" />
+            <span>Volver al Modo Ciudadano</span>
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
+
+export default AdminLoginPage;

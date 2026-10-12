@@ -12,7 +12,6 @@ export const routeService = {
     const response = await apiClient.get("/routes/cards", {
       params: cityId ? { cityId } : {},
     });
-    console.log(response.data);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },
@@ -26,7 +25,6 @@ export const routeService = {
     const response = await apiClient.get("/routes/popular", {
       params: cityId ? { cityId } : {},
     });
-    console.log(response.data);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },

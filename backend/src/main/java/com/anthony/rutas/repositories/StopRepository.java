@@ -12,6 +12,9 @@ public interface StopRepository extends JpaRepository<Stop, UUID> {
 
     List<Stop> findByNameContainingIgnoreCase(String name);
 
+    @Query("SELECT s FROM Stop s LEFT JOIN FETCH s.city ORDER BY s.name ASC")
+    List<Stop> findAllWithCity();
+
     @Query(value = "SELECT * FROM stops s " +
            "WHERE ST_DWithin(s.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography, :radius) " +
            "ORDER BY ST_Distance(s.location, ST_SetSRID(ST_MakePoint(:lng, :lat), 4326)::geography)",

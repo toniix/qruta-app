@@ -17,6 +17,7 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, UU
 
        @Query("SELECT p FROM CommunityPost p " +
                      "LEFT JOIN FETCH p.route r " +
+                     "LEFT JOIN FETCH r.transportLine tl " +
                      "LEFT JOIN FETCH p.city c " +
                      "WHERE (:category IS NULL OR p.category = :category) " +
                      "AND (:routeId IS NULL OR r.id = :routeId) " +

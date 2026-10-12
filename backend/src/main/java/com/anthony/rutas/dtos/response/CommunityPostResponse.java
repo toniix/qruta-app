@@ -31,6 +31,11 @@ public class CommunityPostResponse {
     private String routeName;
     private String routeColor;
 
+    // Optional line context
+    private UUID lineId;
+    private String lineName;
+    private String lineCode;
+
     // Optional city context
     private UUID cityId;
     private String cityName;

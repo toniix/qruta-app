@@ -1,45 +1,73 @@
-import { lazy, Suspense } from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import { CitizenLayout } from "../layouts/CitizenLayout";
-import { HomePage } from "../pages/citizen/HomePage";
-import { HomeMapPage } from "../pages/citizen/HomeMapPage";
-import { authService } from "../services/authService";
+import { lazy, Suspense } from 'react';
+import { Routes, Route, Navigate } from 'react-router-dom';
+import { CitizenLayout } from '../layouts/CitizenLayout';
+import { AdminLayout } from '../layouts/AdminLayout';
+import { HomePage } from '../pages/citizen/HomePage';
+import { HomeMapPage } from '../pages/citizen/HomeMapPage';
+import { authService } from '../services/authService';
 
-// Lazy-loaded pages for mobile bundle optimization
+// Lazy-loaded Citizen pages for mobile bundle optimization
 const RoutesListPage = lazy(() =>
-  import("../pages/citizen/RoutesListPage").then((m) => ({
+  import('../pages/citizen/RoutesListPage').then((m) => ({
     default: m.RoutesListPage,
-  })),
+  }))
 );
 const SearchPage = lazy(() =>
-  import("../pages/citizen/SearchPage").then((m) => ({
+  import('../pages/citizen/SearchPage').then((m) => ({
     default: m.SearchPage,
-  })),
+  }))
 );
 const NearbyRoutesPage = lazy(() =>
-  import("../pages/citizen/NearbyRoutesPage").then((m) => ({
+  import('../pages/citizen/NearbyRoutesPage').then((m) => ({
     default: m.NearbyRoutesPage,
-  })),
+  }))
 );
 const CommunityPage = lazy(() =>
-  import("../pages/citizen/CommunityPage").then((m) => ({
+  import('../pages/citizen/CommunityPage').then((m) => ({
     default: m.CommunityPage,
-  })),
+  }))
 );
 const PlacesPage = lazy(() =>
-  import("../pages/citizen/PlacesPage").then((m) => ({
+  import('../pages/citizen/PlacesPage').then((m) => ({
     default: m.PlacesPage,
-  })),
+  }))
 );
+
+// Lazy-loaded Admin pages
 const AdminLoginPage = lazy(() =>
-  import("../pages/admin/AdminLoginPage").then((m) => ({
+  import('../pages/admin/AdminLoginPage').then((m) => ({
     default: m.AdminLoginPage,
-  })),
+  }))
 );
-const AdminDashboardPage = lazy(() =>
-  import("../pages/admin/AdminDashboardPage").then((m) => ({
-    default: m.AdminDashboardPage,
-  })),
+const AdminOverviewPage = lazy(() =>
+  import('../pages/admin/overview/AdminOverviewPage').then((m) => ({
+    default: m.AdminOverviewPage,
+  }))
+);
+const RouteListPage = lazy(() =>
+  import('../pages/admin/routes/RouteListPage').then((m) => ({
+    default: m.RouteListPage,
+  }))
+);
+const LineListPage = lazy(() =>
+  import('../pages/admin/lines/LineListPage').then((m) => ({
+    default: m.LineListPage,
+  }))
+);
+const StopListPage = lazy(() =>
+  import('../pages/admin/stops/StopListPage').then((m) => ({
+    default: m.StopListPage,
+  }))
+);
+const CityListPage = lazy(() =>
+  import('../pages/admin/cities/CityListPage').then((m) => ({
+    default: m.CityListPage,
+  }))
+);
+const CommunityModerationPage = lazy(() =>
+  import('../pages/admin/community/CommunityModerationPage').then((m) => ({
+    default: m.CommunityModerationPage,
+  }))
 );
 
 function PageLoading() {
@@ -61,6 +89,7 @@ export function AppRoutes() {
   return (
     <Suspense fallback={<PageLoading />}>
       <Routes>
+        {/* ── Citizen Portal Routes ────────────────────────────────────────── */}
         <Route element={<CitizenLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/buscar" element={<SearchPage />} />
@@ -74,18 +103,35 @@ export function AppRoutes() {
             element={<Navigate to="/lugares?tab=rutas" replace />}
           />
           <Route path="/lugares" element={<PlacesPage />} />
-          <Route path="/admin/login" element={<AdminLoginPage />} />
-          <Route
-            path="/admin/dashboard"
-            element={
-              <ProtectedAdminRoute>
-                <AdminDashboardPage />
-              </ProtectedAdminRoute>
-            }
-          />
-          <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
+
+        {/* ── Standalone Admin Login ───────────────────────────────────────── */}
+        <Route path="/admin/login" element={<AdminLoginPage />} />
+
+        {/* ── Dedicated Admin Management Tree ──────────────────────────────── */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedAdminRoute>
+              <AdminLayout />
+            </ProtectedAdminRoute>
+          }
+        >
+          <Route index element={<Navigate to="/admin/overview" replace />} />
+          <Route path="dashboard" element={<Navigate to="/admin/overview" replace />} />
+          <Route path="overview" element={<AdminOverviewPage />} />
+          <Route path="rutas" element={<RouteListPage />} />
+          <Route path="lineas" element={<LineListPage />} />
+          <Route path="paraderos" element={<StopListPage />} />
+          <Route path="ciudades" element={<CityListPage />} />
+          <Route path="comunidad" element={<CommunityModerationPage />} />
+        </Route>
+
+        {/* ── Catch-All Fallback ────────────────────────────────────────────── */}
+        <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Suspense>
   );
 }
+
+export default AppRoutes;

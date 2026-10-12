@@ -309,6 +309,10 @@ public class CommunityService {
 
         Route route = post.getRoute();
         City city = post.getCity();
+        TransportLine line = (route != null) ? route.getTransportLine() : null;
+        if (city == null && line != null) {
+            city = line.getCity();
+        }
 
         return CommunityPostResponse.builder()
                 .id(post.getId())
@@ -324,6 +328,9 @@ public class CommunityService {
                 .routeCode(route != null ? route.getCode() : null)
                 .routeName(route != null ? route.getName() : null)
                 .routeColor(route != null ? route.getColor() : null)
+                .lineId(line != null ? line.getId() : null)
+                .lineCode(line != null ? line.getCode() : null)
+                .lineName(line != null ? line.getName() : null)
                 .cityId(city != null ? city.getId() : null)
                 .cityName(city != null ? city.getName() : null)
                 .build();

@@ -167,6 +167,8 @@ public class DtoMapper {
                                 .reference(stop.getReference())
                                 .address(stop.getAddress())
                                 .isAccessible(stop.isAccessible())
+                                .cityId(stop.getCity() != null ? stop.getCity().getId() : null)
+                                .cityName(stop.getCity() != null ? stop.getCity().getName() : null)
                                 .build();
         }
 

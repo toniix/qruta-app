@@ -17,4 +17,6 @@ public class StopResponse {
     private String reference;
     private String address;
     private boolean isAccessible;
+    private UUID cityId;
+    private String cityName;
 }
