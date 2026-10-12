@@ -16,7 +16,9 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
 import java.util.UUID;
 
 @Service
@@ -24,6 +26,12 @@ import java.util.UUID;
 public class RouteService {
 
     private static final int MAX_POPULAR_ROUTES = 10;
+
+    /** Default server-side cap for search results. */
+    public static final int DEFAULT_SEARCH_SIZE = 50;
+
+    /** Maximum server-side cap for search results. */
+    public static final int MAX_SEARCH_SIZE = 100;
 
     private final RouteRepository routeRepository;
     private final RouteDirectionRepository routeDirectionRepository;
@@ -148,14 +156,55 @@ public class RouteService {
 
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query) {
-        List<Route> routes = routeRepository.searchByQuery(query);
+        return search(query, DEFAULT_SEARCH_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> search(String query, int size) {
+        String normalized = normalizeQuery(query);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        List<Route> routes = routeRepository.searchByQuery(
+                normalized, PageRequest.of(0, clampSearchSize(size)));
         return toOptimizedRouteSummaryList(routes);
     }
 
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query, UUID cityId) {
-        List<Route> routes = routeRepository.searchByQueryAndCityId(query, cityId);
+        return search(query, cityId, DEFAULT_SEARCH_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> search(String query, UUID cityId, int size) {
+        String normalized = normalizeQuery(query);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        List<Route> routes = routeRepository.searchByQueryAndCityId(
+                normalized, cityId, PageRequest.of(0, clampSearchSize(size)));
         return toOptimizedRouteSummaryList(routes);
+    }
+
+    /**
+     * Bounds a requested search size to the 1–100 range.
+     */
+    static int clampSearchSize(int size) {
+        return Math.min(Math.max(size, 1), MAX_SEARCH_SIZE);
+    }
+
+    /**
+     * Normalizes a search term for accent/case-insensitive matching: strips
+     * diacritics, lowercases and trims. The repository query applies Postgres
+     * {@code unaccent()} on the column side, so both sides compare normalized.
+     */
+    static String normalizeQuery(String query) {
+        if (query == null) {
+            return "";
+        }
+        String stripped = Normalizer.normalize(query, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return stripped.toLowerCase(Locale.ROOT).trim();
     }
 
     @Transactional(readOnly = true)

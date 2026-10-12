@@ -12,10 +12,12 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 
 import java.util.*;
 
@@ -257,7 +259,8 @@ class RouteServiceTest {
         @Test
         @DisplayName("Should return matching routes")
         void shouldReturnMatchingRoutes() {
-            when(routeRepository.searchByQuery("R1")).thenReturn(List.of(route));
+            when(routeRepository.searchByQuery(eq("r1"), any(Pageable.class)))
+                    .thenReturn(List.of(route));
             when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
 
             List<RouteSummaryResponse> result = routeService.search("R1");
@@ -269,13 +272,186 @@ class RouteServiceTest {
         @Test
         @DisplayName("Should filter search by city")
         void shouldFilterByCity() {
-            when(routeRepository.searchByQueryAndCityId("R1", cityId)).thenReturn(List.of(route));
+            when(routeRepository.searchByQueryAndCityId(eq("r1"), eq(cityId), any(Pageable.class)))
+                    .thenReturn(List.of(route));
             when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
 
             List<RouteSummaryResponse> result = routeService.search("R1", cityId);
 
             assertNotNull(result);
             assertEquals(1, result.size());
+        }
+
+        @Test
+        @DisplayName("Should normalize accents before querying the repository")
+        void shouldNormalizeAccentsBeforeQuerying() {
+            when(routeRepository.searchByQuery(eq("sesion"), any(Pageable.class)))
+                    .thenReturn(List.of(route));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            List<RouteSummaryResponse> result = routeService.search("Sesión");
+
+            assertNotNull(result);
+            assertEquals(1, result.size());
+            verify(routeRepository).searchByQuery(eq("sesion"), any(Pageable.class));
+        }
+
+        @Test
+        @DisplayName("Should not query the repository on blank query")
+        void shouldNotQueryOnBlankQuery() {
+            List<RouteSummaryResponse> result = routeService.search("   ");
+
+            assertNotNull(result);
+            assertTrue(result.isEmpty());
+            verifyNoInteractions(routeRepository);
+        }
+
+        @Test
+        @DisplayName("Should return cross-city results for a global search")
+        void shouldReturnCrossCityResults() {
+            UUID limaId = UUID.randomUUID();
+            City lima = City.builder()
+                    .id(limaId)
+                    .name("Lima")
+                    .department("Lima")
+                    .country("Peru")
+                    .build();
+            TransportLine limaLine = TransportLine.builder()
+                    .id(UUID.randomUUID())
+                    .city(lima)
+                    .name("Linea Lima")
+                    .code("LL")
+                    .build();
+            Route limaRoute = Route.builder()
+                    .id(UUID.randomUUID())
+                    .transportLine(limaLine)
+                    .code("R2")
+                    .name("Ruta 2")
+                    .status("ACTIVE")
+                    .popularityScore(5)
+                    .build();
+            when(routeRepository.searchByQuery(eq("ruta"), any(Pageable.class)))
+                    .thenReturn(List.of(route, limaRoute));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            List<RouteSummaryResponse> result = routeService.search("Ruta");
+
+            assertNotNull(result);
+            assertEquals(2, result.size());
+            assertEquals(
+                    Set.of("La Plata", "Lima"),
+                    result.stream()
+                            .map(RouteSummaryResponse::getCityName)
+                            .collect(java.util.stream.Collectors.toSet()));
+        }
+
+        @Test
+        @DisplayName("Should keep exact-code match ranked above stop-name match")
+        void shouldRankExactCodeAboveStopNameMatch() {
+            Route stopNameMatch = Route.builder()
+                    .id(UUID.randomUUID())
+                    .transportLine(transportLine)
+                    .code("X9")
+                    .name("Otra ruta")
+                    .status("ACTIVE")
+                    .popularityScore(99)
+                    .build();
+            when(routeRepository.searchByQuery(eq("r1"), any(Pageable.class)))
+                    .thenReturn(List.of(route, stopNameMatch));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            List<RouteSummaryResponse> result = routeService.search("R1");
+
+            assertNotNull(result);
+            assertEquals(2, result.size());
+            assertEquals("R1", result.get(0).getCode());
+            assertEquals("X9", result.get(1).getCode());
+        }
+    }
+
+    // ==================== SEARCH SIZE ====================
+
+    @Nested
+    @DisplayName("search size")
+    class SearchSize {
+
+        @Test
+        @DisplayName("Should use the default size when none is given")
+        void shouldUseDefaultSize() {
+            when(routeRepository.searchByQuery(eq("r1"), any(Pageable.class)))
+                    .thenReturn(List.of(route));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            routeService.search("R1");
+
+            var pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(routeRepository).searchByQuery(eq("r1"), pageableCaptor.capture());
+            assertEquals(50, pageableCaptor.getValue().getPageSize());
+        }
+
+        @Test
+        @DisplayName("Should clamp an oversized request to the maximum")
+        void shouldClampOversizedToMax() {
+            when(routeRepository.searchByQuery(eq("r1"), any(Pageable.class)))
+                    .thenReturn(List.of(route));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            routeService.search("R1", 500);
+
+            var pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(routeRepository).searchByQuery(eq("r1"), pageableCaptor.capture());
+            assertEquals(100, pageableCaptor.getValue().getPageSize());
+        }
+
+        @Test
+        @DisplayName("Should clamp a non-positive request to one")
+        void shouldClampNonPositiveToOne() {
+            when(routeRepository.searchByQuery(eq("r1"), any(Pageable.class)))
+                    .thenReturn(List.of(route));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            routeService.search("R1", 0);
+
+            var pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(routeRepository).searchByQuery(eq("r1"), pageableCaptor.capture());
+            assertEquals(1, pageableCaptor.getValue().getPageSize());
+        }
+
+        @Test
+        @DisplayName("Should pass size through to the city-scoped search")
+        void shouldPassSizeToCityScopedSearch() {
+            when(routeRepository.searchByQueryAndCityId(eq("r1"), eq(cityId), any(Pageable.class)))
+                    .thenReturn(List.of(route));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            routeService.search("R1", cityId, 10);
+
+            var pageableCaptor = ArgumentCaptor.forClass(Pageable.class);
+            verify(routeRepository)
+                    .searchByQueryAndCityId(eq("r1"), eq(cityId), pageableCaptor.capture());
+            assertEquals(10, pageableCaptor.getValue().getPageSize());
+        }
+    }
+
+    // ==================== NORMALIZE QUERY ====================
+
+    @Nested
+    @DisplayName("normalizeQuery")
+    class NormalizeQuery {
+
+        @Test
+        @DisplayName("Should strip accents and lowercase")
+        void shouldStripAccentsAndLowercase() {
+            assertEquals("sesion", RouteService.normalizeQuery("Sesión"));
+            assertEquals("linea 1", RouteService.normalizeQuery("LÍNEA 1"));
+            assertEquals("ica", RouteService.normalizeQuery("Ica"));
+        }
+
+        @Test
+        @DisplayName("Should return empty string for null or blank input")
+        void shouldReturnEmptyForNullOrBlank() {
+            assertEquals("", RouteService.normalizeQuery(null));
+            assertEquals("", RouteService.normalizeQuery("   "));
         }
     }
 

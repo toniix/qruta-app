@@ -14,17 +14,38 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
 
     List<Route> findByNameContainingIgnoreCase(String name);
 
+    /**
+     * Global ranked search across all cities.
+     *
+     * <p>The caller passes an already-normalized term (diacritics stripped,
+     * lowercased — see {@code RouteService.normalizeQuery}); the column side is
+     * normalized in SQL with Postgres {@code unaccent()} so matching is
+     * accent/case-insensitive. Results are ordered by a relevance score
+     * (exact code &gt; exact name &gt; name prefix &gt; name contains &gt;
+     * transport-line name &gt; stop name/reference) and then by popularity.
+     * Requires the Postgres {@code unaccent} extension (see
+     * {@code db/migration/V7__add_unaccent_search_support.sql}).
+     */
     @Query("SELECT DISTINCT r FROM Route r " +
            "JOIN FETCH r.transportLine tl " +
+           "JOIN FETCH tl.city " +
            "LEFT JOIN r.directions rd " +
            "LEFT JOIN rd.routeStops rs " +
            "LEFT JOIN rs.stop s " +
-           "WHERE LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(r.code) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(tl.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(s.reference) LIKE LOWER(CONCAT('%', :query, '%'))")
-    List<Route> searchByQuery(@Param("query") String query);
+           "WHERE cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(r.code)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(tl.name)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(s.name)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(s.reference)) as string) LIKE CONCAT('%', :query, '%') " +
+           "ORDER BY CASE " +
+           "   WHEN cast(function('unaccent', LOWER(r.code)) as string) = :query THEN 100 " +
+           "   WHEN cast(function('unaccent', LOWER(r.name)) as string) = :query THEN 90 " +
+           "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT(:query, '%') THEN 70 " +
+           "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') THEN 50 " +
+           "   WHEN cast(function('unaccent', LOWER(tl.name)) as string) LIKE CONCAT('%', :query, '%') THEN 30 " +
+           "   ELSE 20 END DESC, " +
+           "COALESCE(r.popularityScore, 0) DESC")
+    List<Route> searchByQuery(@Param("query") String query, Pageable pageable);
 
     /**
      * Fetch all routes with transport line in a single query.
@@ -64,6 +85,10 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "ORDER BY COALESCE(r.popularityScore, 0) DESC, r.name ASC")
     List<Route> findPopularByCityId(@Param("cityId") UUID cityId, Pageable pageable);
 
+    /**
+     * City-scoped ranked search. Same normalization, scoring and ordering as
+     * {@link #searchByQuery(String, Pageable)}, restricted to one city.
+     */
     @Query("SELECT DISTINCT r FROM Route r " +
            "JOIN FETCH r.transportLine tl " +
            "JOIN FETCH tl.city c " +
@@ -71,11 +96,20 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "LEFT JOIN rd.routeStops rs " +
            "LEFT JOIN rs.stop s " +
            "WHERE c.id = :cityId AND (" +
-           "   LOWER(r.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(r.code) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(tl.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(s.name) LIKE LOWER(CONCAT('%', :query, '%')) " +
-           "   OR LOWER(s.reference) LIKE LOWER(CONCAT('%', :query, '%'))" +
-           ")")
-    List<Route> searchByQueryAndCityId(@Param("query") String query, @Param("cityId") UUID cityId);
+           "   cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(r.code)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(tl.name)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(s.name)) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(s.reference)) as string) LIKE CONCAT('%', :query, '%')" +
+           ") " +
+           "ORDER BY CASE " +
+           "   WHEN cast(function('unaccent', LOWER(r.code)) as string) = :query THEN 100 " +
+           "   WHEN cast(function('unaccent', LOWER(r.name)) as string) = :query THEN 90 " +
+           "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT(:query, '%') THEN 70 " +
+           "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') THEN 50 " +
+           "   WHEN cast(function('unaccent', LOWER(tl.name)) as string) LIKE CONCAT('%', :query, '%') THEN 30 " +
+           "   ELSE 20 END DESC, " +
+           "COALESCE(r.popularityScore, 0) DESC")
+    List<Route> searchByQueryAndCityId(@Param("query") String query, @Param("cityId") UUID cityId,
+                                      Pageable pageable);
 }

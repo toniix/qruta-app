@@ -39,8 +39,11 @@ public class RouteController {
     @GetMapping("/search")
     public ResponseEntity<List<RouteSummaryResponse>> searchRoutes(
             @RequestParam String query,
-            @RequestParam(value = "cityId", required = false) UUID cityId) {
-        return ResponseEntity.ok(cityId != null ? routeService.search(query, cityId) : routeService.search(query));
+            @RequestParam(value = "cityId", required = false) UUID cityId,
+            @RequestParam(value = "size", required = false, defaultValue = "50") int size) {
+        return ResponseEntity.ok(cityId != null
+                ? routeService.search(query, cityId, size)
+                : routeService.search(query, size));
     }
 
     @GetMapping("/line/{transportLineId}")
