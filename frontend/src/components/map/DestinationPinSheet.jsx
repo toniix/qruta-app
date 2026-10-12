@@ -1,4 +1,4 @@
-import { X, Check, Loader2 } from "lucide-react";
+import { X, Check, Loader2, Flag } from "lucide-react";
 
 /**
  * Bottom sheet shown while the user picks a destination point on the map.
@@ -14,8 +14,8 @@ export function DestinationPinSheet({
     <div className="pointer-events-auto mb-16 lg:mb-4 animate-slide-in-top">
       <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-raised space-y-3">
         <div className="flex items-start gap-2.5">
-          <span className="w-8 h-8 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-base shrink-0">
-            📍
+          <span className="w-8 h-8 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+            <Flag className="w-4 h-4 text-red-600" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">

@@ -297,10 +297,9 @@ const createDestinationPinIcon = () =>
     className: "custom-destination-pin !bg-transparent !border-none",
     html: `
       <div class="flex flex-col items-center pointer-events-auto">
-        <div class="flex items-center justify-center p-2 rounded-xl bg-red-500 text-white border-2 border-white shadow-overlay">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" aria-hidden="true">
-            <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"/>
-            <circle cx="12" cy="10" r="3"/>
+        <div class="flex items-center justify-center p-2 rounded-xl bg-white text-red-600 border-2 border-red-500 shadow-overlay">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/>
           </svg>
         </div>
         <div class="w-1.5 h-4 bg-red-500/70 rounded-b-full"></div>

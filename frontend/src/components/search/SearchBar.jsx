@@ -5,6 +5,7 @@ import {
   X,
   Target,
   MapPin,
+  MapPinned,
   ArrowUpDown,
   Navigation,
   Layers,
@@ -13,7 +14,7 @@ import {
 import { useRoutes } from "../../contexts/RouteContext";
 import { usePlaces } from "../../hooks/usePlaces";
 
-export function SearchBar() {
+export function SearchBar({ onPickDestination = null }) {
   const navigate = useNavigate();
   const {
     routes,
@@ -121,6 +122,35 @@ export function SearchBar() {
             <span className="text-xs font-bold text-brand-primary bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 ml-2">
               Buscar
             </span>
+          )}
+
+          {onPickDestination && (
+            <>
+              <span
+                aria-hidden="true"
+                className="w-px h-5 bg-slate-200 ml-2 shrink-0"
+              />
+              <span
+                role="button"
+                tabIndex={0}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onPickDestination();
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onPickDestination();
+                  }
+                }}
+                className="ml-2 w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0"
+                title="Elegir destino en el mapa"
+                aria-label="Elegir destino en el mapa"
+              >
+                <MapPinned className="w-4 h-4" />
+              </span>
+            </>
           )}
         </button>
       ) : (

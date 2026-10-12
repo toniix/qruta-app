@@ -163,25 +163,26 @@ export function HomeMapPage() {
   );
 
   // Enter pin mode: clear selection WITHOUT navigating (caller is /mapa),
-  // seed the pin from the map center, else GPS, else null (first tap sets it).
+  // seed the pin from GPS, else map center, else null (first tap sets it).
   const handleEnterDestinationMode = useCallback(() => {
     clearSelectedRoute();
     selectStop(null);
     let initialPin = null;
-    try {
-      const center = mapInstance?.getCenter?.();
-      if (center != null && center.lat != null && center.lng != null) {
-        initialPin = { lat: center.lat, lng: center.lng };
-      }
-    } catch {
-      initialPin = null;
-    }
     if (
-      !initialPin &&
       userLocation?.lat != null &&
       userLocation?.lng != null
     ) {
       initialPin = { lat: userLocation.lat, lng: userLocation.lng };
+    }
+    if (!initialPin) {
+      try {
+        const center = mapInstance?.getCenter?.();
+        if (center != null && center.lat != null && center.lng != null) {
+          initialPin = { lat: center.lat, lng: center.lng };
+        }
+      } catch {
+        initialPin = null;
+      }
     }
     setDestinationPin(initialPin);
     setDestinationLabel(initialPin ? resolveDestinationLabel(initialPin) : "");

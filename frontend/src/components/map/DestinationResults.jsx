@@ -1,4 +1,4 @@
-import { X, MapPin, Loader2, Move } from "lucide-react";
+import { X, MapPin, Loader2, Move, Flag } from "lucide-react";
 import { RouteCard } from "../routes/RouteCard";
 import {
   DESTINATION_RADIUS_PRESETS_M,
@@ -30,8 +30,8 @@ export function DestinationResults({
       <div className="bg-white/98 backdrop-blur-xl rounded-2xl p-4 border border-slate-100 shadow-raised space-y-3 max-h-[52vh] overflow-y-auto hide-scrollbar">
         {/* Header: destination label + close */}
         <div className="flex items-center gap-2">
-          <span className="w-7 h-7 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center text-sm shrink-0">
-            📍
+          <span className="w-7 h-7 rounded-xl bg-red-50 border border-red-100 flex items-center justify-center shrink-0">
+            <Flag className="w-3.5 h-3.5 text-red-600" />
           </span>
           <div className="min-w-0 flex-1">
             <p className="text-xs font-bold text-slate-500 uppercase tracking-wide">

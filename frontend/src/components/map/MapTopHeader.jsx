@@ -153,22 +153,7 @@ export function MapTopHeader({
 
   return (
     <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
-      <SearchBar />
-      {onPickDestination && (
-        <button
-          type="button"
-          onClick={onPickDestination}
-          className="pointer-events-auto mt-2 w-full bg-white rounded-full shadow-card flex items-center px-4 py-2.5 border border-slate-100/90 cursor-pointer transition-all hover:border-red-300 text-left active:scale-[0.99]"
-        >
-          <MapPin className="w-4 h-4 text-red-500 mr-2.5 shrink-0" />
-          <span className="flex-1 text-slate-800 text-xs sm:text-sm font-semibold">
-            Elegir destino en el mapa
-          </span>
-          <span className="text-xs font-bold text-red-600 bg-red-50 px-2.5 py-1 rounded-full border border-red-200/60 ml-2 shrink-0">
-            Pin
-          </span>
-        </button>
-      )}
+      <SearchBar onPickDestination={onPickDestination} />
     </div>
   );
 }
