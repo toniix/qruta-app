@@ -32,7 +32,7 @@ export function DestinationPinSheet({
               </p>
             )}
             <p className="text-xs text-slate-500 mt-0.5">
-              Arrastra el pin o toca otro punto del mapa para moverlo
+              Arrastra el mapa o toca un punto para mover el pin
             </p>
           </div>
         </div>

@@ -14,6 +14,7 @@ import {
   X,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
+import { streetLine } from '../../services/geocodingService';
 import { getGreeting } from '../../utils/dateUtils';
 import { NearbyStopCard, StopSkeleton } from '../../components/home';
 
@@ -92,6 +93,19 @@ export function HomePage() {
   const greeting = getGreeting();
   const cityName = currentCity?.name || 'Ica';
 
+  // User address line: street + number + district ("Av. Bolívar 123, Ica"),
+  // falling back to the formatted address when there is no street.
+  const userStreetLine = streetLine(userAddress);
+  const userDistrict =
+    typeof userAddress?.district === 'string'
+      ? userAddress.district.trim()
+      : '';
+  const userAddressDisplay = userStreetLine
+    ? userDistrict && !userStreetLine.includes(userDistrict)
+      ? `${userStreetLine}, ${userDistrict}`
+      : userStreetLine
+    : userAddress?.formattedAddress || '';
+
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
       {/* ── Header: flat status band (location + search), no gradient ──── */}
@@ -134,10 +148,10 @@ export function HomePage() {
             </button>
           </div>
 
-          {userAddress?.formattedAddress ? (
+          {userAddressDisplay ? (
             <p className="flex items-center gap-1.5 text-sm text-ink-secondary min-w-0">
               <MapPin className="w-3.5 h-3.5 shrink-0 text-ink-muted" />
-              <span className="truncate">{userAddress.formattedAddress}</span>
+              <span className="truncate">{userAddressDisplay}</span>
             </p>
           ) : (
             <p className="text-sm text-ink-muted">

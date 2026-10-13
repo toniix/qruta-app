@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useRoutes } from "../../contexts/RouteContext";
 import { routeService } from "../../services/routeService";
+import { geocodingService, streetLine } from "../../services/geocodingService";
 import { calculateDistanceKm } from "../../utils/geoUtils";
 import {
   DESTINATION_DEFAULT_RADIUS_M,
@@ -116,6 +117,7 @@ export function HomeMapPage() {
   const [isPinMode, setIsPinMode] = useState(false);
   const [destinationPin, setDestinationPin] = useState(null);
   const [destinationLabel, setDestinationLabel] = useState("");
+  const [resolvingLabel, setResolvingLabel] = useState(false);
   const [destinationRadius, setDestinationRadius] = useState(
     DESTINATION_DEFAULT_RADIUS_M,
   );
@@ -128,25 +130,34 @@ export function HomeMapPage() {
   const [showingDestinationResults, setShowingDestinationResults] =
     useState(false);
 
+  // While the map moves under the fixed pin (drag or tap-relocate), the
+  // sheet and the floating pill hide; the moveend center becomes the pin.
+  const [isPinMoving, setIsPinMoving] = useState(false);
   // Sequence guard so a slow older destination search never overwrites a
   // newer one, plus a trailing-debounce timer for move-triggered re-search.
   const destinationSearchSeqRef = useRef(0);
+  const destinationLabelSeqRef = useRef(0);
   const destinationResearchTimerRef = useRef(null);
+  // Debounce timer for moveend-triggered label resolution (500 ms).
+  const pinResolveTimerRef = useRef(null);
 
   // Clear any pending debounced re-search (unmount or flow transitions).
   useEffect(() => {
     const timerRef = destinationResearchTimerRef;
+    const resolveTimerRef = pinResolveTimerRef;
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current);
+      if (resolveTimerRef.current) clearTimeout(resolveTimerRef.current);
     };
   }, []);
 
   const destinationActive = isPinMode || showingDestinationResults;
 
-  // Label sources: stops visible in the loaded catalog / nearby stops only,
-  // else raw coordinates. NEVER userAddress (GPS address of the user, not of
-  // the picked point) and NEVER an invented address. Wording is "Cerca de X".
-  const resolveDestinationLabel = useCallback(
+  // Label sources: backend reverse-geocode first (a real street only), then
+  // stops visible in the loaded catalog / nearby stops, else raw coordinates.
+  // NEVER userAddress (GPS address of the user, not of the picked point) and
+  // NEVER an invented address. Wording is "Cerca de X".
+  const resolveLocalDestinationLabel = useCallback(
     (point) => {
       if (point == null || point.lat == null || point.lng == null) return "";
       let bestStop = null;
@@ -179,6 +190,54 @@ export function HomeMapPage() {
     [routes, filteredRoutes, nearbyStops, destinationRadius],
   );
 
+  // Async label: accept the proxy label only when it carries a real street
+  // (number optional); show the short street + number line. Otherwise keep
+  // the local stop/coordinates fallback so raw coordinates are never shown
+  // while a street or stop reference exists.
+  const resolveDestinationLabel = useCallback(
+    async (point) => {
+      if (point == null || point.lat == null || point.lng == null) return "";
+      try {
+        const result = await geocodingService.reverseGeocode(
+          point.lat,
+          point.lng,
+        );
+        const street = result?.street?.trim?.() ?? "";
+        const formatted = result?.formattedAddress?.trim?.() ?? "";
+        if (street) return streetLine(result) || formatted || street;
+      } catch {
+        // Geocoding failure: fall through to the local label below.
+      }
+      return resolveLocalDestinationLabel(point);
+    },
+    [resolveLocalDestinationLabel],
+  );
+
+  // Sequence-guarded setter so a slow older resolution never overwrites the
+  // label of a newer pin. Same discipline as destinationSearchSeqRef.
+  const resolveAndSetDestinationLabel = useCallback(
+    async (point) => {
+      if (point == null || point.lat == null || point.lng == null) {
+        setDestinationLabel("");
+        setResolvingLabel(false);
+        return;
+      }
+      const seq = destinationLabelSeqRef.current + 1;
+      destinationLabelSeqRef.current = seq;
+      setResolvingLabel(true);
+      try {
+        const label = await resolveDestinationLabel(point);
+        if (destinationLabelSeqRef.current !== seq) return;
+        setDestinationLabel(label);
+      } finally {
+        if (destinationLabelSeqRef.current === seq) {
+          setResolvingLabel(false);
+        }
+      }
+    },
+    [resolveDestinationLabel],
+  );
+
   // Enter pin mode: clear selection WITHOUT navigating (caller is /mapa),
   // seed the pin from GPS, else map center, else null (first tap sets it).
   const handleEnterDestinationMode = useCallback(() => {
@@ -202,7 +261,11 @@ export function HomeMapPage() {
       }
     }
     setDestinationPin(initialPin);
-    setDestinationLabel(initialPin ? resolveDestinationLabel(initialPin) : "");
+    if (initialPin) {
+      resolveAndSetDestinationLabel(initialPin);
+    } else {
+      setDestinationLabel("");
+    }
     setDestinationRadius(DESTINATION_DEFAULT_RADIUS_M);
     setDestinationRanked([]);
     setDestinationError(null);
@@ -230,7 +293,7 @@ export function HomeMapPage() {
     selectStop,
     mapInstance,
     userLocation,
-    resolveDestinationLabel,
+    resolveAndSetDestinationLabel,
   ]);
 
   // Destination search: keep ONLY routes passing near BOTH the user's
@@ -305,16 +368,17 @@ export function HomeMapPage() {
     [userLocation],
   );
 
-  // Pin moves (map tap or marker drag) → update point + re-resolve label.
+  // Pin moves (results-mode marker drag, or tap-flyTo fallback when the
+  // map instance is not ready) → update point + re-resolve label.
   // While results show (no route detail open), marker drags also schedule a
-  // debounced re-search around the new point. Map taps never reach here in
-  // results mode (MapClickHandler gates tap-to-move on pinMode only).
+  // debounced re-search around the new point. In pin mode map taps animate
+  // the map instead and the ensuing moveend drives resolution (single path).
   const handlePinMove = useCallback(
     (point) => {
       if (point == null || point.lat == null || point.lng == null) return;
       const next = { lat: point.lat, lng: point.lng };
       setDestinationPin(next);
-      setDestinationLabel(resolveDestinationLabel(next));
+      resolveAndSetDestinationLabel(next);
       if (showingDestinationResults && selectedRoute == null) {
         if (destinationResearchTimerRef.current) {
           clearTimeout(destinationResearchTimerRef.current);
@@ -325,12 +389,56 @@ export function HomeMapPage() {
       }
     },
     [
-      resolveDestinationLabel,
+      resolveAndSetDestinationLabel,
       showingDestinationResults,
       selectedRoute,
       destinationRadius,
       runDestinationSearch,
     ],
+  );
+
+  // Fixed-pin movement: the map moves under the pin (drag or tap-relocate).
+  // movestart hides the sheet + pill and drops any pending resolution;
+  // moveend makes the center the new pin and re-resolves after a 500 ms
+  // debounce so a flurry of moves resolves once. A center identical to the
+  // current pin (entry zoom, zoom-only change) skips the resolve and just
+  // re-shows: the label already matches.
+  const handlePinMoveStart = useCallback(() => {
+    if (pinResolveTimerRef.current) {
+      clearTimeout(pinResolveTimerRef.current);
+      pinResolveTimerRef.current = null;
+    }
+    setIsPinMoving(true);
+  }, []);
+
+  const handlePinMoveEnd = useCallback(
+    (center) => {
+      if (center == null || center.lat == null || center.lng == null) {
+        setIsPinMoving(false);
+        return;
+      }
+      const next = { lat: center.lat, lng: center.lng };
+      const prev = destinationPin;
+      const samePoint =
+        prev != null &&
+        Math.abs(prev.lat - next.lat) < 1e-7 &&
+        Math.abs(prev.lng - next.lng) < 1e-7;
+      setDestinationPin(next);
+      if (pinResolveTimerRef.current) {
+        clearTimeout(pinResolveTimerRef.current);
+        pinResolveTimerRef.current = null;
+      }
+      if (samePoint) {
+        setIsPinMoving(false);
+        return;
+      }
+      pinResolveTimerRef.current = setTimeout(() => {
+        pinResolveTimerRef.current = null;
+        setIsPinMoving(false);
+        resolveAndSetDestinationLabel(next);
+      }, 500);
+    },
+    [destinationPin, resolveAndSetDestinationLabel],
   );
 
   // Confirm → leave pin mode, show results, run nearby around the picked point.
@@ -358,6 +466,11 @@ export function HomeMapPage() {
     if (destinationResearchTimerRef.current) {
       clearTimeout(destinationResearchTimerRef.current);
     }
+    if (pinResolveTimerRef.current) {
+      clearTimeout(pinResolveTimerRef.current);
+      pinResolveTimerRef.current = null;
+    }
+    setIsPinMoving(false);
     setShowingDestinationResults(false);
     setIsPinMode(true);
   }, []);
@@ -367,6 +480,14 @@ export function HomeMapPage() {
     if (destinationResearchTimerRef.current) {
       clearTimeout(destinationResearchTimerRef.current);
     }
+    if (pinResolveTimerRef.current) {
+      clearTimeout(pinResolveTimerRef.current);
+      pinResolveTimerRef.current = null;
+    }
+    setIsPinMoving(false);
+    // Invalidate any in-flight label resolution for the discarded pin.
+    destinationLabelSeqRef.current += 1;
+    setResolvingLabel(false);
     setIsPinMode(false);
     setShowingDestinationResults(false);
     setDestinationPin(null);
@@ -421,9 +542,10 @@ export function HomeMapPage() {
 
   const isRouteLoading = Boolean(loadingRouteDetail || isTracingMap);
 
-  // Flag stays draggable while picking AND while results show with no route
-  // detail open. Dedicated boolean — pinMode alone also gates tap-to-move
-  // and must stay exclusive to pin mode.
+  // Flag stays draggable while results show with no route detail open.
+  // Pin mode uses the fixed center overlay instead (the map moves under
+  // it), so dragging is results-only. Dedicated boolean — pinMode alone
+  // also gates tap-to-relocate and must stay exclusive to pin mode.
   const canDragDestinationPin =
     isPinMode || (showingDestinationResults && selectedRoute == null);
 
@@ -451,6 +573,11 @@ export function HomeMapPage() {
           pinMode={isPinMode}
           destinationPin={destinationPin}
           onPinMove={handlePinMove}
+          onPinMoveStart={handlePinMoveStart}
+          onPinMoveEnd={handlePinMoveEnd}
+          pinLabel={destinationLabel}
+          pinMoving={isPinMoving}
+          pinResolving={resolvingLabel}
           canDragDestinationPin={canDragDestinationPin}
         />
       </div>
@@ -487,16 +614,20 @@ export function HomeMapPage() {
             Route detail wins over destination results so the preserved
             pin + ranking wait behind; closing the detail reveals them. */}
         {isPinMode ? (
-          <DestinationPinSheet
-            label={
-              destinationPin
-                ? destinationLabel
-                : "Toca el mapa para elegir el punto"
-            }
-            resolvingLabel={false}
-            onCancel={handleCloseDestination}
-            onConfirm={handleConfirmDestination}
-          />
+          // While the map moves under the fixed pin the sheet hides with
+          // the floating pill; it reappears once the new center resolves.
+          !isPinMoving && (
+            <DestinationPinSheet
+              label={
+                destinationPin
+                  ? destinationLabel
+                  : "Toca el mapa para elegir el punto"
+              }
+              resolvingLabel={resolvingLabel}
+              onCancel={handleCloseDestination}
+              onConfirm={handleConfirmDestination}
+            />
+          )
         ) : selectedRoute ? (
           <div className="pointer-events-auto mb-16 lg:mb-4">
             <RouteDrawer />

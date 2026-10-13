@@ -1,12 +1,27 @@
 import axios from "axios";
+import { apiClient } from "./apiClient";
 
 /**
- * Geocoding Service using Photon (OSM) API
+ * Geocoding Service: reverse geocoding via the backend proxy only
+ * (the backend owns Google -> Photon fallback); forward place search
+ * still uses Photon directly.
  */
 const DEFAULT_LAT = -14.0678;
 const DEFAULT_LON = -75.7286;
 
+/**
+ * Short street line for display: "Av. Bolivar 123".
+ * Never double spaces, never "null": empty parts are dropped.
+ */
+export function streetLine(geo) {
+  const street = typeof geo?.street === "string" ? geo.street.trim() : "";
+  const number =
+    geo?.streetNumber == null ? "" : String(geo.streetNumber).trim();
+  return [street, number].filter(Boolean).join(" ");
+}
+
 export const geocodingService = {
+  streetLine,
   /**
    * Busca lugares por nombre usando Photon OSM
    * @param {string} query - Texto de búsqueda
@@ -44,48 +59,31 @@ export const geocodingService = {
   /**
    * Geocodificación Inversa: Convierte coordenadas [lat, lng] en nombre de dirección
    * Ej: "Avenida Bolívar, Ica" o "Hostal Dorado, Ica"
+   * Proxy-only: the backend owns the whole chain (Google -> Photon ->
+   * honest error), so there is no client-side fallback to keep in sync.
    */
   async reverseGeocode(lat, lon) {
-    console.log("Reverse geocoding for:", lat, lon);
     if (lat == null || lon == null) return null;
 
     try {
-      const url = `https://photon.komoot.io/reverse?lat=${lat}&lon=${lon}`;
-      const response = await axios.get(url, { timeout: 4000 });
-      console.log("Reverse geocoding response:", response.data);
-      const feature = response.data?.features?.[0];
-      if (!feature?.properties) return null;
-
-      const p = feature.properties;
-      const streetOrName = p.name || p.street || p.locality || "";
-      const district = p.district || p.city || p.county || "";
-
-      let formatted = "";
-      if (streetOrName) {
-        // Si hay nombre y calle distintos (ej: Hostal Dorado en Av. Bolívar)
-        if (p.name && p.street && p.name !== p.street) {
-          formatted = `${p.name}, ${p.street}`;
-        } else {
-          formatted = streetOrName;
-        }
-        if (district && !formatted.includes(district)) {
-          formatted = `${formatted}, ${district}`;
-        }
-      } else {
-        formatted = district ? `${district}, Perú` : "Tu ubicación actual";
+      const response = await apiClient.get("/geocode/reverse", {
+        params: { lat, lng: lon },
+        timeout: 4000,
+      });
+      const data = response.data;
+      if (data?.formattedAddress || data?.street) {
+        return {
+          formattedAddress: data.formattedAddress || "",
+          street: data.street || "",
+          streetNumber: data.streetNumber || "",
+          district: data.district || "",
+          city: data.city || "",
+          source: data.source || "",
+        };
       }
-      console.log("Reverse geocoding result:", formatted, p);
-
-      return {
-        formattedAddress: formatted,
-        street: p.street || p.name || "",
-        district,
-        city: p.city || p.district || "",
-        raw: p,
-      };
-    } catch (err) {
-      console.warn("Reverse geocoding failed:", err);
-      return null;
+    } catch {
+      // Proxy unavailable: callers already handle null (coordinates fallback).
     }
+    return null;
   },
 };
