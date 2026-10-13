@@ -65,6 +65,7 @@ public class DtoMapper {
                                 .name(route.getName())
                                 .color(route.getColor())
                                 .fare(route.getFare())
+                                .frequency(route.getFrequency())
                                 .transportLineName(route.getTransportLine() != null ? route.getTransportLine().getName() : null)
                                 .cityId(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getId() : null)
                                 .cityName(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getName() : null)
