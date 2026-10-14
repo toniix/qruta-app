@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { AdminSidebar } from '../components/admin/layout/AdminSidebar';
 import { AdminTopBar } from '../components/admin/layout/AdminTopBar';
@@ -6,6 +6,26 @@ import { ToastProvider } from '../components/admin/common/ToastContext';
 
 export function AdminLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+
+  // El panel admin nunca debe indexarse: entrada independiente, fuera de buscadores.
+  useEffect(() => {
+    let meta = document.querySelector('meta[name="robots"]');
+    const created = !meta;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'robots');
+      document.head.appendChild(meta);
+    }
+    const prev = meta.getAttribute('content');
+    meta.setAttribute('content', 'noindex, nofollow');
+    return () => {
+      if (created) {
+        meta.remove();
+      } else if (prev) {
+        meta.setAttribute('content', prev);
+      }
+    };
+  }, []);
 
   return (
     <ToastProvider>

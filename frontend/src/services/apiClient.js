@@ -28,9 +28,18 @@ apiClient.interceptors.request.use(
 apiClient.interceptors.response.use(
   (response) => response,
   (error) => {
-    if (error.response?.status === 401) {
-      // Clear token on authentication failure
-      localStorage.removeItem("rutasya_admin_token");
+    const status = error.response?.status;
+    if (status === 401 || status === 403) {
+      // Session is invalid or lacks admin rights: drop stored credentials.
+      localStorage.removeItem('rutasya_admin_token');
+      localStorage.removeItem('rutasya_admin_user');
+      // Only force navigation when inside the admin tree — never kick citizens.
+      if (typeof window !== 'undefined' && window.location.pathname.startsWith('/admin')) {
+        const isLogin = window.location.pathname === '/admin/login';
+        if (status === 401 && !isLogin) {
+          window.location.assign('/admin/login');
+        }
+      }
     }
     return Promise.reject(error);
   },

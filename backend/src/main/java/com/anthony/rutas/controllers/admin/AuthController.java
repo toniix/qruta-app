@@ -27,11 +27,33 @@ public class AuthController {
         );
 
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
-        String token = jwtUtil.generateToken(userDetails.getUsername());
+        String role = userDetails.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority())
+                .orElse("ROLE_ADMIN");
+        String token = jwtUtil.generateToken(userDetails.getUsername(), role);
 
         return ResponseEntity.ok(AuthResponse.builder()
                 .token(token)
                 .email(userDetails.getUsername())
+                .role(role)
+                .build());
+    }
+
+    @GetMapping("/me")
+    public ResponseEntity<AuthResponse> me(Authentication authentication) {
+        if (authentication == null || !authentication.isAuthenticated()
+                || authentication.getPrincipal().equals("anonymousUser")) {
+            return ResponseEntity.status(401).build();
+        }
+        String email = authentication.getName();
+        String role = authentication.getAuthorities().stream()
+                .findFirst()
+                .map(a -> a.getAuthority())
+                .orElse(null);
+        return ResponseEntity.ok(AuthResponse.builder()
+                .email(email)
+                .role(role)
                 .build());
     }
 }

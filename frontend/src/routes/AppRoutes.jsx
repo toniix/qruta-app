@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { CitizenLayout } from '../layouts/CitizenLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
@@ -79,8 +79,42 @@ function PageLoading() {
 }
 
 function ProtectedAdminRoute({ children }) {
-  if (!authService.isAuthenticated()) {
+  // Chequeo local sincrónico (existe + no expirado); la validez real la confirma /me.
+  const [state, setState] = useState(() =>
+    authService.getToken()
+      ? { checking: true, allowed: false }
+      : { checking: false, allowed: false },
+  );
+
+  useEffect(() => {
+    if (!state.checking) return;
+    let cancelled = false;
+    authService
+      .me()
+      .then(() => {
+        if (!cancelled) setState({ checking: false, allowed: true });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ checking: false, allowed: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.checking]);
+
+  if (state.checking) {
+    return <PageLoading />;
+  }
+  if (!state.allowed) {
     return <Navigate to="/admin/login" replace />;
+  }
+  return children;
+}
+
+function AdminLoginRoute({ children }) {
+  // Authenticated admins never see the login form again.
+  if (authService.isAuthenticated()) {
+    return <Navigate to="/admin/overview" replace />;
   }
   return children;
 }
@@ -105,8 +139,15 @@ export function AppRoutes() {
           <Route path="/lugares" element={<PlacesPage />} />
         </Route>
 
-        {/* ── Standalone Admin Login ───────────────────────────────────────── */}
-        <Route path="/admin/login" element={<AdminLoginPage />} />
+        {/* ── Standalone Admin Login (noindex, fuera del layout ciudadano) ─── */}
+        <Route
+          path="/admin/login"
+          element={
+            <AdminLoginRoute>
+              <AdminLoginPage />
+            </AdminLoginRoute>
+          }
+        />
 
         {/* ── Dedicated Admin Management Tree ──────────────────────────────── */}
         <Route

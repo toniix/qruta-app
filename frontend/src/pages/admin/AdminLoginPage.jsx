@@ -1,9 +1,32 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ShieldCheck, Lock, User, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
 
+function useNoIndex() {
+  useEffect(() => {
+    document.title = 'Administración · RutaYa';
+    let meta = document.querySelector('meta[name="robots"]');
+    const created = !meta;
+    if (!meta) {
+      meta = document.createElement('meta');
+      meta.setAttribute('name', 'robots');
+      document.head.appendChild(meta);
+    }
+    const prev = meta.getAttribute('content');
+    meta.setAttribute('content', 'noindex, nofollow');
+    return () => {
+      if (created) {
+        meta.remove();
+      } else if (prev) {
+        meta.setAttribute('content', prev);
+      }
+    };
+  }, []);
+}
+
 export function AdminLoginPage() {
+  useNoIndex();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
@@ -38,11 +61,13 @@ export function AdminLoginPage() {
           </p>
         </div>
 
-        {/* Default Credentials Hint */}
-        <div className="p-3 bg-blue-50 border border-blue-200/80 rounded-2xl text-xs text-blue-800 space-y-1">
-          <p className="font-semibold">Credenciales por defecto:</p>
-          <p className="text-blue-600 font-mono">admin@rutasya.pe / admin123</p>
-        </div>
+        {/* Default Credentials Hint — solo en desarrollo, nunca en prod */}
+        {import.meta.env.DEV && (
+          <div className="p-3 bg-blue-50 border border-blue-200/80 rounded-2xl text-xs text-blue-800 space-y-1">
+            <p className="font-semibold">Credenciales por defecto:</p>
+            <p className="text-blue-600 font-mono">admin@rutasya.pe / admin123</p>
+          </div>
+        )}
 
         {error && (
           <div className="p-3 bg-red-50 text-red-700 rounded-2xl text-xs flex items-center gap-2 border border-red-200">

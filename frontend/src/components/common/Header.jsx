@@ -1,4 +1,4 @@
-import { Bus, Navigation, ShieldCheck, MapPin, Search } from 'lucide-react';
+import { Bus, Navigation, MapPin, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useRoutes } from '../../contexts/RouteContext';
 import { streetLine } from '../../services/geocodingService';
@@ -112,21 +112,13 @@ export function Header() {
             </button>
           )}
 
-          {isAdmin ? (
+          {isAdmin && (
             <Link
               to="/"
               className="flex items-center gap-1.5 text-xs font-semibold text-brand-primary bg-blue-50 hover:bg-blue-100 px-3 py-2 rounded-xl transition-colors"
             >
               <Navigation className="w-3.5 h-3.5" />
               <span>Modo Ciudadano</span>
-            </Link>
-          ) : (
-            <Link
-              to="/admin/login"
-              className="flex items-center gap-1.5 text-xs font-medium text-slate-600 hover:text-slate-900 hover:bg-slate-100 px-3 py-2 rounded-xl transition-colors"
-            >
-              <ShieldCheck className="w-3.5 h-3.5 text-slate-500" />
-              <span className="hidden sm:inline">Acceso Admin</span>
             </Link>
           )}
         </div>
