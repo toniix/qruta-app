@@ -5,11 +5,10 @@
 -- immutable wrapper for future functional indexes (plain unaccent() is STABLE,
 -- so it cannot back an index directly).
 --
--- HOW TO APPLY: this project has no migration runner wired in Spring
--- (spring.jpa.hibernate.ddl-auto=update, no Flyway/Liquibase dependency), so the
--- SQL files in this directory are applied manually, following the existing
--- convention. Run this file once against the database with a privileged role
--- (CREATE EXTENSION requires it; on Supabase use the SQL editor):
+-- HOW IT RUNS: Flyway applies this directory on startup when enabled
+-- (prod profile, or FLYWAY_ENABLED=true). The existing production schema,
+-- already at V7 state, is baselined once via baseline-on-migrate; only NEW
+-- versions run after that. Manual fallback if Flyway is off:
 --
 --   psql "$DB_URL" -f V7__add_unaccent_search_support.sql
 

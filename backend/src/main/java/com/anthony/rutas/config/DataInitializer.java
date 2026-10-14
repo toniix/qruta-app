@@ -4,7 +4,9 @@ import com.anthony.rutas.entities.*;
 import com.anthony.rutas.repositories.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +15,7 @@ import java.util.List;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(name = "app.seed.enabled", havingValue = "true")
 @RequiredArgsConstructor
 public class DataInitializer implements CommandLineRunner {
 
@@ -22,17 +25,28 @@ public class DataInitializer implements CommandLineRunner {
     private final RouteRepository routeRepository;
     private final PasswordEncoder passwordEncoder;
 
+    @Value("${app.seed.admin-email:admin@rutasya.pe}")
+    private String adminEmail;
+
+    @Value("${app.seed.admin-password:}")
+    private String adminPassword;
+
     @Override
     public void run(String... args) {
         if (administratorRepository.count() == 0) {
-            Administrator defaultAdmin = Administrator.builder()
-                    .fullName("Administrador Sistema")
-                    .email("admin@rutasya.pe")
-                    .passwordHash(passwordEncoder.encode("admin123"))
-                    .active(true)
-                    .build();
-            administratorRepository.save(defaultAdmin);
-            log.info("Administrador por defecto creado: admin@rutasya.pe / admin123");
+            if (adminPassword == null || adminPassword.isBlank()) {
+                log.warn("Seed admin omitido: app.seed.admin-password no configurado. "
+                        + "Define ADMIN_SEED_PASSWORD para crear el administrador inicial.");
+            } else {
+                Administrator defaultAdmin = Administrator.builder()
+                        .fullName("Administrador Sistema")
+                        .email(adminEmail)
+                        .passwordHash(passwordEncoder.encode(adminPassword))
+                        .active(true)
+                        .build();
+                administratorRepository.save(defaultAdmin);
+                log.info("Administrador por defecto creado: {}", adminEmail);
+            }
         }
 
         if (communityPostRepository.count() == 0) {
