@@ -6,11 +6,12 @@ import {
   Clock3,
   Banknote,
   Heart,
+  MapPin,
 } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 
-export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
+export function RouteCard({ route, isNearest, distanceKm, onSelect, showCity = false }) {
   const navigate = useNavigate();
   const { selectedRoute, selectRoute } = useRoutes();
   const { isFavorite, toggleFavorite } = useFavorites();
@@ -85,6 +86,12 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect }) {
           <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
             {transportLine}
           </p>
+          {showCity && route.cityName && (
+            <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-brand-primary bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">
+              <MapPin className="w-3 h-3 shrink-0" />
+              <span className="truncate max-w-32">{route.cityName}</span>
+            </span>
+          )}
         </div>
 
         {/* Nearest / distance badge */}

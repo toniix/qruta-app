@@ -16,14 +16,26 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.text.Normalizer;
 import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
 public class RouteService {
 
     private static final int MAX_POPULAR_ROUTES = 10;
+
+    /** Default server-side cap for search results. */
+    public static final int DEFAULT_SEARCH_SIZE = 50;
+
+    /** Maximum server-side cap for search results. */
+    public static final int MAX_SEARCH_SIZE = 100;
 
     private final RouteRepository routeRepository;
     private final RouteDirectionRepository routeDirectionRepository;
@@ -148,14 +160,77 @@ public class RouteService {
 
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query) {
-        List<Route> routes = routeRepository.searchByQuery(query);
-        return toOptimizedRouteSummaryList(routes);
+        return search(query, DEFAULT_SEARCH_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> search(String query, int size) {
+        String normalized = normalizeQuery(query);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = routeRepository.searchRankedRouteIds(
+                normalized, PageRequest.of(0, clampSearchSize(size)));
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<Route> routes = routeRepository.findAllByIdsWithTransportLineAndCity(ids);
+        return toOptimizedRouteSummaryList(reorderByIds(routes, ids));
     }
 
     @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query, UUID cityId) {
-        List<Route> routes = routeRepository.searchByQueryAndCityId(query, cityId);
-        return toOptimizedRouteSummaryList(routes);
+        return search(query, cityId, DEFAULT_SEARCH_SIZE);
+    }
+
+    @Transactional(readOnly = true)
+    public List<RouteSummaryResponse> search(String query, UUID cityId, int size) {
+        String normalized = normalizeQuery(query);
+        if (normalized.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> ids = routeRepository.searchRankedRouteIdsByCityId(
+                normalized, cityId, PageRequest.of(0, clampSearchSize(size)));
+        if (ids.isEmpty()) {
+            return List.of();
+        }
+        List<Route> routes = routeRepository.findAllByIdsWithTransportLineAndCity(ids);
+        return toOptimizedRouteSummaryList(reorderByIds(routes, ids));
+    }
+
+    /**
+     * Restores step-1 ranked ID order after hydration: the {@code IN} query
+     * preserves no order, so entities are re-sequenced to the ranked IDs here.
+     * Unknown IDs are dropped defensively.
+     */
+    private List<Route> reorderByIds(List<Route> routes, List<UUID> ids) {
+        Map<UUID, Route> byId = routes.stream()
+                .collect(Collectors.toMap(Route::getId, Function.identity(), (a, b) -> a));
+        return ids.stream()
+                .map(byId::get)
+                .filter(Objects::nonNull)
+                .toList();
+    }
+
+    /**
+     * Bounds a requested search size to the 1–100 range.
+     */
+    static int clampSearchSize(int size) {
+        return Math.min(Math.max(size, 1), MAX_SEARCH_SIZE);
+    }
+
+    /**
+     * Normalizes a search term for accent/case-insensitive matching: strips
+     * diacritics, lowercases and trims. The repository query applies Postgres
+     * {@code unaccent()} on the column side, so both sides compare normalized.
+     */
+    static String normalizeQuery(String query) {
+        if (query == null) {
+            return "";
+        }
+        String stripped = Normalizer.normalize(query, Normalizer.Form.NFD)
+                .replaceAll("\\p{M}", "");
+        return stripped.toLowerCase(Locale.ROOT).trim();
     }
 
     @Transactional(readOnly = true)

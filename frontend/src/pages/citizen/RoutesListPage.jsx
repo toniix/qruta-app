@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Search, X, MapPin, Route, AlertCircle, RefreshCw } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
+import { matchesCategory } from '../../components/search/categoryFilter';
 
 /** Categories dynamically generated or default */
 const CATEGORIES = [
@@ -10,16 +11,6 @@ const CATEGORIES = [
   { id: 'interurbano', label: 'Interurbano' },
   { id: 'nocturno', label: 'Nocturno' },
 ];
-
-/** Match category as a whole word so "interurbano" never matches "urbano". */
-const matchesCategory = (route, catId) => {
-  const pattern = new RegExp(`\\b${catId}\\b`, 'i');
-  return (
-    pattern.test(route.name || '') ||
-    pattern.test(route.transportLineName || '') ||
-    pattern.test(route.description || '')
-  );
-};
 
 export function RoutesListPage() {
   const { routes, selectRoute, selectStop, currentCity, loading, error, loadData } = useRoutes();
@@ -182,6 +173,17 @@ export function RoutesListPage() {
             >
               Restablecer filtros
             </button>
+            {searchQuery.trim() !== '' && (
+              <button
+                onClick={() =>
+                  navigate('/buscar', { state: { query: searchQuery.trim() } })
+                }
+                className="text-xs font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5"
+              >
+                <Search className="w-3.5 h-3.5" />
+                ¿Buscás rutas de otra ciudad? Buscar en todas las ciudades
+              </button>
+            )}
           </div>
         ) : (
           filteredRoutes.map((route) => {

@@ -1,4 +1,4 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -21,23 +21,33 @@ export function SearchBar() {
     setSearchQuery,
     clearSelection,
     selectRoute,
-    selectStop,
     locateNearestRoute,
     onlyNearby,
     isLocating,
     loadingFiltered,
+    userAddress,
   } = useRoutes();
   const { places } = usePlaces();
   const quickPlaces = places.slice(0, 2);
 
   const [isExpanded, setIsExpanded] = useState(false);
-  const [origin, setOrigin] = useState("Mi ubicación");
+  const FALLBACK_ORIGIN = "Mi ubicación";
+  const defaultOrigin = userAddress?.formattedAddress || FALLBACK_ORIGIN;
+  const [origin, setOrigin] = useState(defaultOrigin);
+  // GPS-backed origin default: sync until the user edits the field manually
+  const originTouchedRef = useRef(false);
+  useEffect(() => {
+    if (!originTouchedRef.current) {
+      setOrigin(defaultOrigin);
+    }
+  }, [defaultOrigin]);
 
   const handleSwap = (e) => {
     e.stopPropagation();
     const temp = origin;
-    setOrigin(searchQuery || "Mi ubicación");
-    setSearchQuery(temp === "Mi ubicación" ? "" : temp);
+    originTouchedRef.current = true;
+    setOrigin(searchQuery || defaultOrigin);
+    setSearchQuery(temp === defaultOrigin ? "" : temp);
   };
 
   /* Filter real routes matching the query */
@@ -60,11 +70,9 @@ export function SearchBar() {
   }, [routes, searchQuery]);
 
   const handleSelectOption = (route) => {
+    // Select the route only: pre-selecting a stop would open the stop
+    // drawer on the map instead of the route detail.
     selectRoute(route);
-    const firstStop = route.keyStops?.[0] || route.stops?.[0];
-    if (firstStop) {
-      selectStop(firstStop);
-    }
     setIsExpanded(false);
     navigate(`/mapa/ruta/${route.id}`);
   };
@@ -134,7 +142,10 @@ export function SearchBar() {
             <input
               type="text"
               value={origin}
-              onChange={(e) => setOrigin(e.target.value)}
+              onChange={(e) => {
+                originTouchedRef.current = true;
+                setOrigin(e.target.value);
+              }}
               placeholder="Punto de partida"
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
             />
@@ -177,7 +188,11 @@ export function SearchBar() {
             <button
               type="button"
               onClick={() => {
-                if (searchQuery.trim()) {
+                if (searchResults.length > 0) {
+                  handleSelectOption(searchResults[0]);
+                } else if (searchQuery.trim()) {
+                  navigate("/buscar", { state: { query: searchQuery } });
+                } else {
                   setIsExpanded(false);
                 }
               }}
@@ -202,8 +217,17 @@ export function SearchBar() {
           </div>
 
           {searchResults.length === 0 ? (
-            <div className="py-6 text-center text-slate-500 text-xs">
-              No se encontraron rutas con "{searchQuery}".
+            <div className="py-6 text-center text-slate-500 text-xs space-y-3">
+              <p>No se encontraron rutas con "{searchQuery}".</p>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/buscar", { state: { query: searchQuery } })
+                }
+                className="text-xs font-bold text-brand-primary bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors"
+              >
+                Buscar en todas las ciudades
+              </button>
             </div>
           ) : (
             <div className="space-y-2">

@@ -317,15 +317,38 @@ export function RouteProvider({ children }) {
     };
   }, [hasCustomLocation, gpsReady, userLocation]);
 
-  // Filter or search routes based on debounced search query or nearby filter
+  // Filter routes for the map/catalog scope.
+  // The citizen search journey lives in SearchPage (/buscar, global search).
+  // This context only filters the already-loaded city catalog client-side and
+  // never runs its own remote search; catalog, nearby and popular loading
+  // stay city-scoped exactly as before.
   useEffect(() => {
     let isMounted = true;
     async function computeFiltered() {
       try {
         if (debouncedSearchQuery.trim() !== "") {
-          setLoadingFiltered(true);
-          const results = await routeService.searchRoutes(debouncedSearchQuery, currentCity?.id);
-          if (isMounted) setFilteredRoutes(results);
+          const term = debouncedSearchQuery.toLowerCase().trim();
+          if (isMounted) {
+            setFilteredRoutes(
+              routes.filter((route) => {
+                const matchName = route.name?.toLowerCase().includes(term);
+                const matchCode = route.code?.toLowerCase().includes(term);
+                const matchLine = route.transportLineName
+                  ?.toLowerCase()
+                  .includes(term);
+                const matchStops = (
+                  route.keyStops ||
+                  route.stops ||
+                  []
+                ).some(
+                  (s) =>
+                    s.name?.toLowerCase().includes(term) ||
+                    s.address?.toLowerCase().includes(term),
+                );
+                return matchName || matchCode || matchLine || matchStops;
+              }),
+            );
+          }
         } else if (onlyNearby && userLocation?.lat && userLocation?.lng) {
           setLoadingFiltered(true);
           const results = await routeService.getNearbyRoutes(
@@ -364,7 +387,7 @@ export function RouteProvider({ children }) {
     return () => {
       isMounted = false;
     };
-  }, [debouncedSearchQuery, onlyNearby, userLocation, routes, currentCity?.id]);
+  }, [debouncedSearchQuery, onlyNearby, userLocation, routes]);
 
   const selectRoute = useCallback(async (routeOrId, preserveStop = false) => {
     if (!routeOrId) return;
