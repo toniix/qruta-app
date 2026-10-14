@@ -16,10 +16,13 @@ import {
 } from "lucide-react";
 import { stopService } from "../../services/stopService";
 import { useRoutes } from "../../contexts/RouteContext";
+import { calculateDistanceKm } from "../../utils/geoUtils";
+import { formatDistanceBand } from "../../utils/distanceBands";
 
 export function StopDetailDrawer({ stop, onClose }) {
   const navigate = useNavigate();
-  const { routes: allContextRoutes, selectRoute, selectStop } = useRoutes();
+  const { routes: allContextRoutes, selectRoute, selectStop, userLocation } =
+    useRoutes();
 
   const [stopRoutes, setStopRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -58,6 +61,26 @@ export function StopDetailDrawer({ stop, onClose }) {
   }, [stop?.id, reloadKey]);
 
   if (!stop) return null;
+
+  // Straight-line walking estimate to this stop (same Haversine + bands as
+  // the rest of the app). Shown only when the GPS location is known.
+  let distanceHint = "";
+  if (
+    userLocation?.lat != null &&
+    userLocation?.lng != null &&
+    stop.latitude != null &&
+    stop.longitude != null
+  ) {
+    const meters =
+      calculateDistanceKm(
+        userLocation.lat,
+        userLocation.lng,
+        stop.latitude,
+        stop.longitude,
+      ) * 1000;
+    const band = formatDistanceBand(meters);
+    if (band) distanceHint = `${band} de tu ubicación`;
+  }
 
   const handleSelectRouteItem = (item) => {
     const matched = allContextRoutes.find(
@@ -115,6 +138,11 @@ export function StopDetailDrawer({ stop, onClose }) {
             {(stop.reference || stop.address) && (
               <p className="text-xs text-slate-500 mt-0.5 truncate">
                 {stop.reference || stop.address}
+              </p>
+            )}
+            {distanceHint && (
+              <p className="text-xs font-semibold text-emerald-700 mt-0.5">
+                🚶 {distanceHint}
               </p>
             )}
           </div>

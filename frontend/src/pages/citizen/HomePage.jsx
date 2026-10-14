@@ -12,8 +12,12 @@ import {
   ChevronLeft,
   ChevronDown,
   X,
+  Clock3,
+  Star,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
+import { useFavorites } from '../../hooks/useFavorites';
+import { streetLine } from '../../services/geocodingService';
 import { getGreeting } from '../../utils/dateUtils';
 import { NearbyStopCard, StopSkeleton } from '../../components/home';
 
@@ -23,6 +27,20 @@ function popularityLabel(score) {
   return score >= 70 ? 'Muy popular' : 'Popular';
 }
 
+/** Mirrors SearchPage's RECENT_KEY: recent global-search queries. */
+const RECENT_SEARCHES_KEY = 'rutasya_recent_searches';
+const MAX_HOME_RECENTS = 5;
+
+function readRecentSearches() {
+  try {
+    const stored = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
+    return Array.isArray(stored)
+      ? stored.filter((q) => typeof q === 'string').slice(0, MAX_HOME_RECENTS)
+      : [];
+  } catch {
+    return [];
+  }
+}
 /** Loading skeleton shaped like a popular-route row */
 function PopularRouteSkeleton() {
   return (
@@ -62,6 +80,8 @@ export function HomePage() {
   } = useRoutes();
 
   const nearbyStopsRef = useRef(null);
+  const { favorites } = useFavorites();
+  const [recentSearches] = useState(readRecentSearches);
 
   const handleSelectPopularRoute = (item) => {
     // Match with full route object from RouteContext if available
@@ -92,14 +112,27 @@ export function HomePage() {
   const greeting = getGreeting();
   const cityName = currentCity?.name || 'Ica';
 
+  // User address line: street + number + district ("Av. Bolívar 123, Ica"),
+  // falling back to the formatted address when there is no street.
+  const userStreetLine = streetLine(userAddress);
+  const userDistrict =
+    typeof userAddress?.district === 'string'
+      ? userAddress.district.trim()
+      : '';
+  const userAddressDisplay = userStreetLine
+    ? userDistrict && !userStreetLine.includes(userDistrict)
+      ? `${userStreetLine}, ${userDistrict}`
+      : userStreetLine
+    : userAddress?.formattedAddress || '';
+
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
-      {/* ── Header: flat status band (location + search), no gradient ──── */}
-      <header className="bg-white border-b border-slate-200 pt-4 pb-4 px-4 sm:px-6 space-y-3.5 relative z-10">
+      {/* ── Header: location thesis + hero search, flat brand band ─────── */}
+      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 pt-4 pb-5 space-y-4 relative z-10">
         {/* Top row: brand (mobile only — global Header shows it on sm+) + notifications */}
         <div className="flex justify-end items-center">
           <div className="flex sm:hidden items-center gap-2.5 mr-auto">
-            <div className="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center">
+            <div className="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center shadow-2xs">
               <Bus className="w-4.5 h-4.5 text-white" />
             </div>
             <span className="font-bold text-lg tracking-tight text-ink-primary">
@@ -117,45 +150,67 @@ export function HomePage() {
         </div>
 
         {/* Location block — the page's thesis: where you are */}
-        <div className="space-y-1">
-          <p className="text-sm font-medium text-ink-secondary">{greeting}</p>
-          <div className="flex items-center gap-1">
-            <h1 className="text-2xl font-bold text-ink-primary leading-tight tracking-tight">
-              {cityName}
-            </h1>
+        <div className="space-y-2">
+          <p className="text-xs font-bold uppercase tracking-widest text-ink-muted">
+            {greeting}
+          </p>
+          <div className="flex items-center gap-2.5">
             <button
               type="button"
               onClick={() => setShowCitySelector(!showCitySelector)}
               aria-label={`Cambiar ciudad. Actual: ${cityName}`}
               aria-expanded={showCitySelector}
-              className="p-1.5 rounded-lg text-ink-muted hover:text-ink-primary hover:bg-slate-100 transition-colors active:scale-90"
+              className="group flex items-center gap-2 min-w-0 shrink-0 text-left"
             >
-              <ChevronDown className="w-4.5 h-4.5" />
+              <span className="p-1.5 rounded-lg bg-blue-50 border border-blue-100 text-brand-primary shrink-0">
+                <MapPin className="w-4 h-4" />
+              </span>
+              <span className="text-[28px] leading-none font-extrabold text-ink-primary tracking-tight truncate">
+                {cityName}
+              </span>
+              <ChevronDown
+                className={`w-5 h-5 text-ink-muted shrink-0 transition-transform group-hover:text-ink-primary ${showCitySelector ? 'rotate-180' : ''}`}
+              />
             </button>
-          </div>
 
-          {userAddress?.formattedAddress ? (
-            <p className="flex items-center gap-1.5 text-sm text-ink-secondary min-w-0">
-              <MapPin className="w-3.5 h-3.5 shrink-0 text-ink-muted" />
-              <span className="truncate">{userAddress.formattedAddress}</span>
-            </p>
-          ) : (
-            <p className="text-sm text-ink-muted">
-              {isLocating
-                ? 'Detectando tu ubicación…'
-                : 'Sin ubicación activa'}
-            </p>
-          )}
+            {userAddressDisplay ? (
+              <p className="flex items-center gap-1.5 min-w-0 flex-1 text-xs font-medium text-ink-secondary bg-slate-100/90 border border-slate-200/70 rounded-full pl-2 pr-3 py-1">
+                <span className="relative flex w-1.5 h-1.5 shrink-0">
+                  <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-500 opacity-60 animate-ping" />
+                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-600" />
+                </span>
+                <span className="truncate">{userAddressDisplay}</span>
+              </p>
+            ) : (
+              <p className="flex items-center gap-1.5 min-w-0 flex-1 text-xs font-medium text-ink-muted bg-slate-100/90 border border-slate-200/70 rounded-full px-3 py-1">
+                {isLocating ? (
+                  <>
+                    <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                    <span className="truncate">Detectando tu ubicación…</span>
+                  </>
+                ) : (
+                  <span className="truncate">Sin ubicación activa</span>
+                )}
+              </p>
+            )}
+          </div>
         </div>
 
-        {/* Primary action: search */}
+        {/* Primary action: hero search */}
         <button
           type="button"
           onClick={() => navigate('/buscar')}
-          className="relative w-full flex items-center gap-3 bg-slate-50 border border-slate-200 rounded-xl py-3 pl-11 pr-4 text-sm font-medium text-ink-muted hover:bg-slate-100 hover:border-slate-300 transition-colors min-h-11"
+          className="group relative w-full flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-300 rounded-2xl py-3.5 pl-4 pr-3 text-sm font-medium text-ink-muted shadow-2xs hover:shadow-card transition-all min-h-12 text-left"
         >
-          <Search className="absolute left-3.5 w-4.5 h-4.5 text-ink-muted pointer-events-none" />
-          <span>Buscar ruta, paradero o lugar…</span>
+          <span className="w-8 h-8 rounded-xl bg-brand-primary text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+            <Search className="w-4 h-4 pointer-events-none" />
+          </span>
+          <span className="flex-1 truncate">
+            Buscar ruta, paradero o lugar…
+          </span>
+          <span className="shrink-0 text-[11px] font-bold text-brand-primary bg-blue-50 border border-blue-200/60 px-2.5 py-1 rounded-full">
+            Todas las ciudades
+          </span>
         </button>
       </header>
 
@@ -248,6 +303,39 @@ export function HomePage() {
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-8">
+        {/* ── Continúa explorando: recents + favorites, compact one-liner ── */}
+        {(recentSearches.length > 0 || favorites.length > 0) && (
+          <section aria-label="Continúa explorando" className="space-y-2">
+            <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-0.5">
+              {recentSearches.map((query) => (
+                <button
+                  key={`recent-${query}`}
+                  type="button"
+                  onClick={() => navigate('/buscar', { state: { query } })}
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 max-w-44 rounded-full px-3.5 py-1.5 bg-white border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-2xs hover:border-blue-300 hover:bg-blue-50/50 transition-all active:scale-95"
+                >
+                  <Clock3 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <span className="truncate">{query}</span>
+                </button>
+              ))}
+              {favorites.slice(0, 5).map((fav) => (
+                <button
+                  key={`fav-${fav.id}`}
+                  type="button"
+                  onClick={() => handleSelectPopularRoute(fav)}
+                  aria-label={`Ver recorrido de la ruta ${fav.code}: ${fav.name}`}
+                  className="flex-shrink-0 inline-flex items-center gap-1.5 max-w-44 rounded-full px-3.5 py-1.5 bg-amber-50 border border-amber-200/70 text-xs font-semibold text-amber-800 shadow-2xs hover:bg-amber-100 transition-all active:scale-95"
+                >
+                  <Star className="w-3.5 h-3.5 text-amber-500 shrink-0" />
+                  <span className="truncate">
+                    {fav.code ? `${fav.code} · ${fav.name}` : fav.name}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </section>
+        )}
+
         {/* ── Paraderos Cercanos — the primary content ───────────────── */}
         <section className="space-y-3">
           <div className="flex justify-between items-center">

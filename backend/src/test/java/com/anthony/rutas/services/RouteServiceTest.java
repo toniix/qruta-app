@@ -190,6 +190,19 @@ class RouteServiceTest {
             assertNotNull(result);
             assertTrue(result.isEmpty());
         }
+
+        @Test
+        @DisplayName("Should include frequency in route cards")
+        void shouldIncludeFrequencyInCards() {
+            route.setFrequency("Cada 8 min");
+            when(routeRepository.findAllWithTransportLine()).thenReturn(List.of(route));
+            when(routeStopRepository.findKeyStopsByRouteIds(anyList())).thenReturn(List.of());
+
+            List<RouteSummaryResponse> result = routeService.findAllCards();
+
+            assertEquals(1, result.size());
+            assertEquals("Cada 8 min", result.get(0).getFrequency());
+        }
     }
 
     // ==================== FIND POPULAR ROUTES ====================

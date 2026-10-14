@@ -1,4 +1,4 @@
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, MapPin } from "lucide-react";
 import { SearchBar } from "../search/SearchBar";
 
 export function MapTopHeader({
@@ -7,7 +7,40 @@ export function MapTopHeader({
   isRouteLoading = false,
   onCloseDetail,
   onClearStop,
+  onPickDestination = null,
+  destinationActive = false,
+  onCloseDestination = null,
 }) {
+  if (destinationActive) {
+    return (
+      <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
+        <div className="pointer-events-auto flex items-center justify-between gap-2.5 animate-slide-in-top">
+          <button
+            onClick={onCloseDestination}
+            className="w-10 h-10 rounded-full bg-white shadow-raised border border-slate-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
+            title="Volver al mapa"
+            aria-label="Volver al mapa"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
+
+          <div className="bg-slate-900/90 text-white backdrop-blur-md rounded-full px-4 py-2 shadow-overlay border border-slate-700/80 flex items-center gap-2 text-xs sm:text-sm font-bold truncate flex-1 min-w-0">
+            <MapPin className="w-4 h-4 text-red-400 shrink-0" />
+            <span className="truncate">Elige tu destino en el mapa</span>
+          </div>
+
+          <button
+            onClick={onCloseDestination}
+            className="w-10 h-10 rounded-full bg-white shadow-raised border border-slate-100 flex items-center justify-center text-slate-800 hover:bg-slate-50 transition-transform active:scale-90 shrink-0"
+            title="Cerrar destino"
+            aria-label="Cerrar destino"
+          >
+            <span className="text-sm font-bold">✕</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
   if (selectedRoute) {
     return (
       <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
@@ -120,7 +153,7 @@ export function MapTopHeader({
 
   return (
     <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
-      <SearchBar />
+      <SearchBar onPickDestination={onPickDestination} />
     </div>
   );
 }

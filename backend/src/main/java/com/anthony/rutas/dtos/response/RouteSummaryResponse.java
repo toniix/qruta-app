@@ -21,6 +21,7 @@ public class RouteSummaryResponse {
     private String name;
     private String color;
     private String fare;
+    private String frequency;
     private String transportLineName;
     private UUID cityId;
     private String cityName;

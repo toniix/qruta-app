@@ -11,12 +11,19 @@ import {
 import { useRoutes } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 
-export function RouteCard({ route, isNearest, distanceKm, onSelect, showCity = false }) {
+export function RouteCard({
+  route,
+  isNearest,
+  distanceKm,
+  onSelect,
+  showCity = false,
+}) {
   const navigate = useNavigate();
   const { selectedRoute, selectRoute } = useRoutes();
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const isSelected = selectedRoute?.id === route.id;
+  console.log(route);
 
   const keyStops = route.keyStops || [];
   const stops = keyStops.length > 0 ? keyStops : route.stops || [];
@@ -48,8 +55,10 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect, showCity = f
     route.transportLineName ||
     route.transportLine?.name ||
     "Línea de transporte";
-  const fare = route.fare || "—";
-  const frequency = route.frequency || "—";
+  // Stop count doubles as the footer meta chip (next to the CTA).
+  const stopCount =
+    (Array.isArray(route.stops) ? route.stops.length : 0) ||
+    (Array.isArray(route.keyStops) ? route.keyStops.length : 0);
 
   return (
     <div
@@ -114,8 +123,16 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect, showCity = f
               ? "text-red-500 bg-red-50 hover:bg-red-100"
               : "text-slate-400 hover:text-slate-600 hover:bg-slate-100"
           }`}
-          title={isFavorite(route.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
-          aria-label={isFavorite(route.id) ? "Quitar de favoritos" : "Guardar en favoritos"}
+          title={
+            isFavorite(route.id)
+              ? "Quitar de favoritos"
+              : "Guardar en favoritos"
+          }
+          aria-label={
+            isFavorite(route.id)
+              ? "Quitar de favoritos"
+              : "Guardar en favoritos"
+          }
         >
           <Heart
             className="w-4 h-4"
@@ -153,40 +170,65 @@ export function RouteCard({ route, isNearest, distanceKm, onSelect, showCity = f
         </div>
       )}
 
-      {/* ── Stats Grid: Frecuencia · Tarifa ──────────────────────────── */}
-      <div className="mt-3 grid grid-cols-2 gap-2.5">
-        <div className="rounded-2xl bg-orange-50/70 border border-orange-100/60 p-2.5 flex items-center gap-2.5 min-w-0">
-          <Clock3 className="w-4 h-4 text-orange-500 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">
-              Frecuencia
-            </p>
-            <p className="text-xs font-bold text-slate-800 leading-tight truncate">
-              {frequency}
-            </p>
+      {/* ── Stats: only real data, never "—" placeholders ─────────────── */}
+      {(() => {
+        const stats = [];
+        if (route.frequency) {
+          stats.push({
+            key: 'frequency',
+            label: 'Frecuencia',
+            value: route.frequency,
+            icon: <Clock3 className="w-4 h-4 text-orange-500 shrink-0" />,
+            tile: 'bg-orange-50/70 border-orange-100/60',
+          });
+        }
+        if (route.fare) {
+          stats.push({
+            key: 'fare',
+            label: 'Tarifa',
+            value: route.fare,
+            icon: <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />,
+            tile: 'bg-emerald-50/70 border-emerald-100/60',
+          });
+        }
+        if (stats.length === 0) return null;
+        return (
+          <div
+            className={`mt-3 grid gap-2.5 ${stats.length > 1 ? 'grid-cols-2' : 'grid-cols-1'}`}
+          >
+            {stats.map((stat) => (
+              <div
+                key={stat.key}
+                className={`rounded-2xl border p-2.5 flex items-center gap-2.5 min-w-0 ${stat.tile}`}
+              >
+                {stat.icon}
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">
+                    {stat.label}
+                  </p>
+                  <p className="text-xs font-bold text-slate-800 leading-tight truncate">
+                    {stat.value}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
-        </div>
+        );
+      })()}
 
-        <div className="rounded-2xl bg-emerald-50/70 border border-emerald-100/60 p-2.5 flex items-center gap-2.5 min-w-0">
-          <Banknote className="w-4 h-4 text-emerald-600 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-xs font-bold text-slate-500 uppercase tracking-wide truncate">
-              Tarifa
-            </p>
-            <p className="text-xs font-bold text-slate-800 leading-tight truncate">
-              {fare}
-            </p>
-          </div>
-        </div>
-      </div>
-
-      {/* ── Footer Action Button ─────────────────────────────────────────── */}
-      <div className="pt-3 mt-3 border-t border-slate-100">
+      {/* ── Footer: stops meta + CTA share one eyeline ─────────────────── */}
+      <div className="pt-3 mt-3 border-t border-slate-100 flex items-center gap-2">
+        {stopCount > 0 && (
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-xs font-bold text-slate-600 bg-slate-100/90 border border-slate-200/70 rounded-xl px-3 py-2">
+            <MapPin className="w-3.5 h-3.5 text-blue-500" />
+            {stopCount === 1 ? '1 paradero' : `${stopCount} paraderos`}
+          </span>
+        )}
         {/* Ver recorrido button */}
         <button
           type="button"
           onClick={handleViewMore}
-          className="w-full flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold text-white bg-brand-primary hover:bg-brand-primary-dark transition-colors shadow-2xs active:scale-[0.99]"
+          className="flex-1 flex items-center justify-center gap-1.5 py-2 px-3 rounded-xl text-xs font-bold text-white bg-brand-primary hover:bg-brand-primary-dark transition-colors shadow-2xs active:scale-[0.99]"
         >
           <span className="truncate">Ver recorrido</span>
           <ExternalLink className="w-3.5 h-3.5 shrink-0" />

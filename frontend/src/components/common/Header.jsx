@@ -1,6 +1,7 @@
 import { Bus, Navigation, ShieldCheck, MapPin, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useRoutes } from '../../contexts/RouteContext';
+import { streetLine } from '../../services/geocodingService';
 
 const CITIZEN_LINKS = [
   { label: 'Inicio', path: '/' },
@@ -105,7 +106,7 @@ export function Header() {
                 {isLocating
                   ? 'Ubicando...'
                   : hasCustomLocation
-                    ? userAddress?.street || userAddress?.formattedAddress || 'GPS Activo'
+                    ? streetLine(userAddress) || userAddress?.formattedAddress || 'GPS Activo'
                     : 'Mi Ubicación'}
               </span>
             </button>

@@ -9,6 +9,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
+import { Flag } from "lucide-react";
 import { getBoundsFromPoints, calculateDistanceKm } from "../../utils/geoUtils";
 import { BRAND_PRIMARY } from "../../constants/brand";
 import { routingService } from "../../services/routingService";
@@ -244,16 +245,80 @@ function MapInstanceBridge({ onMapReady }) {
   return null;
 }
 
-/* MapClickHandler captures click events on the map canvas background */
-function MapClickHandler({ onMapClick }) {
+/* MapClickHandler captures click events on the map canvas background.
+ * In pin mode a tap recenters the map on the tapped point (the ensuing
+ * moveend drives pin resolution: single path, no duplicate resolve), and
+ * map movement is exposed as onPinMoveStart/onPinMoveEnd. */
+function MapClickHandler({
+  onMapClick,
+  pinMode,
+  onPinMove,
+  onPinMoveStart,
+  onPinMoveEnd,
+}) {
+  const map = useMap();
   useMapEvents({
     click: (e) => {
+      // In pin mode a tap moves the map under the fixed pin instead of
+      // selecting stops.
+      if (pinMode) {
+        try {
+          map.flyTo([e.latlng.lat, e.latlng.lng], map.getZoom(), {
+            duration: 0.5,
+          });
+        } catch {
+          // Map not ready: fall back to moving the pin directly.
+          if (onPinMove) {
+            onPinMove({ lat: e.latlng.lat, lng: e.latlng.lng });
+          }
+        }
+        return;
+      }
       if (onMapClick) {
         onMapClick(e);
       }
     },
+    movestart: () => {
+      if (pinMode && onPinMoveStart) {
+        onPinMoveStart();
+      }
+    },
+    moveend: (e) => {
+      if (pinMode && onPinMoveEnd) {
+        const center = e.target.getCenter();
+        onPinMoveEnd({ lat: center.lat, lng: center.lng });
+      }
+    },
   });
   return null;
+}
+
+/* FixedPinOverlay: Uber-style fixed flag at the map center, pin mode only.
+ * Plain HTML over the map (never a Leaflet marker): the map moves under it.
+ * The pill shows the short street label above the pin and hides while the
+ * map moves. Results mode keeps the draggable Leaflet flag marker instead. */
+function FixedPinOverlay({ label = "", moving = false, resolving = false }) {
+  return (
+    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+      <div className="absolute left-1/2 top-1/2">
+        <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col items-center">
+          {!moving && (resolving ? (
+            <div className="mb-1 max-w-[190px] truncate rounded-full border border-white/20 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold text-white/70 shadow-lg animate-pulse">
+              Ubicando punto…
+            </div>
+          ) : label ? (
+            <div className="mb-1 max-w-[190px] truncate rounded-full border border-white/20 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg">
+              {label}
+            </div>
+          ) : null)}
+          <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md">
+            <Flag className="h-3.5 w-3.5 text-red-600" />
+          </div>
+          <div className="h-2 w-0.5 bg-red-500/80" />
+        </div>
+      </div>
+    </div>
+  );
 }
 
 const createUserLocationIcon = (showLabel = true) =>
@@ -285,6 +350,23 @@ const createSearchedLocationIcon = () =>
     `,
     iconSize: [32, 32],
     iconAnchor: [16, 16],
+  });
+
+const createDestinationPinIcon = () =>
+  L.divIcon({
+    className: "custom-destination-pin !bg-transparent !border-none",
+    html: `
+      <div class="flex flex-col items-center pointer-events-auto">
+        <div class="flex items-center justify-center p-2 rounded-xl bg-white text-red-600 border-2 border-red-500 shadow-overlay">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M4 22V4a1 1 0 0 1 .4-.8A6 6 0 0 1 8 2c3 0 5 2 7.333 2q2 0 3.067-.8A1 1 0 0 1 20 4v10a1 1 0 0 1-.4.8A6 6 0 0 1 16 16c-3 0-5-2-8-2a6 6 0 0 0-4 1.528"/>
+          </svg>
+        </div>
+        <div class="w-1.5 h-4 bg-red-500/70 rounded-b-full"></div>
+      </div>
+    `,
+    iconSize: [40, 56],
+    iconAnchor: [20, 52],
   });
 
 const escapeHtml = (value) =>
@@ -346,6 +428,23 @@ function InteractiveMapComponent({
   onTracingChange = null,
   onMapReady = null,
   zoomControl = false,
+  pinMode = false,
+  destinationPin = null,
+  onPinMove = null,
+  // Pin-mode movement callbacks: the map moves under the fixed overlay.
+  onPinMoveStart = null,
+  onPinMoveEnd = null,
+  // Short street label shown in the fixed-pin pill while picking.
+  pinLabel = "",
+  // While the map moves the pill hides (it reappears with the sheet).
+  pinMoving = false,
+  // While the new center resolves, the pill shows a loading state instead
+  // of the stale previous label.
+  pinResolving = false,
+  // Drag affordance for the destination flag. Kept separate from pinMode
+  // (which also gates tap-to-move) so results mode can allow dragging
+  // without changing tap-to-select behavior.
+  canDragDestinationPin = false,
 }) {
   const snappedCacheRef = useRef({});
   const [snappedDirectionMap, setSnappedDirectionMap] = useState({});
@@ -576,7 +675,13 @@ function InteractiveMapComponent({
           maxZoom={TILE_MAX_ZOOM}
         />
 
-        <MapClickHandler onMapClick={handleMapBackgroundClick} />
+        <MapClickHandler
+          onMapClick={handleMapBackgroundClick}
+          pinMode={pinMode}
+          onPinMove={onPinMove}
+          onPinMoveStart={onPinMoveStart}
+          onPinMoveEnd={onPinMoveEnd}
+        />
 
         <MapAutoRecenter
           bounds={activeBounds}
@@ -636,6 +741,28 @@ function InteractiveMapComponent({
             </Popup>
           </Marker>
         )}
+
+        {/* Destination pin: Leaflet marker in results mode only (drag-to-research) */}
+        {!pinMode &&
+          destinationPin &&
+          destinationPin.lat != null &&
+          destinationPin.lng != null && (
+            <Marker
+              position={[destinationPin.lat, destinationPin.lng]}
+              icon={createDestinationPinIcon()}
+              draggable={canDragDestinationPin}
+              eventHandlers={
+                canDragDestinationPin && onPinMove
+                  ? {
+                      dragend: (e) => {
+                        const moved = e.target.getLatLng();
+                        onPinMove({ lat: moved.lat, lng: moved.lng });
+                      },
+                    }
+                  : {}
+              }
+            />
+          )}
 
         {/* Other routes (summaries) — single polyline */}
         {routes
@@ -776,6 +903,10 @@ function InteractiveMapComponent({
           );
         })}
       </MapContainer>
+
+      {/* Pin mode: fixed center overlay over the map box (the map moves
+          under it). Plain HTML, never a Leaflet marker. */}
+      {pinMode && <FixedPinOverlay label={pinLabel} moving={pinMoving} resolving={pinResolving} />}
     </div>
   );
 }
