@@ -19,10 +19,6 @@ public class CommunityComment {
     @GeneratedValue(strategy = GenerationType.UUID)
     private UUID id;
 
-    @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "post_id", nullable = false)
-    private CommunityPost post;
-
     @Column(name = "author_alias", nullable = false, length = 50)
     private String authorAlias;
 
@@ -41,5 +37,8 @@ public class CommunityComment {
             createdAt = LocalDateTime.now();
         }
     }
-}
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "post_id", nullable = false)
+    private CommunityPost post;
+}
