@@ -165,6 +165,16 @@ export function CommunityPage() {
   );
   const coolingDown = cooldownRemaining > 0;
 
+  // Al terminar el cooldown se limpia el aviso inline del comentario.
+  // Ajuste en fase de render (patrón documentado) en vez de setState en efecto.
+  const [wasCoolingDown, setWasCoolingDown] = useState(coolingDown);
+  if (wasCoolingDown && !coolingDown) {
+    setWasCoolingDown(false);
+    setCommentBlockedPostId(null);
+  } else if (!wasCoolingDown && coolingDown) {
+    setWasCoolingDown(true);
+  }
+
   // Tick de 1s solo mientras dura el cooldown (para la cuenta regresiva)
   useEffect(() => {
     if (Date.now() >= cooldownUntil) return undefined;
@@ -175,11 +185,6 @@ export function CommunityPage() {
     }, 1000);
     return () => clearInterval(t);
   }, [cooldownUntil]);
-
-  // Al terminar el cooldown se limpia el aviso inline del comentario
-  useEffect(() => {
-    if (!coolingDown) setCommentBlockedPostId(null);
-  }, [coolingDown]);
 
   const filteredRouteObj = useMemo(() => {
     if (!routeFilterId) return null;
@@ -305,27 +310,41 @@ export function CommunityPage() {
     [loadPage],
   );
 
-  useEffect(() => {
-    const key = feedCacheKey(
-      selectedCategory === 'ALL' ? null : selectedCategory,
-      routeFilterId || null,
-      sortOrder,
-    );
-    const cached = readFeedCache(key);
+  // Clave del feed según los filtros actuales.
+  const feedKey = feedCacheKey(
+    selectedCategory === 'ALL' ? null : selectedCategory,
+    routeFilterId || null,
+    sortOrder,
+  );
+
+  // Hidratación instantánea desde caché en fase de render (stale-while-revalidate):
+  // pinta sin flash y evita setState sincrónico dentro del efecto.
+  const [paintedFeedKey, setPaintedFeedKey] = useState(null);
+  if (paintedFeedKey !== feedKey) {
+    setPaintedFeedKey(feedKey);
+    const cached = readFeedCache(feedKey);
     if (cached) {
-      // Pintamos instantáneo y revalidamos en segundo plano (stale-while-revalidate)
       setPosts(cached.posts);
       setPage(cached.page);
       setHasMore(cached.hasMore);
       setLoading(false);
-      const controller = new AbortController();
-      loadPage(0, { revalidate: true, signal: controller.signal });
-      return () => controller.abort();
     }
+  }
+
+  useEffect(() => {
     const controller = new AbortController();
-    loadPage(0, { initial: true, signal: controller.signal });
+    // Envoltorio async: los setState ocurren en continuaciones async, no en el cuerpo del efecto.
+    (async () => {
+      const cached = readFeedCache(feedKey);
+      if (cached) {
+        // Revalidamos en segundo plano sin pisar lo ya pintado
+        await loadPage(0, { revalidate: true, signal: controller.signal });
+      } else {
+        await loadPage(0, { initial: true, signal: controller.signal });
+      }
+    })();
     return () => controller.abort();
-  }, [loadPage]);
+  }, [loadPage, feedKey]);
 
   // Scroll infinito: cuando el centinela entra en vista, pide la siguiente página
   const sentinelRef = useRef(null);
@@ -544,8 +563,10 @@ export function CommunityPage() {
             : p,
         ),
       );
+      /* eslint-disable react-hooks/purity -- Timestamps de cooldown: Date.now es impuro a propósito; esto corre en un handler tras acción del usuario, nunca durante el render. */
       setCooldownUntil(Date.now() + PUBLISH_COOLDOWN_MS);
       setNowTick(Date.now());
+      /* eslint-enable react-hooks/purity */
       setCommentBlockedPostId(null);
     } catch (err) {
       setCommentsMap((prev) => ({
