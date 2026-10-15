@@ -12,24 +12,29 @@ import { AdminFilterBar } from '../../../components/admin/common/AdminFilterBar'
 import { StatusBadge } from '../../../components/admin/common/StatusBadge';
 import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
 import { RouteFormDrawer } from './RouteFormDrawer';
+import { RouteCreateWizard } from './RouteCreateWizard';
 import { RouteDirectionEditorModal } from '../../../components/admin/map/RouteDirectionEditorModal';
 import { adminRouteService } from '../../../services/adminRouteService';
 import { adminLineService } from '../../../services/adminLineService';
+import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
 export function RouteListPage() {
   const toast = useAdminToast();
   const [routes, setRoutes] = useState([]);
   const [lines, setLines] = useState([]);
+  const [cities, setCities] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
+  const [filterCityId, setFilterCityId] = useState('');
   const [filterLineId, setFilterLineId] = useState('');
 
   // Drawer & Modals state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState(null);
+  const [wizardOpen, setWizardOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const [mapModalOpen, setMapModalOpen] = useState(false);
@@ -41,12 +46,14 @@ export function RouteListPage() {
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [routesData, linesData] = await Promise.all([
+      const [routesData, linesData, citiesData] = await Promise.all([
         adminRouteService.getAllRoutes(),
         adminLineService.getAllLines(),
+        cityService.getAdminCities().catch(() => []),
       ]);
       setRoutes(Array.isArray(routesData) ? routesData : []);
       setLines(Array.isArray(linesData) ? linesData : []);
+      setCities(Array.isArray(citiesData) ? citiesData : []);
     } catch (err) {
       console.error('Error cargando rutas:', err);
       toast.error('Error al cargar la lista de rutas.');
@@ -59,13 +66,15 @@ export function RouteListPage() {
     let isMounted = true;
     (async () => {
       try {
-        const [routesData, linesData] = await Promise.all([
+        const [routesData, linesData, citiesData] = await Promise.all([
           adminRouteService.getAllRoutes(),
           adminLineService.getAllLines(),
+          cityService.getAdminCities().catch(() => []),
         ]);
         if (isMounted) {
           setRoutes(Array.isArray(routesData) ? routesData : []);
           setLines(Array.isArray(linesData) ? linesData : []);
+          setCities(Array.isArray(citiesData) ? citiesData : []);
           setLoading(false);
         }
       } catch (err) {
@@ -81,6 +90,19 @@ export function RouteListPage() {
     };
   }, [toast]);
 
+  // Line id -> city id lookup (routes inherit the city from their line)
+  const lineCityMap = useMemo(() => {
+    const map = new Map();
+    lines.forEach((l) => map.set(String(l.id), String(l.cityId || '')));
+    return map;
+  }, [lines]);
+
+  // Lines available for the line filter (scoped to the chosen city)
+  const cityScopedLines = useMemo(() => {
+    if (!filterCityId) return lines;
+    return lines.filter((l) => String(l.cityId) === String(filterCityId));
+  }, [lines, filterCityId]);
+
   // Filtered routes list
   const filteredRoutes = useMemo(() => {
     return routes.filter((r) => {
@@ -92,21 +114,41 @@ export function RouteListPage() {
 
       const matchesLine = !filterLineId || String(r.transportLineId) === String(filterLineId);
 
-      return matchesSearch && matchesLine;
-    });
-  }, [routes, searchQuery, filterLineId]);
+      const matchesCity =
+        !filterCityId ||
+        String(lineCityMap.get(String(r.transportLineId)) || '') === String(filterCityId);
 
-  // Form submit handler
+      return matchesSearch && matchesLine && matchesCity;
+    });
+  }, [routes, searchQuery, filterLineId, filterCityId, lineCityMap]);
+
+  const handleCityFilterChange = (nextCityId) => {
+    setFilterCityId(nextCityId);
+    // Drop the line filter if the line doesn't belong to the chosen city.
+    if (
+      filterLineId &&
+      nextCityId &&
+      String(lineCityMap.get(String(filterLineId)) || '') !== String(nextCityId)
+    ) {
+      setFilterLineId('');
+    }
+  };
+
+  // City of the route shown in the directions modal (via its line)
+  const selectedRouteCityId = useMemo(() => {
+    if (!selectedRouteForMap) return '';
+    const lineId =
+      selectedRouteForMap.transportLineId || selectedRouteForMap.transportLine?.id;
+    return lineCityMap.get(String(lineId)) || '';
+  }, [selectedRouteForMap, lineCityMap]);
+
+  // Form submit handler (drawer is edit-only; creation goes through the wizard)
   const handleFormSubmit = async (formData) => {
+    if (!editingRoute) return;
     setSaving(true);
     try {
-      if (editingRoute) {
-        await adminRouteService.updateRoute(editingRoute.id, formData);
-        toast.success(`Ruta ${formData.code} actualizada correctamente.`);
-      } else {
-        await adminRouteService.createRoute(formData);
-        toast.success(`Ruta ${formData.code} creada con éxito.`);
-      }
+      await adminRouteService.updateRoute(editingRoute.id, formData);
+      toast.success(`Ruta ${formData.code} actualizada correctamente.`);
       setDrawerOpen(false);
       setEditingRoute(null);
       await loadData();
@@ -284,18 +326,30 @@ export function RouteListPage() {
         placeholder="Buscar por código, nombre o línea..."
         actionLabel="Nueva Ruta"
         onAction={() => {
-          setEditingRoute(null);
-          setDrawerOpen(true);
+          setWizardOpen(true);
         }}
       >
-        {/* Line filter dropdown */}
+        {/* City filter dropdown */}
+        <select
+          value={filterCityId}
+          onChange={(e) => handleCityFilterChange(e.target.value)}
+          className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        >
+          <option value="">Todas las ciudades</option>
+          {cities.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name}
+            </option>
+          ))}
+        </select>
+        {/* Line filter dropdown (scoped to the chosen city) */}
         <select
           value={filterLineId}
           onChange={(e) => setFilterLineId(e.target.value)}
           className="rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2 text-xs text-slate-700 focus:bg-white focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         >
           <option value="">Todas las líneas</option>
-          {lines.map((l) => (
+          {cityScopedLines.map((l) => (
             <option key={l.id} value={l.id}>
               {l.name}
             </option>
@@ -313,12 +367,22 @@ export function RouteListPage() {
         emptyDescription="Crea una nueva ruta o ajusta los filtros de búsqueda."
         emptyActionLabel="Crear Primera Ruta"
         onEmptyAction={() => {
-          setEditingRoute(null);
-          setDrawerOpen(true);
+          setWizardOpen(true);
         }}
       />
 
-      {/* Create / Edit Drawer */}
+      {/* Create Wizard (single POST: basics + directions + stops) */}
+      {wizardOpen && (
+        <RouteCreateWizard
+          open={wizardOpen}
+          onClose={() => setWizardOpen(false)}
+          lines={lines}
+          cities={cities}
+          onCreated={loadData}
+        />
+      )}
+
+      {/* Edit Drawer (basic data only) */}
       <RouteFormDrawer
         open={drawerOpen}
         onClose={() => {
@@ -327,6 +391,7 @@ export function RouteListPage() {
         }}
         initialData={editingRoute}
         lines={lines}
+        cities={cities}
         onSubmit={handleFormSubmit}
         loading={saving}
       />
@@ -340,6 +405,8 @@ export function RouteListPage() {
             setSelectedRouteForMap(null);
           }}
           route={selectedRouteForMap}
+          cities={cities}
+          cityId={selectedRouteCityId}
           onSaved={loadData}
         />
       )}

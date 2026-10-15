@@ -2,6 +2,8 @@ import { useState } from 'react';
 import { MapPin, Navigation } from 'lucide-react';
 import { AdminDrawer } from '../../../components/admin/common/AdminDrawer';
 import { StopLocationPickerModal } from '../../../components/admin/map/StopLocationPickerModal';
+import { FieldError } from '../../../components/common/FieldError';
+import { stopSchema, validateWith } from '../../../schemas';
 
 function StopFormDrawerContent({
   onClose,
@@ -23,6 +25,20 @@ function StopFormDrawerContent({
     isAccessible: Boolean(initialData?.accessible ?? initialData?.isAccessible ?? true),
   }));
 
+  const [errors, setErrors] = useState({});
+
+  const update = (patch, field) => {
+    setForm((f) => ({ ...f, ...patch }));
+    if (field) {
+      setErrors((prev) => {
+        if (!prev[field]) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
   // Selected city coords for map center
   const selectedCity = cities.find((c) => String(c.id) === String(form.cityId));
   const cityCoords = selectedCity
@@ -40,11 +56,13 @@ function StopFormDrawerContent({
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit({
-      ...form,
-      latitude: parseFloat(form.latitude),
-      longitude: parseFloat(form.longitude),
-    });
+    const result = validateWith(stopSchema, form);
+    if (!result.ok) {
+      setErrors(result.fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit(result.data);
   };
 
   return (
@@ -66,7 +84,7 @@ function StopFormDrawerContent({
           </label>
           <select
             value={form.cityId}
-            onChange={(e) => setForm((f) => ({ ...f, cityId: e.target.value }))}
+            onChange={(e) => update({ cityId: e.target.value }, 'cityId')}
             required
             disabled={loading || isEdit}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
@@ -78,6 +96,7 @@ function StopFormDrawerContent({
               </option>
             ))}
           </select>
+          <FieldError message={errors.cityId} />
           {isEdit && (
             <p className="mt-1 text-[11px] text-slate-400">
               La ciudad asociada no puede modificarse tras crearse el paradero.
@@ -94,10 +113,11 @@ function StopFormDrawerContent({
             type="text"
             required
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => update({ name: e.target.value }, 'name')}
             placeholder="Ej: Paradero Puente Blanco"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.name} />
         </div>
 
         {/* Coordinates Group with Interactive Map Picker Button */}
@@ -124,10 +144,11 @@ function StopFormDrawerContent({
                 step="any"
                 required
                 value={form.latitude}
-                onChange={(e) => setForm((f) => ({ ...f, latitude: e.target.value }))}
+                onChange={(e) => update({ latitude: e.target.value }, 'latitude')}
                 placeholder="-14.0678"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
+              <FieldError message={errors.latitude} />
             </div>
 
             <div>
@@ -139,10 +160,11 @@ function StopFormDrawerContent({
                 step="any"
                 required
                 value={form.longitude}
-                onChange={(e) => setForm((f) => ({ ...f, longitude: e.target.value }))}
+                onChange={(e) => update({ longitude: e.target.value }, 'longitude')}
                 placeholder="-75.7286"
                 className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-mono text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               />
+              <FieldError message={errors.longitude} />
             </div>
           </div>
         </div>
@@ -155,10 +177,11 @@ function StopFormDrawerContent({
           <input
             type="text"
             value={form.address}
-            onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+            onChange={(e) => update({ address: e.target.value }, 'address')}
             placeholder="Ej: Av. Cutervo s/n, esquina con Grau"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.address} />
         </div>
 
         {/* Referencia */}
@@ -169,10 +192,11 @@ function StopFormDrawerContent({
           <input
             type="text"
             value={form.reference}
-            onChange={(e) => setForm((f) => ({ ...f, reference: e.target.value }))}
+            onChange={(e) => update({ reference: e.target.value }, 'reference')}
             placeholder="Ej: Frente al centro comercial, poste con luminaria azul"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.reference} />
         </div>
 
         {/* Accesibilidad */}

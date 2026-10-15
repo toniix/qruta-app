@@ -1,6 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Route, Check } from 'lucide-react';
 import { AdminDrawer } from '../../../components/admin/common/AdminDrawer';
+import { FieldError } from '../../../components/common/FieldError';
+import { routeBasicsSchema, validateWith } from '../../../schemas';
 import { BRAND_PRIMARY } from '../../../constants/brand';
 
 const PRESET_COLORS = [
@@ -18,13 +20,30 @@ function RouteFormDrawerContent({
   onClose,
   initialData,
   lines = [],
+  cities = [],
   onSubmit,
   loading = false,
 }) {
   const isEdit = Boolean(initialData?.id);
 
+  // City comes from the assigned line (routes inherit the line's city).
+  // On create it acts as a filter for the lines dropdown.
+  const initialCityId = useMemo(() => {
+    const lineCity = lines.find(
+      (l) => String(l.id) === String(initialData?.transportLineId)
+    )?.cityId;
+    return lineCity || (cities[0]?.id || '');
+  }, [lines, cities, initialData?.transportLineId]);
+
+  const [cityId, setCityId] = useState(initialCityId);
+
+  const filteredLines = useMemo(() => {
+    if (!cityId) return lines;
+    return lines.filter((l) => String(l.cityId) === String(cityId));
+  }, [lines, cityId]);
+
   const [form, setForm] = useState(() => ({
-    transportLineId: initialData?.transportLineId || (lines[0]?.id || ''),
+    transportLineId: initialData?.transportLineId || '',
     code: initialData?.code || '',
     name: initialData?.name || '',
     color: initialData?.color || BRAND_PRIMARY,
@@ -35,9 +54,46 @@ function RouteFormDrawerContent({
     status: initialData?.status || 'ACTIVE',
   }));
 
+  const handleCityChange = (nextCityId) => {
+    setCityId(nextCityId);
+    setForm((f) => {
+      // Keep the current line if it still belongs to the chosen city.
+      const stillValid = lines.some(
+        (l) =>
+          String(l.id) === String(f.transportLineId) &&
+          String(l.cityId) === String(nextCityId)
+      );
+      if (stillValid) return f;
+      const firstOfCity = lines.find(
+        (l) => String(l.cityId) === String(nextCityId)
+      );
+      return { ...f, transportLineId: firstOfCity?.id || '' };
+    });
+  };
+
+  const [errors, setErrors] = useState({});
+
+  const update = (patch, field) => {
+    setForm((f) => ({ ...f, ...patch }));
+    if (field) {
+      setErrors((prev) => {
+        if (!prev[field]) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(form);
+    const result = validateWith(routeBasicsSchema, form);
+    if (!result.ok) {
+      setErrors(result.fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit(result.data);
   };
 
   return (
@@ -51,6 +107,32 @@ function RouteFormDrawerContent({
       submitLabel={isEdit ? 'Actualizar Ruta' : 'Crear Ruta'}
       loading={loading}
     >
+      {/* Ciudad (filtra las líneas disponibles) */}
+      <div>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+          Ciudad <span className="text-rose-500">*</span>
+        </label>
+        <select
+          value={cityId}
+          onChange={(e) => handleCityChange(e.target.value)}
+          required
+          disabled={loading || isEdit || cities.length === 0}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
+        >
+          <option value="">Selecciona una ciudad...</option>
+          {cities.map((c) => (
+            <option key={c.id} value={c.id}>
+              {c.name} ({c.department})
+            </option>
+          ))}
+        </select>
+        {isEdit && (
+          <p className="mt-1 text-[11px] text-slate-400">
+            La ciudad viene de la línea asignada y no puede cambiarse.
+          </p>
+        )}
+      </div>
+
       {/* Línea de Transporte */}
       <div>
         <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
@@ -58,21 +140,27 @@ function RouteFormDrawerContent({
         </label>
         <select
           value={form.transportLineId}
-          onChange={(e) => setForm((f) => ({ ...f, transportLineId: e.target.value }))}
+          onChange={(e) => update({ transportLineId: e.target.value }, 'transportLineId')}
           required
-          disabled={loading || isEdit}
+          disabled={loading || isEdit || filteredLines.length === 0}
           className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
         >
           <option value="">Selecciona una línea...</option>
-          {lines.map((l) => (
+          {filteredLines.map((l) => (
             <option key={l.id} value={l.id}>
               {l.name} {l.code ? `(${l.code})` : ''}
             </option>
           ))}
         </select>
+        <FieldError message={errors.transportLineId} />
         {isEdit && (
           <p className="mt-1 text-[11px] text-slate-400">
             La línea asociada es fija una vez creada la ruta.
+          </p>
+        )}
+        {!isEdit && cityId && filteredLines.length === 0 && (
+          <p className="mt-1 text-[11px] text-amber-600">
+            No hay líneas registradas en esta ciudad. Creá una línea primero.
           </p>
         )}
       </div>
@@ -87,10 +175,11 @@ function RouteFormDrawerContent({
             type="text"
             required
             value={form.code}
-            onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+            onChange={(e) => update({ code: e.target.value }, 'code')}
             placeholder="Ej: R101, LINEA-1"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.code} />
         </div>
 
         {/* Tarifa */}
@@ -101,10 +190,11 @@ function RouteFormDrawerContent({
           <input
             type="text"
             value={form.fare}
-            onChange={(e) => setForm((f) => ({ ...f, fare: e.target.value }))}
+            onChange={(e) => update({ fare: e.target.value }, 'fare')}
             placeholder="Ej: 1.50"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.fare} />
         </div>
       </div>
 
@@ -117,10 +207,11 @@ function RouteFormDrawerContent({
           type="text"
           required
           value={form.name}
-          onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+          onChange={(e) => update({ name: e.target.value }, 'name')}
           placeholder="Ej: Huacachina - Mercado Central"
           className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         />
+        <FieldError message={errors.name} />
       </div>
 
       {/* Color Preset Palette */}
@@ -159,10 +250,11 @@ function RouteFormDrawerContent({
           <input
             type="text"
             value={form.schedule}
-            onChange={(e) => setForm((f) => ({ ...f, schedule: e.target.value }))}
+            onChange={(e) => update({ schedule: e.target.value }, 'schedule')}
             placeholder="Ej: 06:00 - 22:30"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.schedule} />
         </div>
 
         {/* Frecuencia */}
@@ -173,10 +265,11 @@ function RouteFormDrawerContent({
           <input
             type="text"
             value={form.frequency}
-            onChange={(e) => setForm((f) => ({ ...f, frequency: e.target.value }))}
+            onChange={(e) => update({ frequency: e.target.value }, 'frequency')}
             placeholder="Ej: Cada 8 - 12 min"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.frequency} />
         </div>
       </div>
 
@@ -203,10 +296,11 @@ function RouteFormDrawerContent({
         <textarea
           rows={3}
           value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+          onChange={(e) => update({ description: e.target.value }, 'description')}
           placeholder="Información adicional sobre avenidas principales, terminales..."
           className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
         />
+        <FieldError message={errors.description} />
       </div>
     </AdminDrawer>
   );

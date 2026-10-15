@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { ShieldCheck, Lock, User, AlertCircle, ArrowRight, ArrowLeft } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import { authService } from '../../services/authService';
+import { FieldError } from '../../components/common/FieldError';
+import { loginSchema, validateWith } from '../../schemas';
 
 function useNoIndex() {
   useEffect(() => {
@@ -30,16 +32,23 @@ export function AdminLoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError(null);
+    const result = validateWith(loginSchema, { email, password });
+    if (!result.ok) {
+      setFieldErrors(result.fieldErrors);
+      return;
+    }
+    setFieldErrors({});
     setLoading(true);
 
     try {
-      await authService.login(email, password);
+      await authService.login(result.data.email, result.data.password);
       navigate('/admin/overview');
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Error al iniciar sesión');
@@ -87,10 +96,19 @@ export function AdminLoginPage() {
                 type="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  setFieldErrors((prev) => {
+                    if (!prev.email) return prev;
+                    const next = { ...prev };
+                    delete next.email;
+                    return next;
+                  });
+                }}
                 placeholder="admin@ejemplo.com"
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               />
+              <FieldError message={fieldErrors.email} className="text-xs" />
             </div>
           </div>
 
@@ -104,9 +122,18 @@ export function AdminLoginPage() {
                 type="password"
                 required
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
+                onChange={(e) => {
+                  setPassword(e.target.value);
+                  setFieldErrors((prev) => {
+                    if (!prev.password) return prev;
+                    const next = { ...prev };
+                    delete next.password;
+                    return next;
+                  });
+                }}
                 className="w-full pl-10 pr-4 py-2.5 bg-slate-50 rounded-xl border border-slate-200 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500"
               />
+              <FieldError message={fieldErrors.password} className="text-xs" />
             </div>
           </div>
 

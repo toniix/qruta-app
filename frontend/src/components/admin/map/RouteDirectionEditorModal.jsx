@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { adminRouteService } from '../../../services/adminRouteService';
 import { adminStopService } from '../../../services/adminStopService';
+import { StopQuickCreateModal } from './StopQuickCreateModal';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
 const DEFAULT_CENTER = [-14.0678, -75.7286]; // Ica
@@ -56,12 +57,17 @@ export function RouteDirectionEditorModal({
   open,
   onClose,
   route,
+  cities = [],
+  cityId = '',
   onSaved,
 }) {
   const toast = useAdminToast();
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [allStops, setAllStops] = useState([]);
+
+  // Quick-create stop overlay (city is fixed: it comes from the route's line)
+  const [quickCreateOpen, setQuickCreateOpen] = useState(false);
 
   // Directions state: array of { id, direction, originName, destinationName, totalDistanceKm, estimatedMinutes, stops: [{ stopId, stopOrder, stopName, lat, lng, distanceFromStart }] }
   const [directions, setDirections] = useState([]);
@@ -150,6 +156,20 @@ export function RouteDirectionEditorModal({
 
   const activeDirection = directions[activeDirIndex] || null;
 
+  const routeCity = useMemo(
+    () => cities.find((c) => String(c.id) === String(cityId)),
+    [cities, cityId]
+  );
+
+  // Stops scoped to the route's city. Stops without cityId (legacy data)
+  // are kept visible since we can't prove they belong elsewhere.
+  const cityStops = useMemo(() => {
+    if (!cityId) return allStops;
+    return allStops.filter(
+      (s) => !s.cityId || String(s.cityId) === String(cityId)
+    );
+  }, [allStops, cityId]);
+
   const updateActiveDirection = (patch) => {
     setDirections((prev) =>
       prev.map((d, idx) => (idx === activeDirIndex ? { ...d, ...patch } : d))
@@ -199,6 +219,26 @@ export function RouteDirectionEditorModal({
       stops: [...(activeDirection.stops || []), newStop],
     });
     setSelectedStopToAdd('');
+  };
+
+  const handleQuickStopCreated = (created) => {
+    setAllStops((prev) => [...prev, created]);
+    // Add it straight into the active direction sequence.
+    if (activeDirection) {
+      updateActiveDirection({
+        stops: [
+          ...(activeDirection.stops || []),
+          {
+            stopId: created.id,
+            stopOrder: (activeDirection.stops || []).length + 1,
+            name: created.name,
+            latitude: created.latitude,
+            longitude: created.longitude,
+            distanceFromStart: 0,
+          },
+        ],
+      });
+    }
   };
 
   const handleMoveStop = (index, direction) => {
@@ -471,18 +511,30 @@ export function RouteDirectionEditorModal({
 
                 {/* Add Stop to sequence Bar */}
                 <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-card space-y-2">
-                  <h4 className="text-xs font-bold text-slate-900">
-                    Secuencia de Paraderos ({activeDirection.stops?.length || 0})
-                  </h4>
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold text-slate-900">
+                      Secuencia de Paraderos ({activeDirection.stops?.length || 0})
+                    </h4>
+                    {routeCity && (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
+                        <MapPin className="h-3 w-3" />
+                        {routeCity.name}
+                      </span>
+                    )}
+                  </div>
 
                   <div className="flex gap-2">
                     <select
                       value={selectedStopToAdd}
                       onChange={(e) => setSelectedStopToAdd(e.target.value)}
-                      className="flex-1 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                      className="flex-1 min-w-0 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
                     >
-                      <option value="">Seleccionar un paradero del sistema...</option>
-                      {allStops.map((stop) => (
+                      <option value="">
+                        {cityStops.length === 0
+                          ? 'No hay paraderos en esta ciudad...'
+                          : 'Seleccionar un paradero del sistema...'}
+                      </option>
+                      {cityStops.map((stop) => (
                         <option key={stop.id} value={stop.id}>
                           {stop.name} {stop.reference ? `(${stop.reference})` : ''}
                         </option>
@@ -499,6 +551,25 @@ export function RouteDirectionEditorModal({
                       <span>Agregar</span>
                     </button>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={() => setQuickCreateOpen(true)}
+                    disabled={!cityId}
+                    title={
+                      cityId
+                        ? 'Crear un paradero nuevo en esta ciudad sin salir del editor'
+                        : 'La ciudad de la ruta no está disponible'
+                    }
+                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-500 hover:text-blue-600 disabled:opacity-40"
+                  >
+                    <Plus className="h-3.5 w-3.5" />
+                    <span>
+                      {cityStops.length === 0
+                        ? 'Crear el primer paradero de esta ciudad'
+                        : 'Nuevo paradero en esta ciudad'}
+                    </span>
+                  </button>
                 </div>
 
                 {/* Stops Sequencer List */}
@@ -665,6 +736,14 @@ export function RouteDirectionEditorModal({
           </div>
         </div>
       </div>
+      {/* Quick-create stop overlay (above the directions modal) */}
+      <StopQuickCreateModal
+        open={quickCreateOpen}
+        onClose={() => setQuickCreateOpen(false)}
+        cityId={cityId}
+        city={routeCity}
+        onCreated={handleQuickStopCreated}
+      />
     </div>,
     document.body
   );

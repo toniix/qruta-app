@@ -22,6 +22,7 @@ import {
   SEARCH_CATEGORIES,
   matchesCategory,
 } from '../../components/search/categoryFilter';
+import { searchQuerySchema } from '../../schemas';
 
 const RECENT_KEY = 'rutasya_recent_searches';
 const MAX_RECENT = 5;
@@ -79,7 +80,14 @@ export function SearchPage() {
   /* Global search across all cities (no cityId = backend default scope) */
   const executeSearch = useCallback(
     async (queryToSearch) => {
-      const term = (queryToSearch ?? destination).trim();
+      const raw = queryToSearch ?? destination;
+      const checked = searchQuerySchema.safeParse(raw == null ? '' : String(raw));
+      if (!checked.success) {
+        setSearchError('Búsqueda demasiado larga (máx. 100 caracteres).');
+        setSearchResults([]);
+        return;
+      }
+      const term = checked.data;
       if (!term) {
         setSearchResults(null);
         setLastQuery('');

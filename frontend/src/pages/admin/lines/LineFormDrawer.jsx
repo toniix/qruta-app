@@ -1,6 +1,8 @@
 import { useState } from 'react';
 import { Bus, Check } from 'lucide-react';
 import { AdminDrawer } from '../../../components/admin/common/AdminDrawer';
+import { FieldError } from '../../../components/common/FieldError';
+import { lineSchema, validateWith } from '../../../schemas';
 import { BRAND_PRIMARY } from '../../../constants/brand';
 
 const PRESET_COLORS = [
@@ -34,9 +36,29 @@ function LineFormDrawerContent({
     status: initialData?.status || 'ACTIVE',
   }));
 
+  const [errors, setErrors] = useState({});
+
+  const update = (patch, field) => {
+    setForm((f) => ({ ...f, ...patch }));
+    if (field) {
+      setErrors((prev) => {
+        if (!prev[field]) return prev;
+        const next = { ...prev };
+        delete next[field];
+        return next;
+      });
+    }
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    onSubmit(form);
+    const result = validateWith(lineSchema, form);
+    if (!result.ok) {
+      setErrors(result.fieldErrors);
+      return;
+    }
+    setErrors({});
+    onSubmit(result.data);
   };
 
   return (
@@ -57,7 +79,7 @@ function LineFormDrawerContent({
         </label>
         <select
           value={form.cityId}
-          onChange={(e) => setForm((f) => ({ ...f, cityId: e.target.value }))}
+          onChange={(e) => update({ cityId: e.target.value }, 'cityId')}
           required
           disabled={loading || isEdit}
           className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
@@ -69,6 +91,7 @@ function LineFormDrawerContent({
             </option>
           ))}
         </select>
+        <FieldError message={errors.cityId} />
         {isEdit && (
           <p className="mt-1 text-[11px] text-slate-400">
             La ciudad es fija una vez creada la línea.
@@ -85,10 +108,11 @@ function LineFormDrawerContent({
           <input
             type="text"
             value={form.code}
-            onChange={(e) => setForm((f) => ({ ...f, code: e.target.value }))}
+            onChange={(e) => update({ code: e.target.value }, 'code')}
             placeholder="Ej: L01"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.code} />
         </div>
 
         {/* Nombre */}
@@ -100,10 +124,11 @@ function LineFormDrawerContent({
             type="text"
             required
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => update({ name: e.target.value }, 'name')}
             placeholder="Ej: Línea 1 - Los Rápidos"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.name} />
         </div>
       </div>
 
@@ -143,10 +168,11 @@ function LineFormDrawerContent({
           <input
             type="text"
             value={form.company}
-            onChange={(e) => setForm((f) => ({ ...f, company: e.target.value }))}
+            onChange={(e) => update({ company: e.target.value }, 'company')}
             placeholder="Ej: Empresa de Transportes Ica S.A."
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.company} />
         </div>
 
         {/* Contacto */}
@@ -157,10 +183,11 @@ function LineFormDrawerContent({
           <input
             type="text"
             value={form.contact}
-            onChange={(e) => setForm((f) => ({ ...f, contact: e.target.value }))}
+            onChange={(e) => update({ contact: e.target.value }, 'contact')}
             placeholder="Ej: +51 956 000 000"
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
+          <FieldError message={errors.contact} />
         </div>
       </div>
 
@@ -184,13 +211,14 @@ function LineFormDrawerContent({
         <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
           Descripción o Flota
         </label>
-        <textarea
-          rows={3}
-          value={form.description}
-          onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
-          placeholder="Detalles sobre flota de microbuses, paraderos base..."
-          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-        />
+          <textarea
+            rows={3}
+            value={form.description}
+            onChange={(e) => update({ description: e.target.value }, 'description')}
+            placeholder="Detalles sobre flota de microbuses, paraderos base..."
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          />
+          <FieldError message={errors.description} />
       </div>
     </AdminDrawer>
   );
