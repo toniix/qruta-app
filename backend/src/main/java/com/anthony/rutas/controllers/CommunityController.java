@@ -29,9 +29,11 @@ public class CommunityController {
             @RequestParam(required = false) UUID routeId,
             @RequestParam(required = false) UUID cityId,
             @RequestParam(required = false) Integer limit,
+            @RequestParam(required = false, defaultValue = "0") Integer page,
+            @RequestParam(required = false, defaultValue = "recent") String sort,
             @RequestHeader(value = "X-Device-Id", required = false) String deviceId
     ) {
-        return ResponseEntity.ok(communityService.getPosts(category, routeId, cityId, limit, deviceId));
+        return ResponseEntity.ok(communityService.getPosts(category, routeId, cityId, limit, page, sort, deviceId));
     }
 
     @PostMapping("/posts")

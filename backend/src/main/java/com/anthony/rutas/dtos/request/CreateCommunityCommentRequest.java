@@ -14,5 +14,8 @@ public class CreateCommunityCommentRequest {
     @NotBlank(message = "El comentario no puede estar vacío")
     @Size(min = 2, max = 400, message = "El comentario debe tener entre 2 y 400 caracteres")
     private String content;
+
+    /** Honeypot anti-spam: debe llegar vacío. */
+    private String website;
 }
 

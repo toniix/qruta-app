@@ -50,16 +50,22 @@ export function getCategoryMeta(categoryId) {
 }
 
 export const communityService = {
-  async getPosts({ category, routeId, cityId, limit = 40 } = {}) {
+  async getPosts(
+    { category, routeId, cityId, limit = 20, page = 0, sort = 'recent' } = {},
+    config = {},
+  ) {
     const params = {};
     if (category && category !== 'ALL') params.category = category;
     if (routeId) params.routeId = routeId;
     if (cityId) params.cityId = cityId;
     if (limit) params.limit = limit;
+    if (page) params.page = page;
+    if (sort && sort !== 'recent') params.sort = sort;
 
     const response = await apiClient.get('/community/posts', {
       params,
       headers: deviceHeaders(),
+      ...config,
     });
     return Array.isArray(response.data) ? response.data : [];
   },
@@ -100,10 +106,10 @@ export const communityService = {
     return Array.isArray(response.data) ? response.data : [];
   },
 
-  async addComment(postId, { authorAlias, content }) {
+  async addComment(postId, { authorAlias, content, website = '' }) {
     const response = await apiClient.post(
       `/community/posts/${postId}/comments`,
-      { authorAlias, content },
+      { authorAlias, content, website },
       { headers: deviceHeaders() },
     );
     return response.data;

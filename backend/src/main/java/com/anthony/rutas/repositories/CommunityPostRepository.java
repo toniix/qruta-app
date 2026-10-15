@@ -29,6 +29,21 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, UU
 
        @Query("SELECT p FROM CommunityPost p " +
                      "LEFT JOIN FETCH p.route r " +
+                     "LEFT JOIN FETCH r.transportLine tl " +
+                     "LEFT JOIN FETCH p.city c " +
+                     "WHERE (:category IS NULL OR p.category = :category) " +
+                     "AND (:routeId IS NULL OR r.id = :routeId) " +
+                     "AND (:cityId IS NULL OR c.id = :cityId) " +
+                     "ORDER BY p.likesCount DESC, p.createdAt DESC")
+       List<CommunityPost> findFilteredPostsByLikes(
+                     @Param("category") PostCategory category,
+                     @Param("routeId") UUID routeId,
+                     @Param("cityId") UUID cityId,
+                     Pageable pageable);
+
+       @Query("SELECT p FROM CommunityPost p " +
+                     "LEFT JOIN FETCH p.route r " +
+                     "LEFT JOIN FETCH r.transportLine tl " +
                      "LEFT JOIN FETCH p.city c " +
                      "WHERE p.id = :id")
        Optional<CommunityPost> findByIdWithDetails(@Param("id") UUID id);

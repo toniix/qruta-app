@@ -1,12 +1,8 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   MessageSquare,
   Plus,
-  ThumbsUp,
-  MessageCircle,
-  Trash2,
-  Send,
   AlertTriangle,
   HelpCircle,
   Lightbulb,
@@ -14,9 +10,7 @@ import {
   Route as RouteIcon,
   User,
   X,
-  Loader2,
   RefreshCw,
-  ArrowRight,
   Sparkles,
 } from 'lucide-react';
 import { useRoutes } from '../../contexts/RouteContext';
@@ -26,8 +20,18 @@ import {
   COMMUNITY_CATEGORIES,
   getCategoryMeta,
 } from '../../services/communityService';
-import { formatRelativeTime } from '../../utils/dateUtils';
 import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
+import { MemoPostCard } from '../../components/community/PostCard';
+import {
+  aliasSchema,
+  communityCommentSchema,
+  communityPostSchema,
+  validateWith,
+} from '../../schemas';
+import {
+  ComposeModal,
+  AliasModal,
+} from '../../components/community/CommunityModals';
 
 const COMPOSE_DRAFT_KEY = 'rutasya:compose-draft';
 
@@ -46,6 +50,43 @@ const CATEGORY_ICONS = {
   OBJETOS_PERDIDOS: Briefcase,
 };
 
+const PAGE_SIZE = 20;
+// Mismo valor que el backend (CommunityService.COOLDOWN_MS): publicar o comentar
+// dos veces seguidas dentro de esta ventana da 400. Lo reflejamos en UI para
+// avisar antes de pegar a la API.
+const PUBLISH_COOLDOWN_MS = 8_000;
+
+// Caché SWR en memoria (vive mientras el SPA está montado): entrar a Comunidad
+// pinta instantáneo y revalida en segundo plano. TTL corto para no mostrar
+// likes/counts viejos. Sin login no hay usuario, la clave es filtro+orden.
+const FEED_CACHE_TTL_MS = 60_000;
+const feedCache = new Map();
+function feedCacheKey(category, routeId, sort) {
+  return `${category || 'ALL'}|${routeId || ''}|${sort || 'recent'}`;
+}
+function readFeedCache(key) {
+  const hit = feedCache.get(key);
+  if (!hit) return null;
+  if (Date.now() - hit.ts > FEED_CACHE_TTL_MS) {
+    feedCache.delete(key);
+    return null;
+  }
+  return hit;
+}
+function writeFeedCache(key, entry) {
+  // Guardamos solo la primera página + estado; el scroll infinito pide el resto
+  feedCache.set(key, { ...entry, ts: Date.now() });
+  if (feedCache.size > 20) {
+    const oldest = feedCache.keys().next().value;
+    feedCache.delete(oldest);
+  }
+}
+function invalidateFeedCache() {
+  // Crear/borrar cambia el feed: la próxima entrada refetchea (los likes quedan
+  // stale como máximo 60s, compromiso aceptado para no perder el instant paint)
+  feedCache.clear();
+}
+
 function getInitials(name) {
   if (!name) return 'U';
   const parts = name.trim().split(/\s+/);
@@ -63,8 +104,14 @@ export function CommunityPage() {
   const initialCreateOpen = searchParams.get('compose') === '1';
 
   const [selectedCategory, setSelectedCategory] = useState('ALL');
+  const [sortOrder, setSortOrder] = useState('recent');
+  const [mineOnly, setMineOnly] = useState(false);
   const [posts, setPosts] = useState([]);
+  const [page, setPage] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [isRevalidating, setIsRevalidating] = useState(false);
   const [error, setError] = useState(null);
 
   // Compose modal state
@@ -73,6 +120,7 @@ export function CommunityPage() {
   const [formCategory, setFormCategory] = useState('ALERTA');
   const [formRouteId, setFormRouteId] = useState(routeFilterId);
   const [formContent, setFormContent] = useState(readComposeDraft);
+  const [honeypot, setHoneypot] = useState('');
   const [submittingPost, setSubmittingPost] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -92,6 +140,7 @@ export function CommunityPage() {
   // Edit alias inline modal
   const [showAliasModal, setShowAliasModal] = useState(false);
   const [tempAlias, setTempAlias] = useState(alias);
+  const [aliasError, setAliasError] = useState(null);
 
   // Expanded comments per post: { [postId]: { open: boolean, loading: boolean, items: [], text: '', sending: boolean } }
   const [commentsMap, setCommentsMap] = useState({});
@@ -100,6 +149,37 @@ export function CommunityPage() {
   const [deletePostTarget, setDeletePostTarget] = useState(null);
   const [deletingPost, setDeletingPost] = useState(false);
   const [actionError, setActionError] = useState(null);
+  // Cooldown anti-spam visible: timestamp hasta el cual no se puede volver a publicar
+  const [cooldownUntil, setCooldownUntil] = useState(0);
+  const [nowTick, setNowTick] = useState(() => Date.now());
+  // Post donde se intentó comentar durante el cooldown (feedback inline ahí mismo)
+  const [commentBlockedPostId, setCommentBlockedPostId] = useState(null);
+  // When commenting without alias, remember which post triggered the alias modal
+  const [pendingCommentPostId, setPendingCommentPostId] = useState(null);
+  const composeFirstFieldRef = useRef(null);
+  const aliasInputRef = useRef(null);
+
+  const cooldownRemaining = Math.max(
+    0,
+    Math.ceil((cooldownUntil - nowTick) / 1000),
+  );
+  const coolingDown = cooldownRemaining > 0;
+
+  // Tick de 1s solo mientras dura el cooldown (para la cuenta regresiva)
+  useEffect(() => {
+    if (Date.now() >= cooldownUntil) return undefined;
+    const t = setInterval(() => {
+      const n = Date.now();
+      if (n >= cooldownUntil) clearInterval(t);
+      setNowTick(n);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [cooldownUntil]);
+
+  // Al terminar el cooldown se limpia el aviso inline del comentario
+  useEffect(() => {
+    if (!coolingDown) setCommentBlockedPostId(null);
+  }, [coolingDown]);
 
   const filteredRouteObj = useMemo(() => {
     if (!routeFilterId) return null;
@@ -115,56 +195,165 @@ export function CommunityPage() {
 
   const handleCategoryChange = (catId) => {
     if (catId === selectedCategory) return;
-    setLoading(true);
+    const hit = readFeedCache(
+      feedCacheKey(catId === 'ALL' ? null : catId, routeFilterId || null, sortOrder),
+    );
+    if (hit) {
+      setPosts(hit.posts);
+      setPage(hit.page);
+      setHasMore(hit.hasMore);
+      setLoading(false);
+    } else {
+      setPosts([]);
+      setPage(0);
+      setHasMore(true);
+    }
     setError(null);
     setSelectedCategory(catId);
   };
 
-  const fetchPosts = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await communityService.getPosts({
-        category: selectedCategory === 'ALL' ? null : selectedCategory,
-        routeId: routeFilterId || null,
-      });
-      setPosts(data);
-    } catch (err) {
-      console.error('Error al cargar publicaciones de la comunidad:', err);
-      setError('No se pudieron cargar las publicaciones. Verifica tu conexión.');
-    } finally {
+  const handleSortChange = (next) => {
+    if (next === sortOrder) return;
+    const hit = readFeedCache(
+      feedCacheKey(
+        selectedCategory === 'ALL' ? null : selectedCategory,
+        routeFilterId || null,
+        next,
+      ),
+    );
+    if (hit) {
+      setPosts(hit.posts);
+      setPage(hit.page);
+      setHasMore(hit.hasMore);
       setLoading(false);
+    } else {
+      setPosts([]);
+      setPage(0);
+      setHasMore(true);
     }
-  }, [selectedCategory, routeFilterId]);
+    setError(null);
+    setSortOrder(next);
+  };
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const data = await communityService.getPosts({
+  const loadPage = useCallback(async (targetPage, { initial = false, signal, revalidate = false } = {}) => {
+    if (revalidate) {
+      setIsRevalidating(true);
+    } else if (initial) {
+      setLoading(true);
+    } else {
+      setLoadingMore(true);
+    }
+    if (!revalidate) setError(null);
+    let cancelled = false;
+    try {
+      const data = await communityService.getPosts(
+        {
           category: selectedCategory === 'ALL' ? null : selectedCategory,
           routeId: routeFilterId || null,
+          limit: PAGE_SIZE,
+          page: targetPage,
+          sort: sortOrder,
+        },
+        signal ? { signal } : undefined,
+      );
+      const key = feedCacheKey(
+        selectedCategory === 'ALL' ? null : selectedCategory,
+        routeFilterId || null,
+        sortOrder,
+      );
+      if (targetPage === 0) {
+        setPosts(data);
+        setPage(0);
+        const more = data.length >= PAGE_SIZE;
+        setHasMore(more);
+        writeFeedCache(key, { posts: data, page: 0, hasMore: more });
+      } else {
+        setPosts((prev) => {
+          const merged = [...prev, ...data];
+          writeFeedCache(key, {
+            posts: merged.slice(0, PAGE_SIZE),
+            page: 0,
+            hasMore: true,
+          });
+          return merged;
         });
-        if (isMounted) {
-          setPosts(data);
-          setError(null);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error al cargar publicaciones de la comunidad:', err);
-          setError('No se pudieron cargar las publicaciones. Verifica tu conexión.');
-        }
-      } finally {
-        if (isMounted) setLoading(false);
+        setPage(targetPage);
+        setHasMore(data.length >= PAGE_SIZE);
       }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [selectedCategory, routeFilterId]);
+    } catch (err) {
+      if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
+        // Request abortado por uno más nuevo: NO tocar loading, el request vivo manda
+        cancelled = true;
+        return;
+      }
+      console.error('Error al cargar publicaciones de la comunidad:', err);
+      // En revalidación silenciosa no pisamos el feed con error, solo avisamos
+      if (!revalidate) {
+        setError('No se pudieron cargar las publicaciones. Verifica tu conexión.');
+      }
+    } finally {
+      if (!cancelled) {
+        setLoading(false);
+        setLoadingMore(false);
+        setIsRevalidating(false);
+      }
+    }
+  }, [selectedCategory, routeFilterId, sortOrder]);
+
+  const fetchPosts = useCallback(
+    (signal) => loadPage(0, { initial: true, signal }),
+    [loadPage],
+  );
+
+  useEffect(() => {
+    const key = feedCacheKey(
+      selectedCategory === 'ALL' ? null : selectedCategory,
+      routeFilterId || null,
+      sortOrder,
+    );
+    const cached = readFeedCache(key);
+    if (cached) {
+      // Pintamos instantáneo y revalidamos en segundo plano (stale-while-revalidate)
+      setPosts(cached.posts);
+      setPage(cached.page);
+      setHasMore(cached.hasMore);
+      setLoading(false);
+      const controller = new AbortController();
+      loadPage(0, { revalidate: true, signal: controller.signal });
+      return () => controller.abort();
+    }
+    const controller = new AbortController();
+    loadPage(0, { initial: true, signal: controller.signal });
+    return () => controller.abort();
+  }, [loadPage]);
+
+  // Scroll infinito: cuando el centinela entra en vista, pide la siguiente página
+  const sentinelRef = useRef(null);
+  useEffect(() => {
+    if (!hasMore || loading || loadingMore || error) return undefined;
+    const el = sentinelRef.current;
+    if (!el) return undefined;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting) {
+          loadPage(page + 1);
+        }
+      },
+      { rootMargin: '400px' },
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, error, page, loadPage]);
+
+  const visiblePosts = useMemo(() => {
+    if (!mineOnly) return posts;
+    return posts.filter((p) => p.ownedByMe);
+  }, [posts, mineOnly]);
 
   const handleClearRouteFilter = () => {
-    setLoading(true);
+    setPosts([]);
+    setPage(0);
+    setHasMore(true);
     const next = new URLSearchParams(searchParams);
     next.delete('routeId');
     next.delete('compose');
@@ -187,17 +376,25 @@ export function CommunityPage() {
     e.preventDefault();
     setFormError(null);
 
-    const cleanAlias = (formAlias || '').trim();
-    const cleanContent = (formContent || '').trim();
+    const result = validateWith(communityPostSchema, {
+      authorAlias: (formAlias || '').trim(),
+      category: formCategory,
+      content: (formContent || '').trim(),
+      routeId: formRouteId || null,
+    });
+    if (!result.ok) {
+      setFormError(Object.values(result.fieldErrors)[0]);
+      return;
+    }
+    if (coolingDown) {
+      setFormError(
+        `Publicaste hace muy poco. Esperá ${cooldownRemaining}s antes de publicar de nuevo.`,
+      );
+      return;
+    }
 
-    if (cleanAlias.length < 2) {
-      setFormError('Por favor ingresa un alias o nombre de al menos 2 letras.');
-      return;
-    }
-    if (cleanContent.length < 4) {
-      setFormError('Escribe un mensaje de al menos 4 caracteres.');
-      return;
-    }
+    const cleanAlias = result.data.authorAlias;
+    const cleanContent = result.data.content;
 
     setSubmittingPost(true);
     try {
@@ -207,10 +404,16 @@ export function CommunityPage() {
         category: formCategory,
         content: cleanContent,
         routeId: formRouteId || null,
+        website: honeypot,
       });
 
+      // Nuevo post primero; si hay paginación activa, igual aparece arriba sin recargar
       setPosts((prev) => [created, ...prev]);
+      invalidateFeedCache();
+      setMineOnly(false);
       setFormContent('');
+      setCooldownUntil(Date.now() + PUBLISH_COOLDOWN_MS);
+      setNowTick(Date.now());
       setShowComposeModal(false);
     } catch (err) {
       const msg =
@@ -231,6 +434,9 @@ export function CommunityPage() {
       );
     } catch (err) {
       console.error('Error al actualizar reacción:', err);
+      setActionError(
+        err.response?.data?.message || 'No se pudo registrar tu reacción. Intenta de nuevo.',
+      );
     }
   };
 
@@ -239,6 +445,7 @@ export function CommunityPage() {
     try {
       await communityService.deleteOwnPost(postId);
       setPosts((prev) => prev.filter((p) => String(p.id) !== String(postId)));
+      invalidateFeedCache();
       setDeletePostTarget(null);
     } catch (err) {
       setActionError(
@@ -296,21 +503,16 @@ export function CommunityPage() {
     }));
   };
 
-  const handleAddComment = async (e, postId) => {
-    e.preventDefault();
+  const sendComment = async (postId, aliasToUse) => {
     const state = commentsMap[postId];
     const cleanText = (state?.text || '').trim();
-    if (cleanText.length < 2) return;
-
-    let activeAlias = alias.trim();
-    if (activeAlias.length < 2) {
-      const prompted = window.prompt(
-        'Ingresa tu nombre o alias para comentar en la comunidad:',
-        '',
-      );
-      if (!prompted || prompted.trim().length < 2) return;
-      activeAlias = prompted.trim();
-      setAlias(activeAlias);
+    const result = validateWith(communityCommentSchema, {
+      authorAlias: aliasToUse,
+      content: cleanText,
+    });
+    if (!result.ok) {
+      setActionError(Object.values(result.fieldErrors)[0]);
+      return;
     }
 
     setCommentsMap((prev) => ({
@@ -320,8 +522,9 @@ export function CommunityPage() {
 
     try {
       const created = await communityService.addComment(postId, {
-        authorAlias: activeAlias,
+        authorAlias: aliasToUse,
         content: cleanText,
+        website: '',
       });
 
       setCommentsMap((prev) => ({
@@ -341,6 +544,9 @@ export function CommunityPage() {
             : p,
         ),
       );
+      setCooldownUntil(Date.now() + PUBLISH_COOLDOWN_MS);
+      setNowTick(Date.now());
+      setCommentBlockedPostId(null);
     } catch (err) {
       setCommentsMap((prev) => ({
         ...prev,
@@ -350,6 +556,24 @@ export function CommunityPage() {
         err.response?.data?.message || 'No se pudo enviar el comentario.',
       );
     }
+  };
+
+  const handleAddComment = async (e, postId) => {
+    e.preventDefault();
+    const activeAlias = alias.trim();
+    if (activeAlias.length < 2) {
+      // Sin prompt nativo: abrimos el modal de alias accesible y retomamos al guardar
+      setTempAlias('');
+      setPendingCommentPostId(postId);
+      setShowAliasModal(true);
+      return;
+    }
+    if (coolingDown) {
+      // Feedback inline junto al input, no un banner lejos del botón
+      setCommentBlockedPostId(postId);
+      return;
+    }
+    await sendComment(postId, activeAlias);
   };
 
   const handleDeleteComment = async (postId, commentId) => {
@@ -380,11 +604,54 @@ export function CommunityPage() {
 
   const handleSaveAlias = (e) => {
     e.preventDefault();
-    if (tempAlias.trim().length >= 2) {
-      setAlias(tempAlias.trim());
-      setShowAliasModal(false);
+    const parsed = aliasSchema.safeParse(tempAlias);
+    if (!parsed.success) {
+      setAliasError(parsed.error.issues[0]?.message || 'Alias inválido.');
+      return;
+    }
+    const clean = parsed.data;
+    setAlias(clean);
+    setAliasError(null);
+    setShowAliasModal(false);
+    // Si venía de comentar, enviamos automáticamente con el alias nuevo
+    const pending = pendingCommentPostId;
+    setPendingCommentPostId(null);
+    if (pending) {
+      // HACK: defer un tick para que el estado de alias ya esté aplicado
+      setTimeout(() => sendComment(pending, clean), 0);
     }
   };
+
+  // Escape cierra modales + foco inicial accesible (sin focus-trap pesado, suficiente para 2 modales simples)
+  useEffect(() => {
+    if (!showComposeModal && !showAliasModal) return undefined;
+    function onKeyDown(event) {
+      if (event.key === 'Escape') {
+        setShowComposeModal(false);
+        setShowAliasModal(false);
+        setPendingCommentPostId(null);
+      }
+    }
+    document.addEventListener('keydown', onKeyDown);
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [showComposeModal, showAliasModal]);
+
+  useEffect(() => {
+    if (showComposeModal) {
+      // HACK: pequeño delay para que el modal monte antes del focus
+      const t = setTimeout(() => composeFirstFieldRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [showComposeModal]);
+
+  useEffect(() => {
+    if (showAliasModal) {
+      const t = setTimeout(() => aliasInputRef.current?.focus(), 60);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [showAliasModal]);
 
   return (
     <div className="flex flex-col h-[100dvh] h-screen bg-surface-page overflow-hidden">
@@ -431,10 +698,15 @@ export function CommunityPage() {
         </div>
 
         {/* Category Filter Chips */}
-        <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-0.5">
+        <div
+          className="flex items-center gap-2 overflow-x-auto hide-scrollbar pb-0.5"
+          role="group"
+          aria-label="Filtrar por categoría"
+        >
           <button
             type="button"
             onClick={() => handleCategoryChange('ALL')}
+            aria-pressed={selectedCategory === 'ALL'}
             className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
               selectedCategory === 'ALL'
                 ? 'bg-brand-primary text-white border-brand-primary shadow-xs'
@@ -452,6 +724,7 @@ export function CommunityPage() {
                 key={cat.id}
                 type="button"
                 onClick={() => handleCategoryChange(cat.id)}
+                aria-pressed={active}
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
                   active
                     ? cat.activeChipClass
@@ -469,7 +742,7 @@ export function CommunityPage() {
         {routeFilterId && (
           <div className="flex items-center justify-between gap-2 bg-blue-50/90 border border-blue-200/80 rounded-xl px-3 py-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
-              <RouteIcon className="w-4 h-4 text-brand-primary shrink-0" />
+              <RouteIcon className="w-4 h-4 text-brand-primary shrink-0" aria-hidden="true" />
               <span className="text-slate-700 truncate">
                 Filtrando por ruta:{' '}
                 <strong className="text-slate-900">
@@ -484,15 +757,76 @@ export function CommunityPage() {
               onClick={handleClearRouteFilter}
               className="inline-flex items-center gap-1 text-xs font-bold text-brand-primary hover:text-brand-primary-dark shrink-0"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
               <span>Ver todas</span>
             </button>
           </div>
         )}
+
+        {/* Sort + Mine controls */}
+        <div className="flex items-center gap-2">
+          <div
+            className="inline-flex items-center rounded-full border border-slate-200 bg-slate-50 p-0.5"
+            role="group"
+            aria-label="Ordenar publicaciones"
+          >
+            <button
+              type="button"
+              onClick={() => handleSortChange('recent')}
+              aria-pressed={sortOrder === 'recent'}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${
+                sortOrder === 'recent'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500'
+              }`}
+            >
+              Recientes
+            </button>
+            <button
+              type="button"
+              onClick={() => handleSortChange('popular')}
+              aria-pressed={sortOrder === 'popular'}
+              className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${
+                sortOrder === 'popular'
+                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
+                  : 'text-slate-500'
+              }`}
+            >
+              Más útiles
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setMineOnly((v) => !v)}
+            aria-pressed={mineOnly}
+            className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
+              mineOnly
+                ? 'bg-brand-primary text-white border-brand-primary'
+                : 'bg-slate-50 text-slate-600 border-slate-200'
+            }`}
+          >
+            Mis publicaciones
+          </button>
+
+          {isRevalidating && !loading && (
+            <span
+              className="ml-auto inline-flex items-center gap-1.5 text-[11px] font-semibold text-slate-400"
+              role="status"
+            >
+              <span className="w-3 h-3 rounded-full border-2 border-slate-300 border-t-brand-primary animate-spin" />
+              Actualizando…
+            </span>
+          )}
+        </div>
       </header>
 
       {/* ── Feed Content ────────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto hide-scrollbar p-4 sm:p-5 space-y-4 max-w-2xl mx-auto w-full pb-28">
+      <main
+        className="flex-1 overflow-y-auto hide-scrollbar p-4 sm:p-5 space-y-4 max-w-2xl mx-auto w-full pb-28"
+        aria-live="polite"
+        aria-busy={loading}
+      >
         {/* Inline action error banner (replaces window.alert) */}
         {actionError && (
           <div
@@ -531,10 +865,11 @@ export function CommunityPage() {
         </button>
 
         {loading ? (
-          <div className="space-y-3 py-4">
+          <div className="space-y-3 py-4" role="status" aria-label="Cargando publicaciones">
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
+                aria-hidden="true"
                 className="bg-white rounded-2xl p-4 border border-slate-200/70 shadow-card space-y-3 animate-pulse"
               >
                 <div className="flex items-center gap-3">
@@ -554,464 +889,126 @@ export function CommunityPage() {
             <p className="text-xs font-semibold text-slate-700">{error}</p>
             <button
               type="button"
-              onClick={fetchPosts}
+              onClick={() => fetchPosts()}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-brand-primary bg-blue-50 px-3.5 py-2 rounded-xl hover:bg-blue-100 transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Reintentar
             </button>
           </div>
-        ) : posts.length === 0 ? (
+        ) : visiblePosts.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-card space-y-3 animate-fade-in">
-            <MessageSquare className="w-8 h-8 text-slate-400 mx-auto" />
+            <MessageSquare className="w-8 h-8 text-slate-400 mx-auto" aria-hidden="true" />
             <h3 className="text-sm font-bold text-ink-primary">
-              Aún no hay publicaciones en esta sección
+              {mineOnly
+                ? 'Aún no tienes publicaciones'
+                : 'Aún no hay publicaciones en esta sección'}
             </h3>
             <p className="text-xs text-ink-muted max-w-xs mx-auto">
-              Sé el primero en compartir una alerta de ruta, recomendación o pregunta con la comunidad.
+              {mineOnly
+                ? 'Cuando publiques con este dispositivo, las verás aquí.'
+                : 'Sé el primero en compartir una alerta de ruta, recomendación o pregunta con la comunidad.'}
             </p>
             <button
               type="button"
               onClick={openComposeModal}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-primary px-4 py-2.5 rounded-xl hover:bg-brand-primary-dark transition-colors"
             >
-              <Plus className="w-4 h-4" />
-              Crear primera publicación
+              <Plus className="w-4 h-4" aria-hidden="true" />
+              {mineOnly ? 'Crear publicación' : 'Crear primera publicación'}
             </button>
           </div>
         ) : (
-          posts.map((post) => {
-            const catMeta = getCategoryMeta(post.category);
-            const CatIcon = CATEGORY_ICONS[post.category] || MessageSquare;
-            const commentState = commentsMap[post.id] || {
-              open: false,
-              loading: false,
-              items: [],
-              text: '',
-              sending: false,
-            };
-
-            return (
-              <article
-                key={post.id}
-                className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-card space-y-3 transition-all hover:border-slate-300"
-              >
-                {/* Post Header */}
-                <div className="flex items-start justify-between gap-2">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200/80">
-                      {getInitials(post.authorAlias)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-1.5 flex-wrap">
-                        <span className="font-bold text-sm text-slate-900 truncate">
-                          {post.authorAlias}
-                        </span>
-                        {post.ownedByMe && (
-                          <span className="text-[10px] font-bold bg-blue-50 text-brand-primary px-1.5 py-0.5 rounded-md border border-blue-200/60">
-                            Tú
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-500 font-medium">
-                        {formatRelativeTime(post.createdAt)}
-                      </p>
-                    </div>
-                  </div>
-
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[11px] font-bold px-2.5 py-1 rounded-full border ${catMeta.badgeClass}`}
-                    >
-                      <CatIcon className="w-3 h-3" />
-                      <span>{catMeta.label}</span>
-                    </span>
-
-                    {post.ownedByMe && (
-                      <button
-                        type="button"
-                        onClick={() => setDeletePostTarget(post.id)}
-                        className="relative p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition-colors after:absolute after:-inset-2 after:content-['']"
-                        title="Eliminar mi publicación"
-                        aria-label="Eliminar mi publicación"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Post Content */}
-                <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line break-words">
-                  {post.content}
-                </p>
-
-                {/* Tagged Route Pill (Bidirectional link to Map) */}
-                {post.routeId && (
-                  <button
-                    type="button"
-                    onClick={() => handleOpenRouteOnMap(post)}
-                    className="w-full sm:w-auto inline-flex items-center justify-between sm:justify-start gap-2.5 bg-slate-50 hover:bg-blue-50/70 border border-slate-200/90 hover:border-blue-200 rounded-xl px-3 py-2 text-left transition-colors group"
-                  >
-                    <span
-                      className="px-2 py-0.5 rounded-lg text-white font-bold text-[11px] uppercase tracking-wider shrink-0"
-                      style={{
-                        backgroundColor:
-                          post.routeColor || 'var(--color-brand-primary)',
-                      }}
-                    >
-                      {post.routeCode || 'Ruta'}
-                    </span>
-                    <span className="text-xs font-bold text-slate-700 group-hover:text-brand-primary truncate">
-                      {post.routeName || 'Ver recorrido en el mapa'}
-                    </span>
-                    <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-brand-primary shrink-0" />
-                  </button>
-                )}
-
-                {/* Post Actions Bar: Like & Comments */}
-                <div className="pt-2 border-t border-slate-100 flex items-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => handleToggleLike(post.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-xl text-xs font-bold transition-all active:scale-95 ${
-                      post.likedByMe
-                        ? 'bg-blue-50 text-brand-primary border border-blue-200/80'
-                        : 'text-slate-600 hover:bg-slate-100 border border-transparent'
-                    }`}
-                  >
-                    <ThumbsUp
-                      className="w-3.5 h-3.5"
-                      fill={post.likedByMe ? 'currentColor' : 'none'}
-                    />
-                    <span>Útil</span>
-                    {post.likesCount > 0 && (
-                      <span className="ml-0.5 px-1.5 py-0.2 rounded-full bg-white/80 text-[11px]">
-                        {post.likesCount}
-                      </span>
-                    )}
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => handleToggleComments(post.id)}
-                    className={`inline-flex items-center gap-1.5 px-3 py-1.5 min-h-11 rounded-xl text-xs font-bold transition-colors ${
-                      commentState.open
-                        ? 'bg-slate-100 text-slate-900'
-                        : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <MessageCircle className="w-3.5 h-3.5" />
-                    <span>
-                      {post.commentsCount > 0
-                        ? `${post.commentsCount} ${post.commentsCount === 1 ? 'comentario' : 'comentarios'}`
-                        : 'Comentar'}
-                    </span>
-                  </button>
-                </div>
-
-                {/* Expandable Comments Section */}
-                {commentState.open && (
-                  <div className="pt-2 space-y-3 border-t border-slate-100 animate-fade-in">
-                    {commentState.loading ? (
-                      <div className="flex items-center justify-center py-3 text-xs text-slate-500 gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-brand-primary" />
-                        <span>Cargando comentarios...</span>
-                      </div>
-                    ) : commentState.items.length === 0 ? (
-                      <p className="text-xs text-slate-500 text-center py-2">
-                        Aún no hay respuestas. ¡Escribe el primer comentario!
-                      </p>
-                    ) : (
-                      <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
-                        {commentState.items.map((comment) => (
-                          <div
-                            key={comment.id}
-                            className="bg-slate-50 rounded-xl p-2.5 border border-slate-200/60 flex items-start justify-between gap-2"
-                          >
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-slate-900">
-                                  {comment.authorAlias}
-                                </span>
-                                {comment.ownedByMe && (
-                                  <span className="text-[11px] font-bold text-brand-primary">
-                                    • Tú
-                                  </span>
-                                )}
-                                <span className="text-[11px] text-slate-500">
-                                  {formatRelativeTime(comment.createdAt)}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-700 mt-0.5 break-words">
-                                {comment.content}
-                              </p>
-                            </div>
-                            {comment.ownedByMe && (
-                              <button
-                                type="button"
-                                onClick={() =>
-                                  handleDeleteComment(post.id, comment.id)
-                                }
-                                className="relative p-1 text-slate-500 hover:text-rose-600 rounded-lg after:absolute after:-inset-3 after:content-['']"
-                                title="Eliminar comentario"
-                                aria-label="Eliminar comentario"
-                              >
-                                <Trash2 className="w-3.5 h-3.5" />
-                              </button>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-                    )}
-
-                    {/* Add Comment Form */}
-                    <form
-                      onSubmit={(e) => handleAddComment(e, post.id)}
-                      className="flex items-center gap-2"
-                    >
-                      <input
-                        type="text"
-                        value={commentState.text || ''}
-                        onChange={(e) =>
-                          handleCommentTextChange(post.id, e.target.value)
-                        }
-                        maxLength={400}
-                        placeholder={
-                          hasAlias
-                            ? `Responder como ${alias}...`
-                            : 'Escribe una respuesta...'
-                        }
-                        className="flex-1 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:border-brand-primary px-3 py-2 text-xs text-slate-900 outline-none transition-colors"
-                      />
-                      <button
-                        type="submit"
-                        disabled={
-                          commentState.sending ||
-                          !(commentState.text || '').trim()
-                        }
-                        className="relative p-2 rounded-xl bg-brand-primary text-white hover:bg-brand-primary-dark disabled:opacity-50 transition-colors shrink-0 after:absolute after:-inset-1.5 after:content-['']"
-                        aria-label="Enviar comentario"
-                      >
-                        {commentState.sending ? (
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                        ) : (
-                          <Send className="w-4 h-4" />
-                        )}
-                      </button>
-                    </form>
-                  </div>
-                )}
-              </article>
-            );
-          })
+          <>
+            {visiblePosts.map((post) => {
+              const catMeta = getCategoryMeta(post.category);
+              const CatIcon = CATEGORY_ICONS[post.category] || MessageSquare;
+              const commentState = commentsMap[post.id] || {
+                open: false,
+                loading: false,
+                items: [],
+                text: '',
+                sending: false,
+              };
+              return (
+                <MemoPostCard
+                  key={post.id}
+                  post={post}
+                  catMeta={catMeta}
+                  CatIcon={CatIcon}
+                  commentState={commentState}
+                  onToggleLike={handleToggleLike}
+                  onToggleComments={handleToggleComments}
+                  onDeletePost={(id) => setDeletePostTarget(id)}
+                  onOpenRoute={handleOpenRouteOnMap}
+                  commentSectionProps={{
+                    onToggleComments: handleToggleComments,
+                    onTextChange: handleCommentTextChange,
+                    onAddComment: handleAddComment,
+                    onDeleteComment: handleDeleteComment,
+                    alias,
+                    hasAlias,
+                    cooldownRemaining,
+                    commentBlockedPostId,
+                  }}
+                />
+              );
+            })}
+            <div ref={sentinelRef} aria-hidden="true" className="h-2" />
+            {loadingMore && (
+              <div className="flex items-center justify-center py-4 text-xs text-slate-500 gap-2" role="status">
+                <span className="w-4 h-4 rounded-full border-2 border-brand-primary/30 border-t-brand-primary animate-spin" />
+                <span>Cargando más publicaciones...</span>
+              </div>
+            )}
+            {!hasMore && visiblePosts.length > 0 && (
+              <p className="text-center text-[11px] text-slate-400 py-2">
+                Ya viste todas las publicaciones de esta sección.
+              </p>
+            )}
+          </>
         )}
       </main>
 
-      {/* ── Compose New Post Modal ──────────────────────────────────────── */}
-      {showComposeModal && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="compose-modal-title"
-        >
-          <div className="bg-white w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl shadow-overlay border border-slate-200/80 p-5 space-y-4 max-h-[90dvh] overflow-y-auto">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5 text-brand-primary" />
-                <h2
-                  id="compose-modal-title"
-                  className="text-base font-bold text-slate-900"
-                >
-                  Nueva publicación en Comunidad
-                </h2>
-              </div>
-              <button
-                type="button"
-                onClick={() => setShowComposeModal(false)}
-                className="relative p-1.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 after:absolute after:-inset-1.5 after:content-['']"
-                aria-label="Cerrar"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+      <ComposeModal
+        open={showComposeModal}
+        formAlias={formAlias}
+        setFormAlias={setFormAlias}
+        formCategory={formCategory}
+        setFormCategory={setFormCategory}
+        formRouteId={formRouteId}
+        setFormRouteId={setFormRouteId}
+        formContent={formContent}
+        setFormContent={setFormContent}
+        honeypot={honeypot}
+        setHoneypot={setHoneypot}
+        formError={formError}
+        submitting={submittingPost}
+        cooldownRemaining={cooldownRemaining}
+        routes={routes}
+        firstFieldRef={composeFirstFieldRef}
+        categoryIcons={CATEGORY_ICONS}
+        onClose={() => setShowComposeModal(false)}
+        onSubmit={handleCreatePost}
+      />
 
-            {formError && (
-              <div className="bg-rose-50 border border-rose-200 text-rose-700 rounded-xl p-3 text-xs font-semibold flex items-center gap-2">
-                <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>{formError}</span>
-              </div>
-            )}
-
-            <form onSubmit={handleCreatePost} className="space-y-4">
-              {/* Author Alias */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">
-                  Tu nombre o alias público *
-                </label>
-                <input
-                  type="text"
-                  required
-                  minLength={2}
-                  maxLength={40}
-                  value={formAlias}
-                  onChange={(e) => setFormAlias(e.target.value)}
-                  placeholder="Ej. Carlos Ica, Pasajero UNICA..."
-                  className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-primary outline-none"
-                />
-              </div>
-
-              {/* Category Picker */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1.5">
-                  Categoría *
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {COMMUNITY_CATEGORIES.map((cat) => {
-                    const Icon = CATEGORY_ICONS[cat.id] || MessageSquare;
-                    const active = formCategory === cat.id;
-                    return (
-                      <button
-                        key={cat.id}
-                        type="button"
-                        onClick={() => setFormCategory(cat.id)}
-                        className={`flex items-center gap-2 p-2.5 rounded-xl border text-xs font-bold text-left transition-all ${
-                          active
-                            ? `${cat.badgeClass} ring-2 ring-brand-primary/20`
-                            : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
-                        }`}
-                      >
-                        <Icon className="w-4 h-4 shrink-0" />
-                        <span className="truncate">{cat.label}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Optional Route Tag */}
-              <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500 mb-1">
-                  Etiquetar Ruta (Opcional)
-                </label>
-                <select
-                  value={formRouteId}
-                  onChange={(e) => setFormRouteId(e.target.value)}
-                  className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-primary outline-none"
-                >
-                  <option value="">— Ninguna ruta en específico —</option>
-                  {routes.map((r) => (
-                    <option key={r.id} value={r.id}>
-                      [{r.code}] {r.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Content Textarea */}
-              <div>
-                <div className="flex justify-between items-center mb-1">
-                  <label className="block text-[11px] font-bold uppercase tracking-wide text-slate-500">
-                    Mensaje *
-                  </label>
-                  <span className="text-[11px] text-slate-500">
-                    {formContent.length}/600
-                  </span>
-                </div>
-                <textarea
-                  rows={4}
-                  required
-                  minLength={4}
-                  maxLength={600}
-                  value={formContent}
-                  onChange={(e) => setFormContent(e.target.value)}
-                  placeholder="Comparte el estado del tráfico, pregunta qué línea tomar o deja una recomendación útil..."
-                  className="w-full rounded-xl border border-slate-300 p-3 text-sm text-slate-900 focus:border-brand-primary outline-none resize-none"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setShowComposeModal(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-700 hover:bg-slate-50"
-                >
-                  Cancelar
-                </button>
-                <button
-                  type="submit"
-                  disabled={submittingPost}
-                  className="inline-flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-brand-primary hover:bg-brand-primary-dark text-white text-xs font-bold shadow-xs disabled:opacity-60"
-                >
-                  {submittingPost ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <Send className="w-4 h-4" />
-                  )}
-                  <span>Publicar ahora</span>
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
-
-      {/* ── Quick Alias Modal ───────────────────────────────────────────── */}
-      {showAliasModal && (
-        <div
-          className="fixed inset-0 z-50 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in"
-          role="dialog"
-          aria-modal="true"
-        >
-          <form
-            onSubmit={handleSaveAlias}
-            className="bg-white w-full max-w-sm rounded-2xl shadow-overlay border border-slate-200 p-5 space-y-4"
-          >
-            <div className="flex items-center justify-between">
-              <h3 className="text-sm font-bold text-slate-900">
-                Tu alias en la Comunidad
-              </h3>
-              <button
-                type="button"
-                onClick={() => setShowAliasModal(false)}
-                className="relative p-1 text-slate-500 hover:text-slate-600 after:absolute after:-inset-3 after:content-['']"
-                aria-label="Cerrar"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-            <p className="text-xs text-slate-500">
-              Se guarda en este dispositivo sin necesidad de crear cuenta ni contraseña.
-            </p>
-            <input
-              type="text"
-              required
-              minLength={2}
-              maxLength={40}
-              value={tempAlias}
-              onChange={(e) => setTempAlias(e.target.value)}
-              placeholder="Ej. Carlos Ica"
-              className="w-full rounded-xl border border-slate-300 px-3 py-2 text-sm text-slate-900 focus:border-brand-primary outline-none"
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setShowAliasModal(false)}
-                className="px-3.5 py-2 rounded-xl border border-slate-300 text-xs font-bold text-slate-600"
-              >
-                Cancelar
-              </button>
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-xl bg-brand-primary text-white text-xs font-bold"
-              >
-                Guardar alias
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+      <AliasModal
+        open={showAliasModal}
+        tempAlias={tempAlias}
+        setTempAlias={(v) => {
+          setTempAlias(v);
+          setAliasError(null);
+        }}
+        aliasError={aliasError}
+        inputRef={aliasInputRef}
+        pendingComment={pendingCommentPostId}
+        onClose={() => {
+          setShowAliasModal(false);
+          setPendingCommentPostId(null);
+          setAliasError(null);
+        }}
+        onSubmit={handleSaveAlias}
+      />
 
       {/* Delete Post Confirm Dialog */}
       <ConfirmDialog

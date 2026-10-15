@@ -9,6 +9,8 @@ import com.anthony.rutas.entities.*;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.*;
+import com.github.benmanes.caffeine.cache.Caffeine;
+
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -16,7 +18,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
 import java.util.*;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -33,15 +35,20 @@ public class CommunityService {
     private static final int MAX_POSTS_LIMIT = 60;
     private static final long COOLDOWN_MS = 8_000L;
 
-    // Simple in-memory rate limiter per deviceId to prevent rapid spam
-    private final Map<String, Long> lastActionByDevice = new ConcurrentHashMap<>();
+    // Rate-limit con TTL: evita mapa sin tope y reseteos por reinicio en una sola
+    // instancia.
+    // NOTA: con múltiples instancias usar Redis/DB; sin login es el compromiso
+    // aceptado.
+    private final com.github.benmanes.caffeine.cache.Cache<String, Long> rateLimitCache = Caffeine.newBuilder()
+            .expireAfterWrite(30, TimeUnit.SECONDS)
+            .maximumSize(10_000)
+            .build();
 
     // Basic list of offensive words in Spanish to keep the community respectful
     private static final Set<String> BANNED_WORDS = Set.of(
             "mierda", "puto", "puta", "carajo", "conchatumadre", "ctm",
             "huevon", "weon", "imbecil", "idiota", "estupido", "pendejo",
-            "cojudo", "malparido", "hdp"
-    );
+            "cojudo", "malparido", "hdp");
 
     private static final Pattern WORD_SPLIT = Pattern.compile("[^a-z0-9]+");
 
@@ -51,15 +58,17 @@ public class CommunityService {
             UUID routeId,
             UUID cityId,
             Integer limit,
-            String deviceId
-    ) {
-        int safeLimit = (limit != null && limit > 0 && limit <= MAX_POSTS_LIMIT) ? limit : 40;
-        List<CommunityPost> posts = postRepository.findFilteredPosts(
-                category,
-                routeId,
-                cityId,
-                PageRequest.of(0, safeLimit)
-        );
+            Integer page,
+            String sort,
+            String deviceId) {
+        int safeLimit = (limit != null && limit > 0 && limit <= MAX_POSTS_LIMIT) ? limit : 20;
+        int safePage = (page != null && page >= 0 && page <= 1000) ? page : 0;
+        boolean byLikes = "popular".equalsIgnoreCase(sort);
+        List<CommunityPost> posts = byLikes
+                ? postRepository.findFilteredPostsByLikes(
+                        category, routeId, cityId, PageRequest.of(safePage, safeLimit))
+                : postRepository.findFilteredPosts(
+                        category, routeId, cityId, PageRequest.of(safePage, safeLimit));
 
         if (posts.isEmpty()) {
             return List.of();
@@ -70,6 +79,17 @@ public class CommunityService {
         return posts.stream()
                 .map(post -> toPostResponse(post, deviceId, likedIds.contains(post.getId())))
                 .collect(Collectors.toList());
+    }
+
+    /** Compat: callers antiguos sin paginación (página 0, orden recientes). */
+    @Transactional(readOnly = true)
+    public List<CommunityPostResponse> getPosts(
+            PostCategory category,
+            UUID routeId,
+            UUID cityId,
+            Integer limit,
+            String deviceId) {
+        return getPosts(category, routeId, cityId, limit, 0, "recent", deviceId);
     }
 
     @Transactional(readOnly = true)
@@ -95,6 +115,7 @@ public class CommunityService {
 
     @Transactional
     public CommunityPostResponse createPost(CreateCommunityPostRequest request, String deviceId) {
+        rejectHoneypot(request.getWebsite());
         String cleanDeviceId = requireDeviceId(deviceId);
         enforceRateLimit(cleanDeviceId);
 
@@ -107,13 +128,15 @@ public class CommunityService {
         Route route = null;
         if (request.getRouteId() != null) {
             route = routeRepository.findById(request.getRouteId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Ruta no encontrada con ID: " + request.getRouteId()));
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Ruta no encontrada con ID: " + request.getRouteId()));
         }
 
         City city = null;
         if (request.getCityId() != null) {
             city = cityRepository.findById(request.getCityId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Ciudad no encontrada con ID: " + request.getCityId()));
+                    .orElseThrow(
+                            () -> new ResourceNotFoundException("Ciudad no encontrada con ID: " + request.getCityId()));
         }
 
         CommunityPost post = CommunityPost.builder()
@@ -185,6 +208,7 @@ public class CommunityService {
 
     @Transactional
     public CommunityCommentResponse addComment(UUID postId, CreateCommunityCommentRequest request, String deviceId) {
+        rejectHoneypot(request.getWebsite());
         String cleanDeviceId = requireDeviceId(deviceId);
         enforceRateLimit(cleanDeviceId);
 
@@ -271,15 +295,22 @@ public class CommunityService {
 
     private void enforceRateLimit(String deviceId) {
         long now = System.currentTimeMillis();
-        Long previous = lastActionByDevice.get(deviceId);
+        Long previous = rateLimitCache.getIfPresent(deviceId);
         if (previous != null && (now - previous) < COOLDOWN_MS) {
             throw new BadRequestException("Por favor espera unos segundos antes de volver a publicar.");
         }
-        lastActionByDevice.put(deviceId, now);
+        rateLimitCache.put(deviceId, now);
+    }
+
+    private void rejectHoneypot(String website) {
+        if (website != null && !website.isBlank()) {
+            throw new BadRequestException("No se pudo procesar la solicitud.");
+        }
     }
 
     private String sanitizeText(String raw) {
-        if (raw == null) return "";
+        if (raw == null)
+            return "";
         return raw.trim().replaceAll("\\s{3,}", "  ");
     }
 
@@ -290,7 +321,8 @@ public class CommunityService {
         String[] tokens = WORD_SPLIT.split(normalized);
         for (String token : tokens) {
             if (BANNED_WORDS.contains(token)) {
-                throw new BadRequestException("El mensaje contiene lenguaje inapropiado. Mantengamos el respeto en la comunidad.");
+                throw new BadRequestException(
+                        "El mensaje contiene lenguaje inapropiado. Mantengamos el respeto en la comunidad.");
             }
         }
     }
@@ -350,4 +382,3 @@ public class CommunityService {
                 .build();
     }
 }
-

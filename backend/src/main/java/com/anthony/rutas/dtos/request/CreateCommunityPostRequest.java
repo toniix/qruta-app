@@ -25,5 +25,8 @@ public class CreateCommunityPostRequest {
     private UUID routeId;
 
     private UUID cityId;
+
+    /** Honeypot anti-spam: debe llegar vacío (los bots lo completan). */
+    private String website;
 }
 
