@@ -275,6 +275,7 @@ export function RouteProvider({ children }) {
       if (lastGeocodeCoordsRef.current !== null) {
         lastGeocodeCoordsRef.current = null;
         setUserAddress(null);
+        setRawAddressStatus("idle");
       }
       return;
     }
@@ -319,9 +320,9 @@ export function RouteProvider({ children }) {
     };
   }, [gpsReady, userLocation]);
 
-  // Exposed address status. When GPS is not ready there is no address to resolve,
-  // so it reads "idle"; deriving it here avoids a setState inside the effect above
-  // (a cascading render the exhaustive-deps/react-hooks lint flags).
+  // Exposed address status. The geocode effect above resets the raw status
+  // on the GPS-not-ready path; the derivation below is a render-time guard
+  // so consumers never see a stale address status when GPS is not ready.
   const addressStatus = gpsReady ? rawAddressStatus : "idle";
 
   // Filter routes for the map/catalog scope.

@@ -123,6 +123,24 @@ starting; a terminal `'error'` never spins forever.
     `npm run lint` is therefore not clean on this base and cannot be made clean without editing
     `PostCard.jsx` (out of scope).
 
+- [x] **T5 — Verifier correction: reset stale `rawAddressStatus` on GPS re-request**
+  (`src/contexts/RouteContext.jsx`, `src/contexts/RouteContext.test.jsx`)
+  - Independent verifier found the T2 derivation (`gpsReady ? rawAddressStatus : 'idle'`) was not
+    behavior-preserving: the geocode effect early-return nulled `userAddress` but left
+    `rawAddressStatus` stale, so every GPS re-request painted one frame of "Sin ubicación activa".
+  - Fix: `setRawAddressStatus("idle")` inside the existing
+    `if (lastGeocodeCoordsRef.current !== null)` early-return block (conditional setState, lint-clean);
+    derivation kept as render-time guard; its misleading comment rewritten.
+  - New `RouteContext.test.jsx` drives the exact counterexample (ready/A → locating →
+    ready/fresh-coords) and asserts no render frame ever pairs `addressStatus='ready'` with null
+    `userAddress` (history-slice assertion — final-state assertions cannot catch the frame).
+  - Check: `npx vitest run src/contexts/RouteContext.test.jsx` RED→GREEN; full suite green; lint
+    adds no new error.
+  - Evidence: RED — `1 failed` (`expected [ { addressStatus: 'ready', userAddress: null } ] to
+    deeply equal []`); GREEN — `Test Files 1 passed (1) / Tests 1 passed (1)`; full
+    `Test Files 7 passed (7) / Tests 42 passed (42)`; `npm run lint` → same 3 pre-existing base
+    errors only; `grep -rn "hasCustomLocation\|loadingAddress" src` → empty.
+
 ## Test-first plan
 - `src/hooks/useGeolocation.test.jsx`: RED first — assert the desired API (`gpsStatus` transitions,
   `gpsReady`/`isLocating` derivations, `location` starts `null`) fails against the current hook, then
@@ -160,5 +178,9 @@ starting; a terminal `'error'` never spins forever.
 - 2026-10-16 — Blocker surfaced: a second, active `opencode` session shares this exact worktree
   (PIDs 139521 / 141398) and is editing unrelated backend files (stop-image / Supabase storage
   feature, untouched by this task). The feature branch was created at 01:04, which moved the shared
-  HEAD. Work-unit commit stages frontend files + this document ONLY; the backend changes are left
-  untouched and unstaged.
+   HEAD. Work-unit commit stages frontend files + this document ONLY; the backend changes are left
+   untouched and unstaged.
+- 2026-10-16 — T5 verifier correction committed: `setRawAddressStatus("idle")` in the geocode
+  effect early-return + new `RouteContext.test.jsx` (RED→GREEN). Parent-verified: full suite
+  `Test Files 7 passed (7) / Tests 42 passed (42)`; targeted eslint on both touched files shows
+  only the pre-existing `:209`/`:220` errors; full `npm run lint` → same 3 base errors.
