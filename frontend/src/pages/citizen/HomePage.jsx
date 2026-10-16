@@ -62,7 +62,6 @@ export function HomePage() {
     routes,
     triggerGpsRequest,
     isLocating,
-    hasCustomLocation,
     gpsReady,
     selectRoute,
     nearbyStops,
@@ -77,6 +76,7 @@ export function HomePage() {
     outsideCoverage,
     setCity,
     resetToGpsDetection,
+    addressStatus,
   } = useRoutes();
 
   const nearbyStopsRef = useRef(null);
@@ -124,6 +124,11 @@ export function HomePage() {
       ? `${userStreetLine}, ${userDistrict}`
       : userStreetLine
     : userAddress?.formattedAddress || '';
+
+  // GPS may already be ready while the reverse-geocode request is still in
+  // flight; treat that gap as loading so the pill never flashes "Sin ubicación activa".
+  const isResolvingLocation =
+    isLocating || (gpsReady && (addressStatus === 'idle' || addressStatus === 'loading'));
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
@@ -183,7 +188,7 @@ export function HomePage() {
               </p>
             ) : (
               <p className="flex items-center gap-1.5 min-w-0 flex-1 text-xs font-medium text-ink-muted bg-slate-100/90 border border-slate-200/70 rounded-full px-3 py-1">
-                {isLocating ? (
+                {isResolvingLocation ? (
                   <>
                     <Loader2 className="w-3 h-3 animate-spin shrink-0" />
                     <span className="truncate">Detectando tu ubicación…</span>
@@ -382,7 +387,7 @@ export function HomePage() {
           </div>
 
           {/* GPS not active CTA */}
-          {!hasCustomLocation && !loadingStops && (
+          {!gpsReady && !loadingStops && (
             <div className="bg-white rounded-2xl p-5 shadow-card border border-slate-100">
               <div className="flex flex-col items-center gap-2.5 py-2 text-center">
                 <div className="w-11 h-11 bg-blue-50 rounded-2xl flex items-center justify-center">
@@ -473,7 +478,7 @@ export function HomePage() {
           {/* GPS active but no stops found */}
           {!loadingStops &&
             !stopsError &&
-            hasCustomLocation &&
+            gpsReady &&
             nearbyStops.length === 0 && (
               <div className="bg-white rounded-2xl p-5 shadow-card border border-slate-100 text-center">
                 <MapPin className="w-8 h-8 text-slate-400 mx-auto mb-2" />
@@ -492,7 +497,7 @@ export function HomePage() {
           <div className="flex justify-between items-center">
             <h2 className="text-base font-bold text-ink-primary">
               Rutas populares
-              {(hasCustomLocation || gpsReady) && (
+              {gpsReady && (
                 <span className="text-sm font-medium text-ink-muted">
                   {' '}
                   · a 2 km o menos

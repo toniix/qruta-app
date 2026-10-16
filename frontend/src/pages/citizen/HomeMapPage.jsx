@@ -44,7 +44,6 @@ export function HomeMapPage() {
     triggerGpsRequest,
     isLocating,
     gpsReady,
-    hasCustomLocation,
     loadingRouteDetail,
     userAddress,
     nearbyStops,
@@ -523,7 +522,7 @@ export function HomeMapPage() {
   };
 
   const handleRecenterGPS = async () => {
-    if (!hasCustomLocation && !gpsReady) {
+    if (!gpsReady) {
       try {
         await triggerGpsRequest();
       } catch (err) {
@@ -559,7 +558,7 @@ export function HomeMapPage() {
           selectedStop={selectedStop}
           searchedLocation={searchedLocation}
           userLocation={userLocation}
-          gpsReady={gpsReady || hasCustomLocation}
+          gpsReady={gpsReady}
           isLocating={isLocating}
           onSelectRoute={handleSelectRoute}
           onSelectStop={selectStop}

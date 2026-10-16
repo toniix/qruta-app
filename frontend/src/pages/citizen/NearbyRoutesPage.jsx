@@ -24,7 +24,6 @@ export function NearbyRoutesPage() {
     selectRoute,
     triggerGpsRequest,
     isLocating,
-    hasCustomLocation,
     gpsReady,
     userAddress,
   } = useRoutes();
@@ -46,10 +45,10 @@ export function NearbyRoutesPage() {
   }
 
   useEffect(() => {
-    if (!hasCustomLocation && !gpsReady) {
+    if (!gpsReady) {
       triggerGpsRequest().catch(() => {});
     }
-  }, [hasCustomLocation, gpsReady, triggerGpsRequest]);
+  }, [gpsReady, triggerGpsRequest]);
 
   useEffect(() => {
     if (!userLocation) return;
@@ -124,7 +123,7 @@ export function NearbyRoutesPage() {
             routes={nearbyRoutesList}
             userLocation={userLocation}
             userAddress={userAddress}
-            gpsReady={gpsReady || hasCustomLocation}
+            gpsReady={gpsReady}
             mapCenter={
               userLocation ? [userLocation.lat, userLocation.lng] : [-14.0678, -75.7286]
             }
@@ -135,7 +134,7 @@ export function NearbyRoutesPage() {
           <div className="absolute bottom-3 right-3 z-10 bg-white/95 backdrop-blur-md px-3 py-1.5 rounded-full border border-slate-200/80 shadow-md text-xs font-bold text-slate-800 flex items-center gap-2">
             <span
               className={`w-2.5 h-2.5 rounded-full ${
-                gpsReady || hasCustomLocation
+                gpsReady
                   ? "bg-emerald-500 animate-pulse"
                   : isLocating
                     ? "bg-blue-500 animate-ping"
@@ -143,7 +142,7 @@ export function NearbyRoutesPage() {
               }`}
             />
             <span>
-              {gpsReady || hasCustomLocation
+              {gpsReady
                 ? "GPS Activo"
                 : isLocating
                   ? "Buscando GPS..."

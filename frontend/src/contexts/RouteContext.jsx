@@ -40,7 +40,7 @@ export function RouteProvider({ children }) {
   const [loadingRouteDetail, setLoadingRouteDetail] = useState(false);
   const [showGpsModal, setShowGpsModal] = useState(false);
   const [userAddress, setUserAddress] = useState(null);
-  const [loadingAddress, setLoadingAddress] = useState(false);
+  const [rawAddressStatus, setRawAddressStatus] = useState("idle");
 
   const [cities, setCities] = useState([]);
   const [currentCity, setCurrentCity] = useState(null);
@@ -58,9 +58,9 @@ export function RouteProvider({ children }) {
 
   const {
     location: userLocation,
+    gpsStatus,
     isLocating,
     requestLocation,
-    hasCustomLocation,
     gpsReady,
     gpsPermissionState,
     setGpsPermissionState,
@@ -98,7 +98,7 @@ export function RouteProvider({ children }) {
   const displayedPopularRoutes = useMemo(() => {
     if (!popularRoutes || popularRoutes.length === 0) return [];
 
-    const isGpsActive = Boolean(hasCustomLocation || gpsReady);
+    const isGpsActive = Boolean(gpsReady);
     const lat = userLocation?.lat;
     const lng = userLocation?.lng;
 
@@ -139,7 +139,6 @@ export function RouteProvider({ children }) {
   }, [
     popularRoutes,
     routes,
-    hasCustomLocation,
     gpsReady,
     userLocation?.lat,
     userLocation?.lng,
@@ -201,7 +200,7 @@ export function RouteProvider({ children }) {
 
   // Auto-detect city from GPS when available (unless user manually selected a different city)
   useEffect(() => {
-    if (!hasCustomLocation && !gpsReady) return;
+    if (!gpsReady) return;
     if (!userLocation?.lat || !userLocation?.lng) return;
     if (!cities || cities.length === 0) return;
     if (isManualCity) return;
@@ -213,7 +212,7 @@ export function RouteProvider({ children }) {
       setCurrentCity(result.city);
       localStorage.removeItem("rutasya_selected_city_id");
     }
-  }, [hasCustomLocation, gpsReady, userLocation, cities, isManualCity, currentCity?.id]);
+  }, [gpsReady, userLocation, cities, isManualCity, currentCity?.id]);
 
   // Reload routes whenever currentCity changes
   useEffect(() => {
@@ -225,7 +224,7 @@ export function RouteProvider({ children }) {
   // Fetch nearby stops once user location is known, avoiding re-fetches on tiny GPS jitter
   const lastCoordsRef = useRef(null);
   const loadNearbyStops = useCallback(async () => {
-    if (!hasCustomLocation || !userLocation?.lat || !userLocation?.lng) return;
+    if (!gpsReady || !userLocation?.lat || !userLocation?.lng) return;
 
     if (lastCoordsRef.current) {
       const d = calculateDistanceKm(
@@ -253,7 +252,7 @@ export function RouteProvider({ children }) {
     } finally {
       setLoadingStops(false);
     }
-  }, [hasCustomLocation, userLocation]);
+  }, [gpsReady, userLocation]);
 
   useEffect(() => {
     let isMounted = true;
@@ -272,7 +271,7 @@ export function RouteProvider({ children }) {
   useEffect(() => {
     let isMounted = true;
 
-    if (!hasCustomLocation && !gpsReady) {
+    if (!gpsReady) {
       if (lastGeocodeCoordsRef.current !== null) {
         lastGeocodeCoordsRef.current = null;
         setUserAddress(null);
@@ -296,26 +295,34 @@ export function RouteProvider({ children }) {
       lng: userLocation.lng,
     };
     (async () => {
-      setLoadingAddress(true);
+      setRawAddressStatus("loading");
       try {
         const result = await geocodingService.reverseGeocode(
           userLocation.lat,
           userLocation.lng,
         );
-        if (isMounted && result) {
+        if (!isMounted) return;
+        if (result) {
           setUserAddress(result);
+          setRawAddressStatus("ready");
+        } else {
+          setRawAddressStatus("error");
         }
       } catch (err) {
         console.warn("No se pudo obtener la dirección por GPS:", err);
-      } finally {
-        if (isMounted) setLoadingAddress(false);
+        if (isMounted) setRawAddressStatus("error");
       }
     })();
 
     return () => {
       isMounted = false;
     };
-  }, [hasCustomLocation, gpsReady, userLocation]);
+  }, [gpsReady, userLocation]);
+
+  // Exposed address status. When GPS is not ready there is no address to resolve,
+  // so it reads "idle"; deriving it here avoids a setState inside the effect above
+  // (a cascading render the exhaustive-deps/react-hooks lint flags).
+  const addressStatus = gpsReady ? rawAddressStatus : "idle";
 
   // Filter routes for the map/catalog scope.
   // The citizen search journey lives in SearchPage (/buscar, global search).
@@ -458,7 +465,7 @@ export function RouteProvider({ children }) {
   }, []);
 
   const locateNearestRoute = useCallback(async () => {
-    if (!hasCustomLocation && !gpsReady) {
+    if (!gpsReady) {
       try {
         await triggerGpsRequest();
       } catch (err) {
@@ -466,7 +473,7 @@ export function RouteProvider({ children }) {
       }
     }
     setOnlyNearby(true);
-  }, [hasCustomLocation, gpsReady, triggerGpsRequest]);
+  }, [gpsReady, triggerGpsRequest]);
 
   const setCity = useCallback((city, isManual = true) => {
     if (!city) return;
@@ -504,14 +511,14 @@ export function RouteProvider({ children }) {
       loading,
       error,
       userLocation,
+      gpsStatus,
       isLocating,
-      hasCustomLocation,
       gpsReady,
       gpsPermissionState,
       showGpsModal,
       setShowGpsModal,
       userAddress,
-      loadingAddress,
+      addressStatus,
       nearbyStops,
       loadingStops,
       stopsError,
@@ -554,14 +561,14 @@ export function RouteProvider({ children }) {
       loading,
       error,
       userLocation,
+      gpsStatus,
       isLocating,
-      hasCustomLocation,
       gpsReady,
       gpsPermissionState,
       showGpsModal,
       setShowGpsModal,
       userAddress,
-      loadingAddress,
+      addressStatus,
       nearbyStops,
       loadingStops,
       stopsError,

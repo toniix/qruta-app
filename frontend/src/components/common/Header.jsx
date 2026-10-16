@@ -14,7 +14,7 @@ const CITIZEN_LINKS = [
 export function Header() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
-  const { triggerGpsRequest, isLocating, hasCustomLocation, userAddress, currentCity } = useRoutes();
+  const { triggerGpsRequest, isLocating, gpsReady, addressStatus, userAddress, currentCity } = useRoutes();
 
   // Citizen pages own their full-screen mobile layout; the global header is
   // desktop-only there. Admin pages always show it.
@@ -89,7 +89,7 @@ export function Header() {
               onClick={triggerGpsRequest}
               disabled={isLocating}
               className={`flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-all max-w-[200px] truncate ${
-                hasCustomLocation
+                gpsReady
                   ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-xs'
                   : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
               }`}
@@ -103,9 +103,9 @@ export function Header() {
                 className={`w-3.5 h-3.5 shrink-0 ${isLocating ? 'animate-spin text-brand-primary' : ''}`}
               />
               <span className="hidden md:inline truncate">
-                {isLocating
+                {isLocating || addressStatus === 'loading'
                   ? 'Ubicando...'
-                  : hasCustomLocation
+                  : gpsReady
                     ? streetLine(userAddress) || userAddress?.formattedAddress || 'GPS Activo'
                     : 'Mi Ubicación'}
               </span>

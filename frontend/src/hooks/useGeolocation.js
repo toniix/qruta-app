@@ -1,13 +1,10 @@
 import { useState, useCallback, useEffect } from "react";
 
-// Default centered on Ica, Perú
-const ICA_DEFAULT = { lat: -14.0678, lng: -75.7286 };
-
-export function useGeolocation(defaultLocation = ICA_DEFAULT) {
-  const [location, setLocation] = useState(defaultLocation);
-  const [isLocating, setIsLocating] = useState(false);
-  const [hasCustomLocation, setHasCustomLocation] = useState(false);
-  const [gpsReady, setGpsReady] = useState(false);
+export function useGeolocation() {
+  const [location, setLocation] = useState(null);
+  // Single stored GPS state: 'idle' | 'locating' | 'ready' | 'error'.
+  // gpsReady / isLocating are derived so no two flags can drift apart.
+  const [gpsStatus, setGpsStatus] = useState("idle");
   const [error, setError] = useState(null);
 
   // 'unsupported' | 'prompt' while checking, then 'granted' | 'denied'
@@ -31,10 +28,11 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
     if (!navigator.geolocation) {
       const msg = "La geolocalización no está soportada en este navegador";
       setError(msg);
+      setGpsStatus("error");
       return Promise.reject(msg);
     }
 
-    setIsLocating(true);
+    setGpsStatus("locating");
     setError(null);
 
     return new Promise((resolve, reject) => {
@@ -45,9 +43,7 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
           accuracy: position.coords.accuracy,
         };
         setLocation(coords);
-        setHasCustomLocation(true);
-        setGpsReady(true);
-        setIsLocating(false);
+        setGpsStatus("ready");
         resolve(coords);
       };
 
@@ -57,7 +53,7 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
           const msg = "Permiso de ubicación denegado por el usuario.";
           setGpsPermissionState("denied");
           setError(msg);
-          setIsLocating(false);
+          setGpsStatus("error");
           reject(msg);
           return;
         }
@@ -79,7 +75,7 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
               msg = "La solicitud de ubicación tardó demasiado tiempo.";
             }
             setError(msg);
-            setIsLocating(false);
+            setGpsStatus("error");
             reject(msg);
           },
           {
@@ -160,11 +156,14 @@ export function useGeolocation(defaultLocation = ICA_DEFAULT) {
     };
   }, [requestLocation]);
 
+  const gpsReady = gpsStatus === "ready";
+  const isLocating = gpsStatus === "locating";
+
   return {
     location,
-    isLocating,
-    hasCustomLocation,
+    gpsStatus,
     gpsReady,
+    isLocating,
     error,
     requestLocation,
     setLocation,
