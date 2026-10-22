@@ -1,9 +1,13 @@
-import { useState } from 'react';
-import { MapPin, Navigation } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { MapPin, Navigation, Upload, Trash2 } from 'lucide-react';
 import { AdminDrawer } from '../../../components/admin/common/AdminDrawer';
 import { StopLocationPickerModal } from '../../../components/admin/map/StopLocationPickerModal';
 import { FieldError } from '../../../components/common/FieldError';
 import { stopSchema, validateWith } from '../../../schemas';
+
+// Mirrors the backend hard limits for stop reference images.
+const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
+const ACCEPTED_IMAGE_TYPES = ['image/jpeg', 'image/png'];
 
 function StopFormDrawerContent({
   onClose,
@@ -26,6 +30,72 @@ function StopFormDrawerContent({
   }));
 
   const [errors, setErrors] = useState({});
+
+  // Reference image is UI-only state: the File (if any) and the removal flag
+  // travel with the submit payload but are never part of the zod schema.
+  const [imageFile, setImageFile] = useState(null);
+  const [previewUrl, setPreviewUrl] = useState(null);
+  const [removeImage, setRemoveImage] = useState(false);
+  const [imageError, setImageError] = useState('');
+  // True while the rendered preview failed to decode/load, so the broken
+  // <img> hides instead of showing a broken-image icon.
+  const [previewFailed, setPreviewFailed] = useState(false);
+  const fileInputRef = useRef(null);
+  const previewUrlRef = useRef(null);
+
+  // Revoke the last object URL on unmount so the preview never leaks memory.
+  useEffect(
+    () => () => {
+      if (previewUrlRef.current) URL.revokeObjectURL(previewUrlRef.current);
+    },
+    []
+  );
+
+  const clearPreview = () => {
+    if (previewUrlRef.current) {
+      URL.revokeObjectURL(previewUrlRef.current);
+      previewUrlRef.current = null;
+    }
+    setPreviewUrl(null);
+  };
+
+  const handleImageSelect = (e) => {
+    const file = e.target.files?.[0];
+    // Reset the input so selecting the same file again re-fires change.
+    e.target.value = '';
+    if (!file) return;
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      setImageError('Formato no permitido. Solo se aceptan imágenes JPG o PNG.');
+      return;
+    }
+    if (file.size > MAX_IMAGE_BYTES) {
+      setImageError('La imagen supera el tamaño máximo permitido (2 MB).');
+      return;
+    }
+
+    clearPreview();
+    const url = URL.createObjectURL(file);
+    previewUrlRef.current = url;
+    setPreviewUrl(url);
+    setImageError('');
+    setPreviewFailed(false);
+    setRemoveImage(false);
+    setImageFile(file);
+  };
+
+  const handleRemoveImage = () => {
+    clearPreview();
+    setImageFile(null);
+    setRemoveImage(true);
+    setImageError('');
+    setPreviewFailed(false);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const hasExistingImage = isEdit && Boolean(initialData?.imageUrl) && !removeImage;
+  const hasImageSelection = Boolean(previewUrl) || hasExistingImage;
+  const showImagePreview = hasImageSelection && !previewFailed;
 
   const update = (patch, field) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -56,13 +126,25 @@ function StopFormDrawerContent({
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    // Validate only the schema fields; imageFile/removeImage are UI-only and
+    // are re-attached to the payload after validation succeeds.
     const result = validateWith(stopSchema, form);
     if (!result.ok) {
       setErrors(result.fieldErrors);
       return;
     }
+    // The image step is in a failed state (e.g. the admin picked an invalid
+    // replacement file). Block the submit while the picker shows an error;
+    // a valid selection or "quitar imagen" clears it.
+    if (imageError) {
+      return;
+    }
     setErrors({});
-    onSubmit(result.data);
+    onSubmit({
+      ...result.data,
+      imageFile: imageFile || undefined,
+      removeImage,
+    });
   };
 
   return (
@@ -197,6 +279,60 @@ function StopFormDrawerContent({
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
           <FieldError message={errors.reference} />
+        </div>
+
+        {/* Foto de referencia */}
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            Foto de referencia (opcional)
+          </label>
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png"
+            aria-label="Seleccionar foto de referencia"
+            onChange={handleImageSelect}
+            className="hidden"
+          />
+
+          {showImagePreview && (
+            <div className="mb-3 overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+              <img
+                src={previewUrl || initialData.imageUrl}
+                alt="Vista previa de la foto de referencia"
+                onError={() => setPreviewFailed(true)}
+                className="h-36 w-full object-cover"
+              />
+            </div>
+          )}
+
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-bold text-slate-700 transition hover:bg-slate-50 active:scale-95"
+            >
+              <Upload className="h-3.5 w-3.5" />
+              <span>{hasImageSelection ? 'Cambiar imagen' : 'Seleccionar imagen'}</span>
+            </button>
+
+            {hasImageSelection && (
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-rose-50 px-3.5 py-2 text-xs font-bold text-rose-600 transition hover:bg-rose-100 active:scale-95"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                <span>Quitar imagen</span>
+              </button>
+            )}
+          </div>
+
+          <p className="mt-1.5 text-[11px] text-slate-400">
+            Formatos permitidos: JPG o PNG. Tamaño máximo: 2 MB.
+          </p>
+          <FieldError message={imageError} />
         </div>
 
         {/* Accesibilidad */}

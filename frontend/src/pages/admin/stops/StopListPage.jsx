@@ -1,18 +1,13 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
-import {
-  MapPin,
-  Edit2,
-  Trash2,
-  RefreshCw,
-} from 'lucide-react';
-import { AdminDataTable } from '../../../components/admin/common/AdminDataTable';
-import { AdminFilterBar } from '../../../components/admin/common/AdminFilterBar';
-import { AccessibleBadge } from '../../../components/admin/common/StatusBadge';
-import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
-import { StopFormDrawer } from './StopFormDrawer';
-import { adminStopService } from '../../../services/adminStopService';
-import { cityService } from '../../../services/cityService';
-import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useState, useEffect, useMemo, useCallback } from "react";
+import { MapPin, Edit2, Trash2, RefreshCw } from "lucide-react";
+import { AdminDataTable } from "../../../components/admin/common/AdminDataTable";
+import { AdminFilterBar } from "../../../components/admin/common/AdminFilterBar";
+import { AccessibleBadge } from "../../../components/admin/common/StatusBadge";
+import { ConfirmDialog } from "../../../components/admin/common/ConfirmDialog";
+import { StopFormDrawer } from "./StopFormDrawer";
+import { adminStopService } from "../../../services/adminStopService";
+import { cityService } from "../../../services/cityService";
+import { useAdminToast } from "../../../hooks/useAdminToast";
 
 function calculateDistanceKm(lat1, lon1, lat2, lon2) {
   const R = 6371;
@@ -35,8 +30,8 @@ export function StopListPage() {
   const [loading, setLoading] = useState(true);
 
   // Filters
-  const [searchQuery, setSearchQuery] = useState('');
-  const [filterCityId, setFilterCityId] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterCityId, setFilterCityId] = useState("");
 
   // Drawer & Delete state
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -56,8 +51,8 @@ export function StopListPage() {
       setStops(Array.isArray(stopsData) ? stopsData : []);
       setCities(Array.isArray(citiesData) ? citiesData : []);
     } catch (err) {
-      console.error('Error cargando paraderos:', err);
-      toast.error('Error al cargar la lista de paraderos.');
+      console.error("Error cargando paraderos:", err);
+      toast.error("Error al cargar la lista de paraderos.");
     } finally {
       setLoading(false);
     }
@@ -78,8 +73,8 @@ export function StopListPage() {
         }
       } catch (err) {
         if (isMounted) {
-          console.error('Error cargando paraderos:', err);
-          toast.error('Error al cargar la lista de paraderos.');
+          console.error("Error cargando paraderos:", err);
+          toast.error("Error al cargar la lista de paraderos.");
           setLoading(false);
         }
       }
@@ -90,7 +85,9 @@ export function StopListPage() {
   }, [toast]);
 
   const filteredStops = useMemo(() => {
-    const selectedCity = cities.find((c) => String(c.id) === String(filterCityId));
+    const selectedCity = cities.find(
+      (c) => String(c.id) === String(filterCityId),
+    );
 
     return stops.filter((stop) => {
       const matchesSearch =
@@ -119,7 +116,7 @@ export function StopListPage() {
           Number(stop.latitude),
           Number(stop.longitude),
           Number(selectedCity.latitude),
-          Number(selectedCity.longitude)
+          Number(selectedCity.longitude),
         );
         return distKm <= (Number(selectedCity.radiusKm) || 30);
       }
@@ -129,21 +126,55 @@ export function StopListPage() {
   }, [stops, searchQuery, filterCityId, cities]);
 
   const handleFormSubmit = async (formData) => {
+    // imageFile/removeImage are UI-only fields for the reference image step.
+    const { imageFile, removeImage, ...stopFields } = formData;
     setSaving(true);
     try {
+      let savedStop;
       if (editingStop) {
-        await adminStopService.updateStop(editingStop.id, formData);
-        toast.success(`Paradero "${formData.name}" actualizado.`);
+        savedStop = await adminStopService.updateStop(
+          editingStop.id,
+          stopFields,
+        );
       } else {
-        await adminStopService.createStop(formData);
-        toast.success(`Paradero "${formData.name}" creado con éxito.`);
+        savedStop = await adminStopService.createStop(stopFields);
       }
+
+      // Saving the stop and its image are two separate operations: a failure
+      // in the image step must NOT roll back the already-saved stop.
+      const stopId = savedStop?.id || editingStop?.id;
+      const hadImage = Boolean(editingStop?.imageUrl);
+      try {
+        if (imageFile && stopId) {
+          console.log(
+            "Uploading stop image for stopId:",
+            stopId,
+            "file:",
+            imageFile,
+          );
+          await adminStopService.uploadStopImage(stopId, imageFile);
+        } else if (removeImage && hadImage && stopId) {
+          await adminStopService.removeStopImage(stopId);
+        }
+      } catch (imageErr) {
+        console.error("Error guardando la imagen del paradero:", imageErr);
+        toast.warning("Paradero guardado, pero la imagen no se pudo subir.");
+      }
+
+      toast.success(
+        editingStop
+          ? `Paradero "${stopFields.name}" actualizado.`
+          : `Paradero "${stopFields.name}" creado con éxito.`,
+      );
       setDrawerOpen(false);
       setEditingStop(null);
       await loadData();
     } catch (err) {
-      console.error('Error guardando paradero:', err);
-      toast.error(err.response?.data?.message || 'Error al guardar los datos del paradero.');
+      console.error("Error guardando paradero:", err);
+      toast.error(
+        err.response?.data?.message ||
+          "Error al guardar los datos del paradero.",
+      );
     } finally {
       setSaving(false);
     }
@@ -158,8 +189,10 @@ export function StopListPage() {
       setDeleteConfirm(null);
       await loadData();
     } catch (err) {
-      console.error('Error eliminando paradero:', err);
-      toast.error(err.response?.data?.message || 'Error al eliminar el paradero.');
+      console.error("Error eliminando paradero:", err);
+      toast.error(
+        err.response?.data?.message || "Error al eliminar el paradero.",
+      );
     } finally {
       setDeleting(false);
     }
@@ -167,8 +200,8 @@ export function StopListPage() {
 
   const columns = [
     {
-      key: 'name',
-      label: 'Paradero',
+      key: "name",
+      label: "Paradero",
       render: (stop) => (
         <div className="flex items-start gap-2.5">
           <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-blue-600 mt-0.5">
@@ -177,58 +210,66 @@ export function StopListPage() {
           <div>
             <span className="font-bold text-slate-900 block">{stop.name}</span>
             {stop.reference && (
-              <span className="text-[11px] text-slate-500 line-clamp-1">Ref: {stop.reference}</span>
+              <span className="text-[11px] text-slate-500 line-clamp-1">
+                Ref: {stop.reference}
+              </span>
             )}
           </div>
         </div>
       ),
     },
     {
-      key: 'city',
-      label: 'Ciudad',
-      width: '130px',
+      key: "city",
+      label: "Ciudad",
+      width: "130px",
       render: (stop) => {
         const city = cities.find((c) => String(c.id) === String(stop.cityId));
         const cityName = stop.cityName || city?.name;
         return (
           <span className="inline-flex items-center px-2 py-0.5 rounded-md text-[11px] font-semibold bg-slate-100 text-slate-700">
-            {cityName || '—'}
+            {cityName || "—"}
           </span>
         );
       },
     },
     {
-      key: 'address',
-      label: 'Dirección',
+      key: "address",
+      label: "Dirección",
       render: (stop) => (
-        <span className="text-slate-600 text-xs">{stop.address || '—'}</span>
+        <span className="text-slate-600 text-xs">{stop.address || "—"}</span>
       ),
     },
     {
-      key: 'latitude',
-      label: 'Coordenadas',
-      width: '180px',
+      key: "latitude",
+      label: "Coordenadas",
+      width: "180px",
       render: (stop) => (
         <div className="font-mono text-[11px] text-slate-600">
-          <div>Lat: {stop.latitude != null ? Number(stop.latitude).toFixed(5) : '—'}</div>
-          <div>Lng: {stop.longitude != null ? Number(stop.longitude).toFixed(5) : '—'}</div>
+          <div>
+            Lat:{" "}
+            {stop.latitude != null ? Number(stop.latitude).toFixed(5) : "—"}
+          </div>
+          <div>
+            Lng:{" "}
+            {stop.longitude != null ? Number(stop.longitude).toFixed(5) : "—"}
+          </div>
         </div>
       ),
     },
     {
-      key: 'accessible',
-      label: 'Accesibilidad',
-      width: '120px',
+      key: "accessible",
+      label: "Accesibilidad",
+      width: "120px",
       render: (stop) => (
         <AccessibleBadge accessible={stop.accessible ?? stop.isAccessible} />
       ),
     },
     {
-      key: 'actions',
-      label: 'Acciones',
+      key: "actions",
+      label: "Acciones",
       sortable: false,
-      align: 'right',
-      width: '100px',
+      align: "right",
+      width: "100px",
       render: (stop) => (
         <div className="flex items-center justify-end gap-1.5">
           <button
@@ -271,7 +312,8 @@ export function StopListPage() {
             </h1>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Puntos de abordaje y transbordo con coordenadas geográficas y condiciones de accesibilidad.
+            Puntos de abordaje y transbordo con coordenadas geográficas y
+            condiciones de accesibilidad.
           </p>
         </div>
 
@@ -281,7 +323,9 @@ export function StopListPage() {
           disabled={loading}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw
+            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+          />
           <span>Actualizar</span>
         </button>
       </div>

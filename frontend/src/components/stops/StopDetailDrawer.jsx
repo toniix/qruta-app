@@ -29,6 +29,10 @@ export function StopDetailDrawer({ stop, onClose }) {
   const [error, setError] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
+  // Tracks the URL that failed to load so a broken reference image is hidden
+  // instead of showing a broken-image icon. Keyed by URL (not a boolean) so it
+  // self-resets when the drawer switches to a stop with a different image.
+  const [failedImageUrl, setFailedImageUrl] = useState(null);
 
   useEffect(() => {
     if (!stop?.id) return;
@@ -175,6 +179,23 @@ export function StopDetailDrawer({ stop, onClose }) {
           </button>
         </div>
       </div>
+
+      {/* Reference image (only when the stop has one, it loads, and the
+          routes list is collapsed so the drawer stays compact while routes
+          are being explored) */}
+      {stop.imageUrl &&
+        failedImageUrl !== stop.imageUrl &&
+        isCollapsed && (
+        <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+          <img
+            src={stop.imageUrl}
+            alt={`Foto de referencia: ${stop.name}`}
+            loading="lazy"
+            onError={() => setFailedImageUrl(stop.imageUrl)}
+            className="h-40 w-full object-cover sm:h-48"
+          />
+        </div>
+      )}
 
       {/* Collapsed CTA button to expand routes */}
       {isCollapsed && (

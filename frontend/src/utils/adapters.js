@@ -5,7 +5,8 @@
 
 /**
  * Normalizes a Stop entity
- * Consistently exposes: id, name, latitude, longitude, reference, address, accessible (boolean)
+ * Consistently exposes: id, name, latitude, longitude, reference, address,
+ * accessible (boolean), imageUrl (string | null)
  */
 export function normalizeStop(raw) {
   if (!raw) return null;
@@ -22,6 +23,7 @@ export function normalizeStop(raw) {
     reference: raw.reference || "",
     address: raw.address || "",
     accessible,
+    imageUrl: raw.imageUrl || null,
     stopOrder: raw.stopOrder ?? raw.order ?? null,
     distanceKm: raw.distanceKm != null ? Number(raw.distanceKm) : null,
     distanceFromStart: raw.distanceFromStart != null ? Number(raw.distanceFromStart) : null,
