@@ -41,6 +41,9 @@ public class Stop {
     @Builder.Default
     private Boolean keyStop = false;
 
+    @Column(name = "image_url")
+    private String imageUrl;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

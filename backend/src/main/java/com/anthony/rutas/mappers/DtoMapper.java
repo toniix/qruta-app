@@ -83,6 +83,7 @@ public class DtoMapper {
                                 .name(stop.getName())
                                 .latitude(lat)
                                 .longitude(lng)
+                                .imageUrl(stop.getImageUrl())
                                 .build();
         }
 
@@ -156,6 +157,7 @@ public class DtoMapper {
                                 .accessible(stop.isAccessible())
                                 .stopOrder(routeStop.getStopOrder())
                                 .distanceFromStart(routeStop.getDistanceFromStart())
+                                .imageUrl(stop.getImageUrl())
                                 .build();
         }
 
@@ -170,6 +172,7 @@ public class DtoMapper {
                                 .isAccessible(stop.isAccessible())
                                 .cityId(stop.getCity() != null ? stop.getCity().getId() : null)
                                 .cityName(stop.getCity() != null ? stop.getCity().getName() : null)
+                                .imageUrl(stop.getImageUrl())
                                 .build();
         }
 

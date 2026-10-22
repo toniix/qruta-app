@@ -19,4 +19,11 @@ public class KeyStopResponse {
     private String name;
     private Double latitude;
     private Double longitude;
+
+    /**
+     * Full public URL of the stop's reference image (null when the stop has
+     * none). Carried here so route-list stop markers can populate the citizen
+     * StopDetailDrawer identically to nearby stops.
+     */
+    private String imageUrl;
 }

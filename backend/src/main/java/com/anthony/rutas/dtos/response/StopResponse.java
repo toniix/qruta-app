@@ -19,4 +19,5 @@ public class StopResponse {
     private boolean isAccessible;
     private UUID cityId;
     private String cityName;
+    private String imageUrl;
 }

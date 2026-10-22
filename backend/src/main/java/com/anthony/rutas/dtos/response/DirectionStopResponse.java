@@ -19,6 +19,13 @@ public class DirectionStopResponse {
     private Integer stopOrder;
     private Double distanceFromStart;
 
+    /**
+     * Full public URL of the stop's reference image (null when the stop has
+     * none), so the citizen StopDetailDrawer can render it for stops selected
+     * along a route, matching {@code StopResponse}.
+     */
+    private String imageUrl;
+
     @Getter
     @Setter
     @NoArgsConstructor

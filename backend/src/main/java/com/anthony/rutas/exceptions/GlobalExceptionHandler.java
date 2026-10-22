@@ -1,5 +1,6 @@
 package com.anthony.rutas.exceptions;
 
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.MethodArgumentNotValidException;
@@ -9,6 +10,12 @@ import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 
+/**
+ * Maps domain exceptions to HTTP responses. The catch-all handler logs the
+ * full stack trace before returning the generic message so 500s are
+ * diagnosable from server logs alone.
+ */
+@Slf4j
 @RestControllerAdvice
 public class GlobalExceptionHandler {
 
@@ -38,6 +45,7 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, Object>> handleGenericException(Exception ex) {
+        log.error("Unhandled exception while processing request", ex);
         return buildResponse(HttpStatus.INTERNAL_SERVER_ERROR, "Internal server error");
     }
 
