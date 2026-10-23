@@ -105,13 +105,14 @@ export function MapTopHeader({
                   Punto frecuente enfocado
                 </span>
               </div>
+              {/* Back to the route detail revealed beneath the drawer */}
               <button
                 onClick={onClearStop}
                 className="ml-1 text-slate-400 hover:text-white hover:bg-slate-800 p-0.5 rounded-full transition-colors shrink-0"
-                title="Deseleccionar paradero"
-                aria-label="Deseleccionar paradero"
+                title="Volver al detalle de ruta"
+                aria-label="Volver al detalle de ruta"
               >
-                <span className="text-xs font-bold leading-none px-1">✕</span>
+                <ArrowLeft className="w-3.5 h-3.5" />
               </button>
             </div>
           )}

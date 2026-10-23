@@ -628,8 +628,21 @@ export function HomeMapPage() {
             />
           )
         ) : selectedRoute ? (
+          // Route detail is the base sheet. While a stop inside the route is
+          // focused, the stop drawer takes the same slot instead of stacking
+          // over it; its back action clears only the stop, re-revealing the
+          // identical route detail (all RouteDrawer state lives in the
+          // RouteContext, so the unmount/remount is invisible to it).
           <div className="pointer-events-auto mb-16 lg:mb-4">
-            <RouteDrawer />
+            {selectedStop ? (
+              <StopDetailDrawer
+                stop={selectedStop}
+                onClose={handleClearStop}
+                context="route"
+              />
+            ) : (
+              <RouteDrawer />
+            )}
           </div>
         ) : showingDestinationResults ? (
           <DestinationResults

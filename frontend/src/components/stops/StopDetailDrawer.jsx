@@ -19,10 +19,21 @@ import { useRoutes } from "../../contexts/RouteContext";
 import { calculateDistanceKm } from "../../utils/geoUtils";
 import { formatDistanceBand } from "../../utils/distanceBands";
 
-export function StopDetailDrawer({ stop, onClose }) {
+// Mode of the drawer: "map" (standalone stop flow on the map) or "route"
+// (opened from inside a selected route detail). In both modes the close
+// action clears the stop; in route mode a context chip shows the active
+// route and the back affordance to the route detail lives in the
+// MapTopHeader focused-stop pill, not in the drawer.
+export function StopDetailDrawer({ stop, onClose, context = "map" }) {
   const navigate = useNavigate();
-  const { routes: allContextRoutes, selectRoute, selectStop, userLocation } =
-    useRoutes();
+  const {
+    routes: allContextRoutes,
+    selectedRoute,
+    selectRoute,
+    selectStop,
+    userLocation,
+  } = useRoutes();
+  const isRouteContext = context === "route";
 
   const [stopRoutes, setStopRoutes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -128,6 +139,14 @@ export function StopDetailDrawer({ stop, onClose }) {
               <span className="text-xs uppercase font-bold text-amber-700 bg-amber-50 px-2 py-0.5 rounded border border-amber-200/60">
                 Paradero
               </span>
+              {isRouteContext && selectedRoute?.code && (
+                <span
+                  data-testid="route-context-chip"
+                  className="text-xs font-bold text-brand-primary-dark bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60"
+                >
+                  Ruta {selectedRoute.code}
+                </span>
+              )}
               {stop.accessible && (
                 <span className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded border border-emerald-200/60">
                   ♿ Accesible

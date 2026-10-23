@@ -7,26 +7,48 @@ vi.mock('../../services/stopService', () => ({
   stopService: { getStopRoutes: vi.fn(async () => []) },
 }));
 
+const { mockUseRoutes } = vi.hoisted(() => ({
+  mockUseRoutes: vi.fn(),
+}));
+
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: () => ({
+  useRoutes: mockUseRoutes,
+}));
+
+function routesContext(selectedRoute = null) {
+  return {
     routes: [],
+    selectedRoute,
     selectRoute: vi.fn(),
     selectStop: vi.fn(),
     userLocation: null,
-  }),
-}));
+  };
+}
 
-function renderDrawer(stop) {
+function renderDrawer(stop, props = {}) {
   return render(
     <MemoryRouter>
-      <StopDetailDrawer stop={stop} onClose={() => {}} />
+      <StopDetailDrawer
+        stop={stop}
+        onClose={props.onClose ?? (() => {})}
+        context={props.context}
+      />
     </MemoryRouter>
   );
+}
+
+function useStandaloneMapContext() {
+  mockUseRoutes.mockImplementation(() => routesContext());
+}
+
+function useRouteContext(route) {
+  mockUseRoutes.mockImplementation(() => routesContext(route));
 }
 
 describe('StopDetailDrawer reference image', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useStandaloneMapContext();
   });
 
   it('renders the reference image when stop.imageUrl is present', async () => {
@@ -97,5 +119,70 @@ describe('StopDetailDrawer reference image', () => {
     await waitFor(() =>
       expect(screen.getByRole('img', { name: /paradero expandible/i })).toBeInTheDocument()
     );
+  });
+});
+
+describe('StopDetailDrawer route context', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it('renders the plain close button in route context', () => {
+    useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route' });
+
+    expect(
+      screen.getByRole('button', { name: 'Cerrar paradero' }),
+    ).toBeInTheDocument();
+    // The back affordance lives in the MapTopHeader pill, not the drawer.
+    expect(
+      screen.queryByRole('button', { name: 'Volver al detalle de ruta' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('clicking the close button calls onClose (clear stop, return to route detail)', () => {
+    useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
+    const onClose = vi.fn();
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route', onClose });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar paradero' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows a chip with the current route code', () => {
+    useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route' });
+
+    expect(screen.getByTestId('route-context-chip')).toBeInTheDocument();
+    expect(screen.getByText('Ruta 12A')).toBeInTheDocument();
+  });
+
+  it('hides the route chip when no route is selected in route context', () => {
+    useRouteContext(null);
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route' });
+
+    expect(screen.queryByTestId('route-context-chip')).not.toBeInTheDocument();
+  });
+
+  it('keeps the plain close button and no chip in map context', () => {
+    useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' });
+
+    expect(
+      screen.getByRole('button', { name: 'Cerrar paradero' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Volver al detalle de ruta' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByTestId('route-context-chip')).not.toBeInTheDocument();
+  });
+
+  it('map context close button still calls onClose', () => {
+    useStandaloneMapContext();
+    const onClose = vi.fn();
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { onClose });
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cerrar paradero' }));
+    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

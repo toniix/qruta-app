@@ -9,7 +9,7 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
-import { Flag } from "lucide-react";
+import { Flag, Info } from "lucide-react";
 import { getBoundsFromPoints, calculateDistanceKm } from "../../utils/geoUtils";
 import { BRAND_PRIMARY } from "../../constants/brand";
 import { routingService } from "../../services/routingService";
@@ -109,31 +109,10 @@ function MapAutoRecenter({
         return;
       }
 
-      // Si la ruta YA fue encuadrada inicialmente:
-      // Si el usuario hace clic en un punto frecuente (paradero) dentro de la ruta:
-      if (hasStopCoords) {
-        const stopKey = `route-stop:${selectedRouteId}:${selectedStop.id || `${stopLat},${stopLng}`}`;
-        if (!isManualTrigger && lastActionKeyRef.current === stopKey) {
-          return;
-        }
-        lastActionKeyRef.current = stopKey;
-
-        const zoom = 16;
-        const targetPoint = map.project([stopLat, stopLng], zoom);
-        // Offset vertical para que el pin quede visible arriba de RouteDrawer
-        const offsetY = Math.min(window.innerHeight * 0.22, 180);
-        const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
-        const targetLatLng = map.unproject(offsetPoint, zoom);
-
-        map.flyTo(targetLatLng, zoom, {
-          animate: true,
-          duration: 0.9,
-        });
-        return;
-      }
-
-      // Si la ruta ya estaba encuadrada y el paradero se deseleccionó (selectedStop pasó a null):
-      // Volvemos a encuadrar toda la ruta
+      // Mientras la ruta está seleccionada, elegir un paradero (vía el botón
+      // "más detalle" de su popup) NO mueve la cámara: el encuadre de la ruta
+      // permanece intacto. Solo se re-encuadra la ruta completa cuando el
+      // paradero se deselecciona (flecha atrás del drawer).
       if (!selectedStop && bounds) {
         const boundsKey = `route:${selectedRouteId}:${bounds[0][0].toFixed(4)},${bounds[0][1].toFixed(4)},${bounds[1][0].toFixed(4)},${bounds[1][1].toFixed(4)}`;
         if (!isManualTrigger && lastActionKeyRef.current === boundsKey) {
@@ -409,6 +388,42 @@ const createStopIcon = (stopName, isSelected, showLabel = false) => {
   });
 };
 
+// Stop card shown inside the marker popup while a route is active. The
+// "Ver más detalle" action marks the stop as selected through RouteContext
+// (HomeMapPage then renders the stop drawer) and closes this popup directly;
+// it never uses URL navigation so the route trace stays untouched.
+function RouteStopPopupCard({ stop, onSelectStop }) {
+  const map = useMap();
+
+  const handleOpenDetail = (e) => {
+    L.DomEvent.stopPropagation(e);
+    if (onSelectStop) onSelectStop(stop);
+    map.closePopup();
+  };
+
+  return (
+    <div className="p-1 max-w-[200px]">
+      <div className="text-xs font-bold text-slate-900">{stop.name}</div>
+      <div className="text-xs text-slate-500">
+        {stop.address || stop.reference}
+      </div>
+      {stop.accessible && (
+        <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
+          ♿ Acceso Accesible
+        </span>
+      )}
+      <button
+        type="button"
+        onClick={handleOpenDetail}
+        className="mt-2 w-full flex items-center justify-center gap-1.5 bg-brand-primary hover:bg-brand-primary-dark text-white text-xs font-bold px-2.5 py-1.5 rounded-xl transition-colors cursor-pointer active:scale-[0.98]"
+      >
+        <Info className="w-3.5 h-3.5 shrink-0" />
+        Ver más detalle
+      </button>
+    </div>
+  );
+}
+
 function InteractiveMapComponent({
   routes = [],
   selectedRoute = null,
@@ -475,6 +490,9 @@ function InteractiveMapComponent({
   const [roadTrace, setRoadTrace] = useState(null); // { key, points } | null
 
   const straightTracePoints = useMemo(() => {
+    // Route trace must stay the only path while a route is selected:
+    // selecting a stop from its popup must never draw a GPS → stop trace.
+    if (selectedRoute) return null;
     if (!userLocation || selectedStop?.latitude == null || selectedStop?.longitude == null) {
       return null;
     }
@@ -493,7 +511,7 @@ function InteractiveMapComponent({
       [userLocation.lat, userLocation.lng],
       [selectedStop.latitude, selectedStop.longitude],
     ];
-  }, [userLocation, selectedStop]);
+  }, [selectedRoute, userLocation, selectedStop]);
 
   const traceKey = straightTracePoints
     ? `${straightTracePoints[0][0]},${straightTracePoints[0][1]}→${straightTracePoints[1][0]},${straightTracePoints[1][1]}`
@@ -873,31 +891,38 @@ function InteractiveMapComponent({
               eventHandlers={{
                 click: (e) => {
                   L.DomEvent.stopPropagation(e);
-                  if (onSelectStop) onSelectStop(stop);
+                  // Route context: the click only opens the popup. The stop
+                  // becomes selected exclusively through the popup's detail
+                  // button, so map state stays untouched here.
+                  if (!selectedRoute && onSelectStop) onSelectStop(stop);
                 },
               }}
             >
               <Popup>
-                <div className="p-1 max-w-[200px]">
-                  <div
-                    className={`text-xs uppercase font-bold ${isSelected ? "text-amber-600" : "text-brand-primary"}`}
-                  >
-                    {isSelected
-                      ? "📍 Paradero seleccionado"
-                      : "Punto frecuente"}
+                {selectedRoute ? (
+                  <RouteStopPopupCard stop={stop} onSelectStop={onSelectStop} />
+                ) : (
+                  <div className="p-1 max-w-[200px]">
+                    <div
+                      className={`text-xs uppercase font-bold ${isSelected ? "text-amber-600" : "text-brand-primary"}`}
+                    >
+                      {isSelected
+                        ? "📍 Paradero seleccionado"
+                        : "Punto frecuente"}
+                    </div>
+                    <div className="text-xs font-bold text-slate-900">
+                      {stop.name}
+                    </div>
+                    <div className="text-xs text-slate-500">
+                      {stop.address || stop.reference}
+                    </div>
+                    {stop.accessible && (
+                      <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
+                        ♿ Acceso Accesible
+                      </span>
+                    )}
                   </div>
-                  <div className="text-xs font-bold text-slate-900">
-                    {stop.name}
-                  </div>
-                  <div className="text-xs text-slate-500">
-                    {stop.address || stop.reference}
-                  </div>
-                  {stop.accessible && (
-                    <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
-                      ♿ Acceso Accesible
-                    </span>
-                  )}
-                </div>
+                )}
               </Popup>
             </Marker>
           );
