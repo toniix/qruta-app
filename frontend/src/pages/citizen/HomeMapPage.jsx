@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useRoutes } from "../../contexts/RouteContext";
 import { routeService } from "../../services/routeService";
 import { geocodingService, streetLine } from "../../services/geocodingService";
@@ -24,6 +24,10 @@ import { StopDetailDrawer } from "../../components/stops/StopDetailDrawer";
 export function HomeMapPage() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  const fromOrigin = location.state?.from;
+  const fromStop = location.state?.fromStop;
 
   // Route Context states & actions
   const {
@@ -32,6 +36,7 @@ export function HomeMapPage() {
     loadingFiltered,
     selectedRoute,
     selectedStop,
+    focusedStop,
     searchedLocation,
     userLocation,
     onlyNearby,
@@ -40,6 +45,7 @@ export function HomeMapPage() {
     activeDirection,
     selectRoute,
     selectStop,
+    focusStop,
     clearSelectedRoute,
     triggerGpsRequest,
     isLocating,
@@ -96,12 +102,39 @@ export function HomeMapPage() {
     [selectRoute, selectStop, navigate],
   );
 
+  const handleBack = useCallback(() => {
+    // If viewing a route and we navigated to it from a stop on the map: unwind back to that stop
+    if (selectedRoute && fromStop) {
+      isClosingRef.current = true;
+      clearSelectedRoute();
+      selectStop(fromStop);
+      navigate("/mapa", {
+        replace: true,
+        state: fromOrigin ? { from: fromOrigin } : null,
+      });
+      setTimeout(() => {
+        isClosingRef.current = false;
+      }, 100);
+      return;
+    }
+
+    if (fromOrigin) {
+      isClosingRef.current = true;
+      clearSelectedRoute();
+      selectStop(null);
+      navigate(fromOrigin);
+      setTimeout(() => {
+        isClosingRef.current = false;
+      }, 100);
+    }
+  }, [selectedRoute, fromStop, fromOrigin, clearSelectedRoute, selectStop, navigate]);
+
   // Close route detail explicitly in one click when user clicks X
   const handleCloseDetail = useCallback(() => {
     isClosingRef.current = true;
     clearSelectedRoute();
     selectStop(null);
-    navigate("/mapa", { replace: true });
+    navigate("/mapa", { replace: true, state: null });
     // Reset flag after navigation completes
     setTimeout(() => {
       isClosingRef.current = false;
@@ -110,7 +143,10 @@ export function HomeMapPage() {
 
   const handleClearStop = useCallback(() => {
     selectStop(null);
-  }, [selectStop]);
+    if (!selectedRoute) {
+      navigate("/mapa", { replace: true, state: null });
+    }
+  }, [selectStop, selectedRoute, navigate]);
 
   // ── Destination picker flow (pin mode → confirm → ranked nearby results) ──
   const [isPinMode, setIsPinMode] = useState(false);
@@ -556,12 +592,14 @@ export function HomeMapPage() {
           routes={filteredRoutes}
           selectedRoute={selectedRoute}
           selectedStop={selectedStop}
+          focusedStop={focusedStop}
           searchedLocation={searchedLocation}
           userLocation={userLocation}
           gpsReady={gpsReady}
           isLocating={isLocating}
           onSelectRoute={handleSelectRoute}
           onSelectStop={selectStop}
+          onFocusStop={focusStop}
           activeDirection={activeDirection}
           recenterTrigger={recenterTrigger}
           loadingRouteDetail={loadingRouteDetail}
@@ -588,6 +626,7 @@ export function HomeMapPage() {
         isRouteLoading={isRouteLoading}
         onCloseDetail={handleCloseDetail}
         onClearStop={handleClearStop}
+        onBack={fromOrigin || fromStop ? handleBack : null}
         onPickDestination={
           selectedRoute == null && !destinationActive
             ? handleEnterDestinationMode
@@ -637,7 +676,6 @@ export function HomeMapPage() {
             {selectedStop ? (
               <StopDetailDrawer
                 stop={selectedStop}
-                onClose={handleClearStop}
                 context="route"
               />
             ) : (
@@ -659,7 +697,7 @@ export function HomeMapPage() {
             onRetry={handleRetryDestinationSearch}
           />
         ) : selectedStop ? (
-          <StopDetailDrawer stop={selectedStop} onClose={handleClearStop} />
+          <StopDetailDrawer stop={selectedStop} />
         ) : (
           <RouteCarousel
             routes={filteredRoutes}

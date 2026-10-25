@@ -292,7 +292,7 @@ export function SearchPage() {
     // Select the route only: pre-selecting a stop would open the stop
     // drawer on the map instead of the route detail.
     selectRoute(route);
-    navigate(`/mapa/ruta/${route.id}`);
+    navigate(`/mapa/ruta/${route.id}`, { state: { from: "/buscar" } });
   };
 
   const handleClear = () => {

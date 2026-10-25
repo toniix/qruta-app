@@ -80,7 +80,7 @@ export function NearbyRoutesPage() {
 
   const handleSelectRoute = (route) => {
     selectRoute(route);
-    navigate(`/mapa/ruta/${route.id}`);
+    navigate(`/mapa/ruta/${route.id}`, { state: { from: "/cercanas" } });
   };
 
   const handleOpenStopModal = (stop) => {

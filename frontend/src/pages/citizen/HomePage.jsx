@@ -99,7 +99,7 @@ export function HomePage() {
       });
     }
     const targetId = matchedRoute?.id || item.id;
-    navigate(`/mapa/ruta/${targetId}`);
+    navigate(`/mapa/ruta/${targetId}`, { state: { from: '/' } });
   };
 
   const scrollNearbyStops = (direction) => {

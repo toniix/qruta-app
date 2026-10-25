@@ -30,7 +30,6 @@ function renderDrawer(stop, props = {}) {
     <MemoryRouter>
       <StopDetailDrawer
         stop={stop}
-        onClose={props.onClose ?? (() => {})}
         context={props.context}
       />
     </MemoryRouter>
@@ -127,26 +126,17 @@ describe('StopDetailDrawer route context', () => {
     vi.clearAllMocks();
   });
 
-  it('renders the plain close button in route context', () => {
+  it('omits the close button in route context to avoid dual-X ambiguity', () => {
     useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
     renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route' });
 
     expect(
-      screen.getByRole('button', { name: 'Cerrar paradero' }),
-    ).toBeInTheDocument();
-    // The back affordance lives in the MapTopHeader pill, not the drawer.
+      screen.queryByRole('button', { name: 'Cerrar paradero' }),
+    ).not.toBeInTheDocument();
+    // The back affordance lives in MapTopHeader, not the drawer.
     expect(
       screen.queryByRole('button', { name: 'Volver al detalle de ruta' }),
     ).not.toBeInTheDocument();
-  });
-
-  it('clicking the close button calls onClose (clear stop, return to route detail)', () => {
-    useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
-    const onClose = vi.fn();
-    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route', onClose });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar paradero' }));
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 
   it('shows a chip with the current route code', () => {
@@ -164,25 +154,31 @@ describe('StopDetailDrawer route context', () => {
     expect(screen.queryByTestId('route-context-chip')).not.toBeInTheDocument();
   });
 
-  it('keeps the plain close button and no chip in map context', () => {
+  it('omits the routes list and does not fetch routes in route context', () => {
+    useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
+    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { context: 'route' });
+
+    expect(
+      screen.queryByRole('button', { name: /ver rutas de este paradero/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /ocultar rutas/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/rutas que transitan por aquí/i),
+    ).not.toBeInTheDocument();
+  });
+
+  it('omits close button in map context as well, delegating dismissal to MapTopHeader', () => {
     useRouteContext({ id: 'route-1', code: '12A', name: 'Ruta 12A: Centro' });
     renderDrawer({ id: 'stop-1', name: 'Paradero A' });
 
     expect(
-      screen.getByRole('button', { name: 'Cerrar paradero' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('button', { name: 'Cerrar paradero' }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole('button', { name: 'Volver al detalle de ruta' }),
     ).not.toBeInTheDocument();
     expect(screen.queryByTestId('route-context-chip')).not.toBeInTheDocument();
-  });
-
-  it('map context close button still calls onClose', () => {
-    useStandaloneMapContext();
-    const onClose = vi.fn();
-    renderDrawer({ id: 'stop-1', name: 'Paradero A' }, { onClose });
-
-    fireEvent.click(screen.getByRole('button', { name: 'Cerrar paradero' }));
-    expect(onClose).toHaveBeenCalledTimes(1);
   });
 });

@@ -22,6 +22,7 @@ export function RouteProvider({ children }) {
   const stops = useMemo(() => [], []);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
+  const [focusedStop, setFocusedStop] = useState(null);
   const [activeDirection, setActiveDirection] = useState("OUTBOUND");
   const [searchedLocation, setSearchedLocation] = useState(null);
   const [nearestMatchInfo, setNearestMatchInfo] = useState(null);
@@ -136,13 +137,7 @@ export function RouteProvider({ children }) {
         return dist <= 2.0;
       });
     });
-  }, [
-    popularRoutes,
-    routes,
-    gpsReady,
-    userLocation?.lat,
-    userLocation?.lng,
-  ]);
+  }, [popularRoutes, routes, gpsReady, userLocation?.lat, userLocation?.lng]);
 
   // Load all routes and popular routes for the initial citizen dashboard.
   // Stops are fetched by geographic proximity when GPS is active (nearbyStops) or within each route (keyStops).
@@ -180,7 +175,9 @@ export function RouteProvider({ children }) {
         const savedCityId = localStorage.getItem("rutasya_selected_city_id");
         const initialCity = savedCityId
           ? fetchedCities.find((c) => c.id === savedCityId)
-          : fetchedCities.find((c) => c.name === "Ica") || fetchedCities[0] || null;
+          : fetchedCities.find((c) => c.name === "Ica") ||
+            fetchedCities[0] ||
+            null;
 
         if (initialCity) {
           setCurrentCity(initialCity);
@@ -188,7 +185,13 @@ export function RouteProvider({ children }) {
         }
       } catch (err) {
         console.error("Error al cargar ciudades:", err);
-        const fallback = { id: null, name: "Ica", latitude: -14.0678, longitude: -75.7286, radiusKm: 30 };
+        const fallback = {
+          id: null,
+          name: "Ica",
+          latitude: -14.0678,
+          longitude: -75.7286,
+          radiusKm: 30,
+        };
         setCities([fallback]);
         setCurrentCity(fallback);
       }
@@ -205,7 +208,11 @@ export function RouteProvider({ children }) {
     if (!cities || cities.length === 0) return;
     if (isManualCity) return;
 
-    const result = detectCityFromCoords(userLocation.lat, userLocation.lng, cities);
+    const result = detectCityFromCoords(
+      userLocation.lat,
+      userLocation.lng,
+      cities,
+    );
     setOutsideCoverage(!result.isInsideCoverage);
 
     if (result.city && result.city.id !== currentCity?.id) {
@@ -320,9 +327,7 @@ export function RouteProvider({ children }) {
     };
   }, [gpsReady, userLocation]);
 
-  // Exposed address status. The geocode effect above resets the raw status
-  // on the GPS-not-ready path; the derivation below is a render-time guard
-  // so consumers never see a stale address status when GPS is not ready.
+  // Address status is "idle" if GPS is not ready, otherwise reflects the reverse geocoding state
   const addressStatus = gpsReady ? rawAddressStatus : "idle";
 
   // Filter routes for the map/catalog scope.
@@ -344,11 +349,7 @@ export function RouteProvider({ children }) {
                 const matchLine = route.transportLineName
                   ?.toLowerCase()
                   .includes(term);
-                const matchStops = (
-                  route.keyStops ||
-                  route.stops ||
-                  []
-                ).some(
+                const matchStops = (route.keyStops || route.stops || []).some(
                   (s) =>
                     s.name?.toLowerCase().includes(term) ||
                     s.address?.toLowerCase().includes(term),
@@ -421,6 +422,7 @@ export function RouteProvider({ children }) {
 
     if (!preserveStop) {
       setSelectedStop(null);
+      setFocusedStop(null);
     }
     setActiveDirection("OUTBOUND");
 
@@ -447,11 +449,19 @@ export function RouteProvider({ children }) {
 
   const selectStop = useCallback((stop) => {
     setSelectedStop(stop);
+    if (stop) {
+      setFocusedStop(null);
+    }
+  }, []);
+
+  const focusStop = useCallback((stop) => {
+    setFocusedStop(stop);
   }, []);
 
   const clearSelection = useCallback(() => {
     setSelectedRoute(null);
     setSelectedStop(null);
+    setFocusedStop(null);
     setActiveDirection("OUTBOUND");
     setSearchedLocation(null);
     setNearestMatchInfo(null);
@@ -461,6 +471,7 @@ export function RouteProvider({ children }) {
 
   const clearSelectedRoute = useCallback(() => {
     setSelectedRoute(null);
+    setFocusedStop(null);
     setActiveDirection("OUTBOUND");
     setLoadingRouteDetail(false);
   }, []);
@@ -532,6 +543,9 @@ export function RouteProvider({ children }) {
       setSearchedLocation,
       selectRoute,
       selectStop,
+      focusedStop,
+      focusStop,
+      setFocusedStop,
       clearSelection,
       clearSelectedRoute,
       locateNearestRoute,
@@ -582,6 +596,9 @@ export function RouteProvider({ children }) {
       setSearchedLocation,
       selectRoute,
       selectStop,
+      focusedStop,
+      focusStop,
+      setFocusedStop,
       clearSelection,
       clearSelectedRoute,
       locateNearestRoute,

@@ -45,7 +45,7 @@ export function RoutesListPage() {
   const handleSelectRoute = (route, stop = null) => {
     selectRoute(route);
     if (stop) selectStop(stop);
-    navigate(`/mapa/ruta/${route.id}`);
+    navigate(`/mapa/ruta/${route.id}`, { state: { from: "/rutas" } });
   };
 
   return (

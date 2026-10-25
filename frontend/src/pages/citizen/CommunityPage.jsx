@@ -388,7 +388,7 @@ export function CommunityPage() {
       color: post.routeColor,
     };
     selectRoute(matched);
-    navigate(`/mapa/ruta/${post.routeId}`);
+    navigate(`/mapa/ruta/${post.routeId}`, { state: { from: "/comunidad" } });
   };
 
   const handleCreatePost = async (e) => {

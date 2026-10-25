@@ -23,7 +23,7 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
     } else {
       clearSelectedRoute();
       selectStop(stop);
-      navigate("/mapa");
+      navigate("/mapa", { state: { from: "/" } });
     }
   };
 

@@ -57,6 +57,7 @@ function MapAutoRecenter({
   bounds,
   center,
   selectedStop,
+  focusedStop,
   isRouteSelected,
   selectedRouteId,
   recenterTrigger,
@@ -71,9 +72,10 @@ function MapAutoRecenter({
     const isManualTrigger = recenterTrigger !== lastTriggerRef.current;
     lastTriggerRef.current = recenterTrigger;
 
-    const stopLat = selectedStop?.latitude;
-    const stopLng = selectedStop?.longitude;
-    const hasStopCoords = selectedStop && stopLat != null && stopLng != null;
+    const activeStop = selectedStop || focusedStop;
+    const stopLat = activeStop?.latitude;
+    const stopLng = activeStop?.longitude;
+    const hasStopCoords = activeStop && stopLat != null && stopLng != null;
 
     // Resetear ruta previa si se deseleccionó la ruta
     if (!isRouteSelected) {
@@ -109,11 +111,33 @@ function MapAutoRecenter({
         return;
       }
 
-      // Mientras la ruta está seleccionada, elegir un paradero (vía el botón
-      // "más detalle" de su popup) NO mueve la cámara: el encuadre de la ruta
-      // permanece intacto. Solo se re-encuadra la ruta completa cuando el
-      // paradero se deselecciona (flecha atrás del drawer).
-      if (!selectedStop && bounds) {
+      // Si la ruta YA fue encuadrada inicialmente:
+      // Si el usuario selecciona o enfoca un paradero dentro de la ruta:
+      if (hasStopCoords) {
+        const stopPrefix = selectedStop ? "route-stop" : "route-focused-stop";
+        const stopKey = `${stopPrefix}:${selectedRouteId}:${activeStop.id || `${stopLat},${stopLng}`}`;
+        if (!isManualTrigger && lastActionKeyRef.current === stopKey) {
+          return;
+        }
+        lastActionKeyRef.current = stopKey;
+
+        const zoom = 16;
+        const targetPoint = map.project([stopLat, stopLng], zoom);
+        // Offset vertical para que el pin quede visible arriba del drawer de paradero
+        const offsetY = Math.min(window.innerHeight * 0.22, 180);
+        const offsetPoint = L.point(targetPoint.x, targetPoint.y + offsetY);
+        const targetLatLng = map.unproject(offsetPoint, zoom);
+
+        map.flyTo(targetLatLng, zoom, {
+          animate: true,
+          duration: 0.9,
+        });
+        return;
+      }
+
+      // Si la ruta ya estaba encuadrada y no hay paradero seleccionado ni enfocado:
+      // Volvemos a encuadrar toda la ruta
+      if (!activeStop && bounds) {
         const boundsKey = `route:${selectedRouteId}:${bounds[0][0].toFixed(4)},${bounds[0][1].toFixed(4)},${bounds[1][0].toFixed(4)},${bounds[1][1].toFixed(4)}`;
         if (!isManualTrigger && lastActionKeyRef.current === boundsKey) {
           return;
@@ -204,6 +228,7 @@ function MapAutoRecenter({
     bounds,
     center,
     selectedStop,
+    focusedStop,
     isRouteSelected,
     selectedRouteId,
     recenterTrigger,
@@ -278,18 +303,22 @@ function MapClickHandler({
  * map moves. Results mode keeps the draggable Leaflet flag marker instead. */
 function FixedPinOverlay({ label = "", moving = false, resolving = false }) {
   return (
-    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden="true">
+    <div
+      className="pointer-events-none absolute inset-0 z-10"
+      aria-hidden="true"
+    >
       <div className="absolute left-1/2 top-1/2">
         <div className="absolute bottom-0 left-1/2 flex -translate-x-1/2 flex-col items-center">
-          {!moving && (resolving ? (
-            <div className="mb-1 max-w-[190px] truncate rounded-full border border-white/20 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold text-white/70 shadow-lg animate-pulse">
-              Ubicando punto…
-            </div>
-          ) : label ? (
-            <div className="mb-1 max-w-[190px] truncate rounded-full border border-white/20 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg">
-              {label}
-            </div>
-          ) : null)}
+          {!moving &&
+            (resolving ? (
+              <div className="mb-1 max-w-[190px] truncate rounded-full border border-white/20 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold text-white/70 shadow-lg animate-pulse">
+                Ubicando punto…
+              </div>
+            ) : label ? (
+              <div className="mb-1 max-w-[190px] truncate rounded-full border border-white/20 bg-slate-900/90 px-2.5 py-1 text-[11px] font-semibold text-white shadow-lg">
+                {label}
+              </div>
+            ) : null)}
           <div className="flex h-6 w-6 items-center justify-center rounded-full border border-slate-200 bg-white shadow-md">
             <Flag className="h-3.5 w-3.5 text-red-600" />
           </div>
@@ -424,14 +453,107 @@ function RouteStopPopupCard({ stop, onSelectStop }) {
   );
 }
 
+function StopMarkerItem({
+  stop,
+  idx,
+  isSelected,
+  isFocused,
+  selectedRoute,
+  isBrowsingRouteStops,
+  onSelectStop,
+  onFocusStop,
+}) {
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (isFocused && markerRef.current) {
+      const marker = markerRef.current;
+      const timer = setTimeout(() => {
+        if (marker && !marker.isPopupOpen()) {
+          marker.openPopup();
+        }
+      }, 50);
+      return () => clearTimeout(timer);
+    }
+  }, [isFocused]);
+
+  const isHighlighted = isSelected || isFocused;
+
+  return (
+    <Marker
+      ref={markerRef}
+      key={`${stop.id}-${idx}`}
+      position={[stop.latitude, stop.longitude]}
+      icon={createStopIcon(
+        stop.name,
+        isHighlighted,
+        Boolean(selectedRoute) || isHighlighted,
+      )}
+      eventHandlers={{
+        click: (e) => {
+          L.DomEvent.stopPropagation(e);
+          // Standalone map mode OR already inspecting stops in a route:
+          // 1-tap direct selection.
+          if (!selectedRoute || isBrowsingRouteStops) {
+            if (onSelectStop) onSelectStop(stop);
+          } else {
+            // Viewing route detail without an active stop inspection:
+            // Syncs the focused stop with RouteDrawer and opens the preview popup.
+            if (onFocusStop) onFocusStop(stop);
+          }
+        },
+        popupclose: () => {
+          if (isFocused && onFocusStop) {
+            onFocusStop(null);
+          }
+        },
+      }}
+    >
+      {!isBrowsingRouteStops && (
+        <Popup>
+          {selectedRoute ? (
+            <RouteStopPopupCard
+              stop={stop}
+              onSelectStop={onSelectStop}
+            />
+          ) : (
+            <div className="p-1 max-w-[200px]">
+              <div
+                className={`text-xs uppercase font-bold ${isHighlighted ? "text-amber-600" : "text-brand-primary"}`}
+              >
+                {isHighlighted
+                  ? "📍 Paradero seleccionado"
+                  : "Punto frecuente"}
+              </div>
+              <div className="text-xs font-bold text-slate-900">
+                {stop.name}
+              </div>
+              <div className="text-xs text-slate-500">
+                {stop.address || stop.reference}
+              </div>
+              {stop.accessible && (
+                <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
+                  ♿ Acceso Accesible
+                </span>
+              )}
+            </div>
+          )}
+        </Popup>
+      )}
+    </Marker>
+  );
+}
+
 function InteractiveMapComponent({
   routes = [],
   selectedRoute = null,
   selectedStop = null,
+  focusedStop = null,
   searchedLocation = null,
   userLocation = null,
   onSelectRoute,
   onSelectStop,
+  onFocusStop = null,
   onMapClick,
   mapCenter = [-14.0678, -75.7286],
   mapZoom = 14,
@@ -493,7 +615,11 @@ function InteractiveMapComponent({
     // Route trace must stay the only path while a route is selected:
     // selecting a stop from its popup must never draw a GPS → stop trace.
     if (selectedRoute) return null;
-    if (!userLocation || selectedStop?.latitude == null || selectedStop?.longitude == null) {
+    if (
+      !userLocation ||
+      selectedStop?.latitude == null ||
+      selectedStop?.longitude == null
+    ) {
       return null;
     }
     // Sin trazado si el paradero queda demasiado lejos (usuario en otra ciudad
@@ -523,7 +649,8 @@ function InteractiveMapComponent({
     let cancelled = false;
     (async () => {
       try {
-        const roadPoints = await routingService.getRoadPolyline(straightTracePoints);
+        const roadPoints =
+          await routingService.getRoadPolyline(straightTracePoints);
         if (!cancelled && roadPoints.length >= 2) {
           setRoadTrace({ key: traceKey, points: roadPoints });
         }
@@ -539,7 +666,9 @@ function InteractiveMapComponent({
 
   // Only use road points if they match the current trace; otherwise show straight line
   const displayTracePoints =
-    roadTrace && roadTrace.key === traceKey ? roadTrace.points : straightTracePoints;
+    roadTrace && roadTrace.key === traceKey
+      ? roadTrace.points
+      : straightTracePoints;
 
   // Fetch street-polylines (OSRM snapping) ONLY for the selected route detail directions in parallel
   useEffect(() => {
@@ -581,7 +710,10 @@ function InteractiveMapComponent({
         await Promise.all(promises);
 
         if (isMounted) {
-          snappedCacheRef.current = { ...snappedCacheRef.current, ...newDirMap };
+          snappedCacheRef.current = {
+            ...snappedCacheRef.current,
+            ...newDirMap,
+          };
           setSnappedDirectionMap((prev) => ({ ...prev, ...newDirMap }));
         }
       } catch (err) {
@@ -705,6 +837,7 @@ function InteractiveMapComponent({
           bounds={activeBounds}
           center={currentCenter}
           selectedStop={selectedStop}
+          focusedStop={focusedStop}
           isRouteSelected={Boolean(selectedRoute)}
           selectedRouteId={selectedRoute?.id}
           recenterTrigger={recenterTrigger}
@@ -874,64 +1007,36 @@ function InteractiveMapComponent({
         )}
 
         {allStops.map((stop, idx) => {
+          if (stop.latitude == null || stop.longitude == null) return null;
           const isSelected = selectedStop?.id === stop.id;
-          const lat = stop.latitude;
-          const lng = stop.longitude;
-          if (lat == null || lng == null) return null;
+          const isFocused = focusedStop?.id === stop.id;
+          const isBrowsingRouteStops = Boolean(selectedRoute && selectedStop);
 
           return (
-            <Marker
+            <StopMarkerItem
               key={`${stop.id}-${idx}`}
-              position={[lat, lng]}
-              icon={createStopIcon(
-                stop.name,
-                isSelected,
-                Boolean(selectedRoute) || isSelected,
-              )}
-              eventHandlers={{
-                click: (e) => {
-                  L.DomEvent.stopPropagation(e);
-                  // Route context: the click only opens the popup. The stop
-                  // becomes selected exclusively through the popup's detail
-                  // button, so map state stays untouched here.
-                  if (!selectedRoute && onSelectStop) onSelectStop(stop);
-                },
-              }}
-            >
-              <Popup>
-                {selectedRoute ? (
-                  <RouteStopPopupCard stop={stop} onSelectStop={onSelectStop} />
-                ) : (
-                  <div className="p-1 max-w-[200px]">
-                    <div
-                      className={`text-xs uppercase font-bold ${isSelected ? "text-amber-600" : "text-brand-primary"}`}
-                    >
-                      {isSelected
-                        ? "📍 Paradero seleccionado"
-                        : "Punto frecuente"}
-                    </div>
-                    <div className="text-xs font-bold text-slate-900">
-                      {stop.name}
-                    </div>
-                    <div className="text-xs text-slate-500">
-                      {stop.address || stop.reference}
-                    </div>
-                    {stop.accessible && (
-                      <span className="inline-block mt-1 text-xs bg-emerald-50 text-emerald-700 px-1.5 py-0.5 rounded border border-emerald-200 font-medium">
-                        ♿ Acceso Accesible
-                      </span>
-                    )}
-                  </div>
-                )}
-              </Popup>
-            </Marker>
+              stop={stop}
+              idx={idx}
+              isSelected={isSelected}
+              isFocused={isFocused}
+              selectedRoute={selectedRoute}
+              isBrowsingRouteStops={isBrowsingRouteStops}
+              onSelectStop={onSelectStop}
+              onFocusStop={onFocusStop}
+            />
           );
         })}
       </MapContainer>
 
       {/* Pin mode: fixed center overlay over the map box (the map moves
           under it). Plain HTML, never a Leaflet marker. */}
-      {pinMode && <FixedPinOverlay label={pinLabel} moving={pinMoving} resolving={pinResolving} />}
+      {pinMode && (
+        <FixedPinOverlay
+          label={pinLabel}
+          moving={pinMoving}
+          resolving={pinResolving}
+        />
+      )}
     </div>
   );
 }
