@@ -132,20 +132,20 @@ export function HomePage() {
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
       {/* ── QRuta Urban Tech Hero: Surface Navy (#111B2E) + Electric Lime (#B7F34A) ─────── */}
-      <header className="bg-brand-navy border-b border-border-navy px-4 sm:px-6 pt-5 pb-6 text-white space-y-4 relative z-10 shadow-lg shadow-black/20">
+      <header className="bg-brand-navy border-b border-border-navy px-4 sm:px-6 pt-3.5 sm:pt-4 pb-5 text-white space-y-3.5 relative z-10 shadow-lg shadow-black/20">
         {/* Top row: brand (mobile only — global Header shows it on sm+) + notifications */}
         <div className="flex justify-between items-center">
-          <div className="flex sm:hidden items-center gap-2.5">
+          <div className="flex sm:hidden items-center gap-3">
             <img
               src="/qruta-icon.svg"
               alt="QRuta"
-              className="w-9 h-9 rounded-xl shadow-md shadow-black/30 shrink-0"
+              className="w-12 h-12 rounded-2xl shadow-md shadow-black/40 shrink-0"
             />
-            <div className="flex flex-col">
-              <span className="font-extrabold text-lg leading-tight tracking-tight text-white">
+            <div className="flex flex-col justify-center min-w-0">
+              <span className="font-black text-2xl leading-none tracking-tight text-white">
                 Q<span className="text-brand-lime">Ruta</span>
               </span>
-              <span className="text-[10px] font-semibold text-slate-400">
+              <span className="text-[11px] font-semibold text-slate-300 mt-1 leading-tight">
                 Pregunta menos, <span className="text-brand-lime">muévete más.</span>
               </span>
             </div>

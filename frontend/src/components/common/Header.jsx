@@ -26,22 +26,22 @@ export function Header() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand logo & tagline */}
-        <Link to="/" className="flex items-center gap-3 group shrink-0">
+        <Link to="/" className="flex items-center gap-2.5 group shrink-0">
           <img
             src="/qruta-icon.svg"
             alt="QRuta"
-            className="w-10 h-10 rounded-xl shadow-2xs group-hover:scale-105 transition-transform duration-200"
+            className="w-11 h-11 rounded-xl shadow-2xs group-hover:scale-105 transition-transform duration-200"
           />
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-xl tracking-tight text-ink-primary">
+          <div className="flex flex-col justify-center">
+            <div className="flex items-center gap-2 leading-none">
+              <span className="font-black text-xl tracking-tight text-ink-primary">
                 Q<span className="text-brand-primary-green">Ruta</span>
               </span>
               <span className="text-xs font-semibold tracking-wide uppercase bg-slate-100 text-ink-secondary px-2 py-0.5 rounded-full border border-slate-200/80">
                 {currentCity?.name || 'Ica'}
               </span>
             </div>
-            <p className="text-xs font-medium text-ink-muted hidden lg:flex items-center gap-1">
+            <p className="text-xs font-medium text-ink-muted hidden lg:flex items-center gap-1 mt-1 leading-none">
               Pregunta menos, <span className="text-brand-primary-green font-semibold">muévete más.</span>
             </p>
           </div>
