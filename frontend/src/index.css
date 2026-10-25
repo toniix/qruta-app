@@ -3,8 +3,8 @@
 
 @theme {
   /* ── Brand Core ─────────────────────────────────────────────────────── */
-  --color-brand-primary: #0b1220;
-  --color-brand-primary-dark: #070c16;
+  --color-brand-primary: #111b2e;
+  --color-brand-primary-dark: #0b1220;
   --color-brand-secondary: #537d13;
   --color-brand-accent: #b7f34a;
 
@@ -15,9 +15,9 @@
   --color-brand-primary-green: #537d13;
 
   /* ── Dark Chrome & Structural Surfaces ──────────────────────────────── */
-  --color-brand-navy: #0b1220;
-  --color-surface-navy: #111b2e;
-  --color-surface-navy-elevated: #17243a;
+  --color-brand-navy: #111b2e;
+  --color-surface-navy: #17243a;
+  --color-surface-navy-elevated: #20314d;
   --color-border-navy: #29364a;
 
   /* ── Surfaces (Outdoor Daytime Canvas) ──────────────────────────────── */
@@ -52,9 +52,9 @@
   --radius-xl: 16px;
 
   /* ── Shadow scale (crisp borders + tactile elevation for outdoor) ────── */
-  --shadow-card: 0 1px 3px 0 rgb(11 18 32 / 0.06), 0 1px 2px -1px rgb(11 18 32 / 0.06);
-  --shadow-raised: 0 4px 8px -2px rgb(11 18 32 / 0.08), 0 2px 4px -2px rgb(11 18 32 / 0.04);
-  --shadow-overlay: 0 12px 24px -4px rgb(11 18 32 / 0.16), 0 4px 8px -2px rgb(11 18 32 / 0.08);
+  --shadow-card: 0 1px 3px 0 rgb(17 27 46 / 0.06), 0 1px 2px -1px rgb(17 27 46 / 0.06);
+  --shadow-raised: 0 4px 8px -2px rgb(17 27 46 / 0.08), 0 2px 4px -2px rgb(17 27 46 / 0.04);
+  --shadow-overlay: 0 12px 24px -4px rgb(17 27 46 / 0.16), 0 4px 8px -2px rgb(17 27 46 / 0.08);
 }
 
 @layer base {

@@ -5,9 +5,9 @@
  */
 
 // Brand & Dark Surfaces
-export const BRAND_NAVY = '#0B1220';
-export const BRAND_SURFACE_NAVY = '#111B2E';
-export const BRAND_SURFACE_NAVY_ELEVATED = '#17243A';
+export const BRAND_NAVY = '#111B2E';
+export const BRAND_SURFACE_NAVY = '#17243A';
+export const BRAND_SURFACE_NAVY_ELEVATED = '#20314D';
 export const BRAND_BORDER_NAVY = '#29364A';
 
 // QRuta Lime Accents
@@ -34,10 +34,10 @@ export const TRANSIT_COLOR_PALETTE = [
   '#35B779', // Success Emerald
   '#F5B942', // Warning Amber
   '#F97066', // Error Coral
-  '#0B1220', // Midnight Navy
+  '#111B2E', // Surface Navy
 ];
 
 // Compatibility aliases
-export const BRAND_PRIMARY = '#0B1220';
-export const BRAND_PRIMARY_DARK = '#070C16';
+export const BRAND_PRIMARY = '#111B2E';
+export const BRAND_PRIMARY_DARK = '#0B1220';
 export const DEFAULT_ROUTE_COLOR = '#60A5FA';

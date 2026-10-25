@@ -5,10 +5,7 @@ import {
   Search,
   Navigation,
   MapPin,
-  Map,
-  MessageSquare,
   Loader2,
-  Bus,
   AlertCircle,
   ChevronRight,
   ChevronLeft,
@@ -134,7 +131,7 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
-      {/* ── QRuta Urban Tech Hero: Midnight Navy (#0B1220) + Electric Lime (#B7F34A) ─────── */}
+      {/* ── QRuta Urban Tech Hero: Surface Navy (#111B2E) + Electric Lime (#B7F34A) ─────── */}
       <header className="bg-brand-navy border-b border-border-navy px-4 sm:px-6 pt-5 pb-6 text-white space-y-4 relative z-10 shadow-lg shadow-black/20">
         {/* Top row: brand (mobile only — global Header shows it on sm+) + notifications */}
         <div className="flex justify-between items-center">
@@ -324,70 +321,6 @@ export function HomePage() {
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
       <main className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-7">
-        {/* ── QRuta Action Grid: Quick Urban Shortcuts ─────────────────── */}
-        <section aria-label="Accesos rápidos" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <button
-            type="button"
-            onClick={() => navigate('/mapa')}
-            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-xl bg-brand-navy flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-              <Map className="w-5 h-5 text-brand-lime" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-extrabold text-sm text-slate-900 leading-tight">Mapa en vivo</p>
-              <p className="text-[11px] font-medium text-slate-500 truncate">Ver recorrido</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => {
-              if (nearbyStopsRef.current) {
-                nearbyStopsRef.current.scrollIntoView({ behavior: 'smooth' });
-              } else {
-                navigate('/mapa');
-              }
-            }}
-            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-xl bg-brand-lime-soft flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-              <MapPin className="w-5 h-5 text-brand-secondary" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-extrabold text-sm text-slate-900 leading-tight">Paraderos</p>
-              <p className="text-[11px] font-medium text-slate-500 truncate">Cercanos a ti</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/rutas')}
-            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-              <Bus className="w-5 h-5 text-blue-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-extrabold text-sm text-slate-900 leading-tight">Catálogo</p>
-              <p className="text-[11px] font-medium text-slate-500 truncate">Todas las rutas</p>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/comunidad')}
-            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
-          >
-            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-              <MessageSquare className="w-5 h-5 text-amber-600" />
-            </div>
-            <div className="min-w-0">
-              <p className="font-extrabold text-sm text-slate-900 leading-tight">Comunidad</p>
-              <p className="text-[11px] font-medium text-slate-500 truncate">Avisos y tráfico</p>
-            </div>
-          </button>
-        </section>
         {/* ── Continúa explorando: recents + favorites, compact one-liner ── */}
         {(recentSearches.length > 0 || favorites.length > 0) && (
           <section aria-label="Continúa explorando" className="space-y-2">

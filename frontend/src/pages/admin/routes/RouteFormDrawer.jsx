@@ -13,7 +13,7 @@ const PRESET_COLORS = [
   '#35B779', // Emerald
   '#F5B942', // Amber
   '#F97066', // Coral
-  '#0B1220', // Midnight Navy
+  '#111B2E', // Surface Navy
 ];
 
 function RouteFormDrawerContent({
