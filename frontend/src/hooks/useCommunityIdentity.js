@@ -10,6 +10,8 @@ function generateUuid() {
   return 'dev-' + Math.random().toString(36).substring(2, 12) + '-' + Date.now().toString(36);
 }
 
+let volatileSessionDeviceId = null;
+
 export function getOrCreateDeviceId() {
   try {
     let existing = localStorage.getItem(DEVICE_ID_KEY);
@@ -19,7 +21,10 @@ export function getOrCreateDeviceId() {
     }
     return existing;
   } catch {
-    return 'fallback-device-session';
+    if (!volatileSessionDeviceId) {
+      volatileSessionDeviceId = 'vol-' + generateUuid();
+    }
+    return volatileSessionDeviceId;
   }
 }
 

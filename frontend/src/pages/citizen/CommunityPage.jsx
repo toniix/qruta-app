@@ -20,6 +20,14 @@ import {
   COMMUNITY_CATEGORIES,
   getCategoryMeta,
 } from "../../services/communityService";
+import {
+  feedCacheKey,
+  readFeedCache,
+  writeFeedCache,
+  invalidateFeedCache,
+  updateFeedCachePost,
+  updateFeedCacheCommentsCount,
+} from "../../services/communityFeedCache";
 import { ConfirmDialog } from "../../components/admin/common/ConfirmDialog";
 import { MemoPostCard } from "../../components/community/PostCard";
 import {
@@ -56,37 +64,6 @@ const PAGE_SIZE = 20;
 // avisar antes de pegar a la API.
 const PUBLISH_COOLDOWN_MS = 8_000;
 
-// Caché SWR en memoria (vive mientras el SPA está montado): entrar a Comunidad
-// pinta instantáneo y revalida en segundo plano. TTL corto para no mostrar
-// likes/counts viejos. Sin login no hay usuario, la clave es filtro+orden.
-const FEED_CACHE_TTL_MS = 60_000;
-const feedCache = new Map();
-function feedCacheKey(category, routeId, sort) {
-  return `${category || "ALL"}|${routeId || ""}|${sort || "recent"}`;
-}
-function readFeedCache(key) {
-  const hit = feedCache.get(key);
-  if (!hit) return null;
-  if (Date.now() - hit.ts > FEED_CACHE_TTL_MS) {
-    feedCache.delete(key);
-    return null;
-  }
-  return hit;
-}
-function writeFeedCache(key, entry) {
-  // Guardamos solo la primera página + estado; el scroll infinito pide el resto
-  feedCache.set(key, { ...entry, ts: Date.now() });
-  if (feedCache.size > 20) {
-    const oldest = feedCache.keys().next().value;
-    feedCache.delete(oldest);
-  }
-}
-function invalidateFeedCache() {
-  // Crear/borrar cambia el feed: la próxima entrada refetchea (los likes quedan
-  // stale como máximo 60s, compromiso aceptado para no perder el instant paint)
-  feedCache.clear();
-}
-
 function getInitials(name) {
   if (!name) return "U";
   const parts = name.trim().split(/\s+/);
@@ -103,13 +80,20 @@ export function CommunityPage() {
   const routeFilterId = searchParams.get("routeId") || "";
   const initialCreateOpen = searchParams.get("compose") === "1";
 
+  const initialFeedKey = feedCacheKey(
+    null,
+    routeFilterId || null,
+    "recent",
+  );
+  const initialCached = readFeedCache(initialFeedKey);
+
   const [selectedCategory, setSelectedCategory] = useState("ALL");
   const [sortOrder, setSortOrder] = useState("recent");
   const [mineOnly, setMineOnly] = useState(false);
-  const [posts, setPosts] = useState([]);
-  const [page, setPage] = useState(0);
-  const [hasMore, setHasMore] = useState(true);
-  const [loading, setLoading] = useState(true);
+  const [posts, setPosts] = useState(() => initialCached?.posts || []);
+  const [page, setPage] = useState(() => initialCached?.page || 0);
+  const [hasMore, setHasMore] = useState(() => initialCached?.hasMore ?? true);
+  const [loading, setLoading] = useState(() => !initialCached);
   const [loadingMore, setLoadingMore] = useState(false);
   const [isRevalidating, setIsRevalidating] = useState(false);
   const [error, setError] = useState(null);
@@ -156,6 +140,7 @@ export function CommunityPage() {
   const [commentBlockedPostId, setCommentBlockedPostId] = useState(null);
   // When commenting without alias, remember which post triggered the alias modal
   const [pendingCommentPostId, setPendingCommentPostId] = useState(null);
+  const pendingLikesRef = useRef(new Set());
   const composeFirstFieldRef = useRef(null);
   const aliasInputRef = useRef(null);
 
@@ -164,16 +149,7 @@ export function CommunityPage() {
     Math.ceil((cooldownUntil - nowTick) / 1000),
   );
   const coolingDown = cooldownRemaining > 0;
-
-  // Al terminar el cooldown se limpia el aviso inline del comentario.
-  // Ajuste en fase de render (patrón documentado) en vez de setState en efecto.
-  const [wasCoolingDown, setWasCoolingDown] = useState(coolingDown);
-  if (wasCoolingDown && !coolingDown) {
-    setWasCoolingDown(false);
-    setCommentBlockedPostId(null);
-  } else if (!wasCoolingDown && coolingDown) {
-    setWasCoolingDown(true);
-  }
+  const activeCommentBlockedPostId = coolingDown ? commentBlockedPostId : null;
 
   // Tick de 1s solo mientras dura el cooldown (para la cuenta regresiva)
   useEffect(() => {
@@ -329,29 +305,20 @@ export function CommunityPage() {
     sortOrder,
   );
 
-  // Hidratación instantánea desde caché en fase de render (stale-while-revalidate):
-  // pinta sin flash y evita setState sincrónico dentro del efecto.
-  const [paintedFeedKey, setPaintedFeedKey] = useState(null);
-  if (paintedFeedKey !== feedKey) {
-    setPaintedFeedKey(feedKey);
-    const cached = readFeedCache(feedKey);
-    if (cached) {
-      setPosts(cached.posts);
-      setPage(cached.page);
-      setHasMore(cached.hasMore);
-      setLoading(false);
-    }
-  }
-
   useEffect(() => {
     const controller = new AbortController();
-    // Envoltorio async: los setState ocurren en continuaciones async, no en el cuerpo del efecto.
     (async () => {
       const cached = readFeedCache(feedKey);
       if (cached) {
-        // Revalidamos en segundo plano sin pisar lo ya pintado
+        setPosts(cached.posts);
+        setPage(cached.page);
+        setHasMore(cached.hasMore);
+        setLoading(false);
         await loadPage(0, { revalidate: true, signal: controller.signal });
       } else {
+        setPosts([]);
+        setPage(0);
+        setHasMore(true);
         await loadPage(0, { initial: true, signal: controller.signal });
       }
     })();
@@ -460,17 +427,57 @@ export function CommunityPage() {
   };
 
   const handleToggleLike = async (postId) => {
+    // 1. Prevención de spam-click: si ya hay una petición en vuelo para este post, ignorar
+    if (pendingLikesRef.current.has(postId)) {
+      return;
+    }
+
+    // 2. Snapshot del estado previo para rollback ante fallos
+    const targetPost = posts.find((p) => String(p.id) === String(postId));
+    if (!targetPost) return;
+
+    const previousLiked = Boolean(targetPost.likedByMe);
+    const previousCount = targetPost.likesCount || 0;
+    const optimisticLiked = !previousLiked;
+    const optimisticCount = Math.max(
+      0,
+      previousCount + (optimisticLiked ? 1 : -1),
+    );
+
+    const optimisticPost = {
+      ...targetPost,
+      likedByMe: optimisticLiked,
+      likesCount: optimisticCount,
+    };
+
+    // 3. Actualización optimista inmediata (0ms de latencia percibida)
+    pendingLikesRef.current.add(postId);
+    setPosts((prev) =>
+      prev.map((p) => (String(p.id) === String(postId) ? optimisticPost : p)),
+    );
+    updateFeedCachePost(optimisticPost);
+
+    // 4. Despacho en background con reconciliación y rollback defensivo
     try {
       const updated = await communityService.toggleLike(postId);
+      // Reconciliación con la respuesta autoritativa del servidor
       setPosts((prev) =>
         prev.map((p) => (String(p.id) === String(postId) ? updated : p)),
       );
+      updateFeedCachePost(updated);
     } catch (err) {
       console.error("Error al actualizar reacción:", err);
+      // ROLLBACK al snapshot original en caso de fallo
+      setPosts((prev) =>
+        prev.map((p) => (String(p.id) === String(postId) ? targetPost : p)),
+      );
+      updateFeedCachePost(targetPost);
       setActionError(
         err.response?.data?.message ||
-          "No se pudo registrar tu reacción. Intenta de nuevo.",
+          "No se pudo registrar tu reacción. Se restableció el estado anterior.",
       );
+    } finally {
+      pendingLikesRef.current.delete(postId);
     }
   };
 
@@ -578,6 +585,7 @@ export function CommunityPage() {
             : p,
         ),
       );
+      updateFeedCacheCommentsCount(postId, 1);
       /* eslint-disable react-hooks/purity -- Timestamps de cooldown: Date.now es impuro a propósito; esto corre en un handler tras acción del usuario, nunca durante el render. */
       setCooldownUntil(Date.now() + PUBLISH_COOLDOWN_MS);
       setNowTick(Date.now());
@@ -631,6 +639,7 @@ export function CommunityPage() {
             : p,
         ),
       );
+      updateFeedCacheCommentsCount(postId, -1);
     } catch (err) {
       setActionError(
         err.response?.data?.message || "No se pudo eliminar el comentario.",
@@ -999,7 +1008,7 @@ export function CommunityPage() {
                     alias,
                     hasAlias,
                     cooldownRemaining,
-                    commentBlockedPostId,
+                    commentBlockedPostId: activeCommentBlockedPostId,
                   }}
                 />
               );

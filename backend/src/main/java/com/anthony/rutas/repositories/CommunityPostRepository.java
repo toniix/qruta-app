@@ -4,6 +4,7 @@ import com.anthony.rutas.entities.CommunityPost;
 import com.anthony.rutas.entities.PostCategory;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -12,6 +13,14 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface CommunityPostRepository extends JpaRepository<CommunityPost, UUID> {
+
+       @Modifying(flushAutomatically = true, clearAutomatically = true)
+       @Query("UPDATE CommunityPost p SET p.likesCount = GREATEST(0, p.likesCount + :delta) WHERE p.id = :postId")
+       void adjustLikesCount(@Param("postId") UUID postId, @Param("delta") int delta);
+
+       @Modifying(flushAutomatically = true, clearAutomatically = true)
+       @Query("UPDATE CommunityPost p SET p.commentsCount = GREATEST(0, p.commentsCount + :delta) WHERE p.id = :postId")
+       void adjustCommentsCount(@Param("postId") UUID postId, @Param("delta") int delta);
 
        @Query("SELECT p FROM CommunityPost p " +
                      "LEFT JOIN FETCH p.route r " +

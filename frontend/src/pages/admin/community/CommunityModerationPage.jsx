@@ -79,32 +79,14 @@ export function CommunityModerationPage() {
   useEffect(() => {
     let isMounted = true;
     (async () => {
-      try {
-        const [postsData, routesData, linesData, citiesData] = await Promise.all([
-          communityService.getAdminPosts(),
-          adminRouteService.getAllRoutes().catch(() => []),
-          adminLineService.getAllLines().catch(() => []),
-          cityService.getAdminCities().catch(() => []),
-        ]);
-        if (isMounted) {
-          setPosts(Array.isArray(postsData) ? postsData : []);
-          setRoutes(Array.isArray(routesData) ? routesData : []);
-          setLines(Array.isArray(linesData) ? linesData : []);
-          setCities(Array.isArray(citiesData) ? citiesData : []);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error cargando datos de comunidad:', err);
-          toast.error('Error al cargar publicaciones de la comunidad.');
-          setLoading(false);
-        }
+      if (isMounted) {
+        await loadData();
       }
     })();
     return () => {
       isMounted = false;
     };
-  }, [toast]);
+  }, [loadData]);
 
   // Context fast maps
   const routeMap = useMemo(() => new Map(routes.map((r) => [String(r.id), r])), [routes]);

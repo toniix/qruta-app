@@ -12,6 +12,7 @@ import com.anthony.rutas.repositories.*;
 import com.github.benmanes.caffeine.cache.Caffeine;
 
 import lombok.RequiredArgsConstructor;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -117,7 +118,7 @@ public class CommunityService {
     public CommunityPostResponse createPost(CreateCommunityPostRequest request, String deviceId) {
         rejectHoneypot(request.getWebsite());
         String cleanDeviceId = requireDeviceId(deviceId);
-        enforceRateLimit(cleanDeviceId);
+        enforceRateLimit(cleanDeviceId, "post");
 
         String cleanAlias = sanitizeText(request.getAuthorAlias());
         String cleanContent = sanitizeText(request.getContent());
@@ -178,20 +179,25 @@ public class CommunityService {
 
         if (existing.isPresent()) {
             likeRepository.delete(existing.get());
-            post.setLikesCount(Math.max(0, post.getLikesCount() - 1));
+            likeRepository.flush();
+            postRepository.adjustLikesCount(postId, -1);
             likedByMe = false;
         } else {
             CommunityPostLike newLike = CommunityPostLike.builder()
                     .post(post)
                     .deviceId(cleanDeviceId)
                     .build();
-            likeRepository.save(newLike);
-            post.setLikesCount(post.getLikesCount() + 1);
-            likedByMe = true;
+            try {
+                likeRepository.saveAndFlush(newLike);
+                postRepository.adjustLikesCount(postId, 1);
+                likedByMe = true;
+            } catch (DataIntegrityViolationException ex) {
+                likedByMe = true;
+            }
         }
 
-        CommunityPost saved = postRepository.save(post);
-        return toPostResponse(saved, cleanDeviceId, likedByMe);
+        CommunityPost updated = postRepository.findByIdWithDetails(postId).orElse(post);
+        return toPostResponse(updated, cleanDeviceId, likedByMe);
     }
 
     @Transactional(readOnly = true)
@@ -210,7 +216,7 @@ public class CommunityService {
     public CommunityCommentResponse addComment(UUID postId, CreateCommunityCommentRequest request, String deviceId) {
         rejectHoneypot(request.getWebsite());
         String cleanDeviceId = requireDeviceId(deviceId);
-        enforceRateLimit(cleanDeviceId);
+        enforceRateLimit(cleanDeviceId, "comment");
 
         String cleanAlias = sanitizeText(request.getAuthorAlias());
         String cleanContent = sanitizeText(request.getContent());
@@ -229,8 +235,7 @@ public class CommunityService {
                 .build();
 
         CommunityComment saved = commentRepository.save(comment);
-        post.setCommentsCount(post.getCommentsCount() + 1);
-        postRepository.save(post);
+        postRepository.adjustCommentsCount(postId, 1);
 
         return toCommentResponse(saved, cleanDeviceId);
     }
@@ -245,12 +250,11 @@ public class CommunityService {
             throw new BadRequestException("Solo puedes eliminar tus propios comentarios");
         }
 
-        CommunityPost post = comment.getPost();
+        UUID postId = comment.getPost() != null ? comment.getPost().getId() : null;
         commentRepository.delete(comment);
 
-        if (post != null) {
-            post.setCommentsCount(Math.max(0, post.getCommentsCount() - 1));
-            postRepository.save(post);
+        if (postId != null) {
+            postRepository.adjustCommentsCount(postId, -1);
         }
     }
 
@@ -275,11 +279,10 @@ public class CommunityService {
     public void adminDeleteComment(UUID commentId) {
         CommunityComment comment = commentRepository.findByIdWithPost(commentId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comentario no encontrado con ID: " + commentId));
-        CommunityPost post = comment.getPost();
+        UUID postId = comment.getPost() != null ? comment.getPost().getId() : null;
         commentRepository.delete(comment);
-        if (post != null) {
-            post.setCommentsCount(Math.max(0, post.getCommentsCount() - 1));
-            postRepository.save(post);
+        if (postId != null) {
+            postRepository.adjustCommentsCount(postId, -1);
         }
     }
 
@@ -293,13 +296,17 @@ public class CommunityService {
         return trimmed.length() > 64 ? trimmed.substring(0, 64) : trimmed;
     }
 
-    private void enforceRateLimit(String deviceId) {
+    private void enforceRateLimit(String deviceId, String action) {
         long now = System.currentTimeMillis();
-        Long previous = rateLimitCache.getIfPresent(deviceId);
+        String key = deviceId + ":" + action;
+        Long previous = rateLimitCache.getIfPresent(key);
         if (previous != null && (now - previous) < COOLDOWN_MS) {
-            throw new BadRequestException("Por favor espera unos segundos antes de volver a publicar.");
+            String msg = "comment".equalsIgnoreCase(action)
+                    ? "Por favor espera unos segundos antes de volver a comentar."
+                    : "Por favor espera unos segundos antes de volver a publicar.";
+            throw new BadRequestException(msg);
         }
-        rateLimitCache.put(deviceId, now);
+        rateLimitCache.put(key, now);
     }
 
     private void rejectHoneypot(String website) {

@@ -162,7 +162,7 @@ export const aliasSchema = z
   .string()
   .trim()
   .min(2, "El alias necesita al menos 2 letras.")
-  .max(15, "El alias admite hasta 15 caracteres.");
+  .max(40, "El alias admite hasta 40 caracteres.");
 
 export const communityPostSchema = z.object({
   authorAlias: aliasSchema,

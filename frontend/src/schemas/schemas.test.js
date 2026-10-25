@@ -240,6 +240,25 @@ describe('loginSchema', () => {
 });
 
 describe('community schemas', () => {
+  it('validates alias length boundaries (up to 40 characters is valid, 41 is invalid)', () => {
+    const valid40 = 'a'.repeat(40);
+    expect(aliasSchema.safeParse(valid40).success).toBe(true);
+
+    const invalid41 = 'a'.repeat(41);
+    const parsedInvalid = aliasSchema.safeParse(invalid41);
+    expect(parsedInvalid.success).toBe(false);
+    expect(parsedInvalid.error.issues[0]?.message).toBe('El alias admite hasta 40 caracteres.');
+
+    const invalidPost = validateWith(communityPostSchema, {
+      authorAlias: invalid41,
+      category: 'ALERTA',
+      content: 'Valid content',
+      routeId: null,
+    });
+    expect(invalidPost.ok).toBe(false);
+    expect(invalidPost.fieldErrors.authorAlias).toBe('El alias admite hasta 40 caracteres.');
+  });
+
   it('accepts a valid post with optional null route', () => {
     const result = validateWith(communityPostSchema, {
       authorAlias: 'Carlos',

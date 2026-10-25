@@ -20,7 +20,6 @@ function getInitials(name) {
 function CommentSection({
   post,
   commentState,
-  onToggleComments,
   onTextChange,
   onAddComment,
   onDeleteComment,
@@ -29,18 +28,13 @@ function CommentSection({
   cooldownRemaining = 0,
   commentBlockedPostId = null,
 }) {
+  if (!commentState.open) return null;
+
   return (
-    <>
-      <div className="pt-2 border-t border-slate-100 flex items-center gap-3">
-        <span className="sr-only" id={`like-count-${post.id}`}>
-          {post.likesCount || 0} reacciones útiles
-        </span>
-      </div>
-      {commentState.open && (
-        <div
-          id={`comments-${post.id}`}
-          className="pt-2 space-y-3 border-t border-slate-100 animate-fade-in"
-        >
+    <div
+      id={`comments-${post.id}`}
+      className="pt-2 space-y-3 border-t border-slate-100 animate-fade-in"
+    >
           {commentState.loading ? (
             <div
               className="flex items-center justify-center py-3 text-xs text-slate-500 gap-2"
@@ -132,8 +126,6 @@ function CommentSection({
             </p>
           )}
         </div>
-      )}
-    </>
   );
 }
 
