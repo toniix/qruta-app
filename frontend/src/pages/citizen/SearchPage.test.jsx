@@ -86,6 +86,7 @@ describe('SearchPage city filtering & search workflow', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+    sessionStorage.clear();
     routeService.getAllRoutes.mockResolvedValue(MOCK_ROUTES);
     routeService.searchRoutes.mockResolvedValue(MOCK_ROUTES);
   });
@@ -167,5 +168,48 @@ describe('SearchPage city filtering & search workflow', () => {
     await waitFor(() => {
       expect(screen.getByText('Explora antes de buscar')).toBeInTheDocument();
     });
+  });
+
+  it('preserves search results across unmount and remount when returning from route detail', async () => {
+    const user = userEvent.setup();
+    const { unmount } = renderSearchPage();
+
+    // 1. Search for Lima shortcut
+    await user.click(screen.getByRole('button', { name: /Lima/i }));
+    await waitFor(() => {
+      expect(screen.getByText('2 rutas encontradas')).toBeInTheDocument();
+      expect(screen.getByText('Plaza de Armas - Miraflores')).toBeInTheDocument();
+    });
+
+    // 2. Click a route card (simulating navigation to /mapa/ruta/:id)
+    await user.click(screen.getByText('Plaza de Armas - Miraflores'));
+    expect(BASE_STATE.selectRoute).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'route-lima-1' }),
+    );
+
+    // 3. Unmount component (leaving /buscar)
+    unmount();
+
+    // 4. Remount component (returning back from route detail)
+    const { unmount: unmountSecond } = renderSearchPage();
+
+    // Search results and query state should be immediately preserved!
+    expect(screen.getByText('2 rutas encontradas')).toBeInTheDocument();
+    expect(screen.getByText('Plaza de Armas - Miraflores')).toBeInTheDocument();
+    expect(screen.getByText('Javier Prado Express')).toBeInTheDocument();
+    expect(screen.queryByText('Explora antes de buscar')).not.toBeInTheDocument();
+
+    // 5. Manually clear search
+    const clearBtn = screen.getByRole('button', { name: /Quitar filtro y volver a explorar/i });
+    await user.click(clearBtn);
+
+    await waitFor(() => {
+      expect(screen.getByText('Explora antes de buscar')).toBeInTheDocument();
+    });
+
+    // 6. Unmount and remount again -> state should stay cleared
+    unmountSecond();
+    renderSearchPage();
+    expect(screen.getByText('Explora antes de buscar')).toBeInTheDocument();
   });
 });

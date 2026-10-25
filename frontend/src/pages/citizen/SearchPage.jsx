@@ -25,11 +25,48 @@ import {
 import { searchQuerySchema } from '../../schemas';
 
 const RECENT_KEY = 'rutasya_recent_searches';
+const SEARCH_STORAGE_KEY = 'rutasya_search_session_state';
 const MAX_RECENT = 5;
 const MAX_TOP_CITIES = 5;
 const MAX_POPULAR_SUGGESTIONS = 5;
 const SEARCH_SIZE = 50;
 const DEBOUNCE_MS = 300;
+
+let inMemorySearchState = null;
+
+function saveSearchState(state) {
+  inMemorySearchState = state;
+  try {
+    sessionStorage.setItem(SEARCH_STORAGE_KEY, JSON.stringify(state));
+  } catch {
+    // Keep in-memory cache if sessionStorage quota exceeded
+  }
+}
+
+function loadSearchState() {
+  try {
+    const stored = sessionStorage.getItem(SEARCH_STORAGE_KEY);
+    if (!stored) {
+      inMemorySearchState = null;
+      return null;
+    }
+    if (inMemorySearchState) return inMemorySearchState;
+    const parsed = JSON.parse(stored);
+    inMemorySearchState = parsed;
+    return parsed;
+  } catch {
+    return inMemorySearchState;
+  }
+}
+
+function clearSearchState() {
+  inMemorySearchState = null;
+  try {
+    sessionStorage.removeItem(SEARCH_STORAGE_KEY);
+  } catch {
+    // Ignore
+  }
+}
 
 function readRecentQueries() {
   try {
@@ -48,28 +85,55 @@ export function SearchPage() {
   const { selectRoute, cities, currentCity, routes, popularRoutes, userAddress } =
     useRoutes();
 
+  const [savedSearch] = useState(loadSearchState);
+
   const FALLBACK_ORIGIN = 'Mi ubicación';
   const defaultOrigin = userAddress?.formattedAddress || FALLBACK_ORIGIN;
-  const [origin, setOrigin] = useState(defaultOrigin);
-  const [destination, setDestination] = useState('');
-  const [searchResults, setSearchResults] = useState(null);
+  const [origin, setOrigin] = useState(() => savedSearch?.origin || defaultOrigin);
+  const [destination, setDestination] = useState(() => savedSearch?.destination || '');
+  const [searchResults, setSearchResults] = useState(() => savedSearch?.searchResults ?? null);
   const [isSearching, setIsSearching] = useState(false);
   const [searchError, setSearchError] = useState(null);
-  const [lastQuery, setLastQuery] = useState('');
-  const [activeCity, setActiveCity] = useState('all');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [lastQuery, setLastQuery] = useState(() => savedSearch?.lastQuery || '');
+  const [activeCity, setActiveCity] = useState(() => savedSearch?.activeCity || 'all');
+  const [activeCategory, setActiveCategory] = useState(() => savedSearch?.activeCategory || 'all');
   const [recentQueries, setRecentQueries] = useState(readRecentQueries);
   // In-memory catalog cache for cross-city browsing without repeated network requests
-  const catalogRoutesRef = useRef(null);
+  const catalogRoutesRef = useRef(savedSearch?.catalogRoutes || null);
   // Sequence guard so a slow response never overwrites a newer search
-  const searchSeqRef = useRef(0);
+  const searchSeqRef = useRef(savedSearch ? 1 : 0);
   // GPS-backed origin default: sync until the user edits the field manually
-  const originTouchedRef = useRef(false);
+  const originTouchedRef = useRef(Boolean(savedSearch?.origin));
+  const mainContainerRef = useRef(null);
+
   useEffect(() => {
     if (!originTouchedRef.current) {
       setOrigin(defaultOrigin);
     }
   }, [defaultOrigin]);
+
+  // Restore scroll position when returning from route detail
+  useEffect(() => {
+    if (savedSearch?.scrollTop && mainContainerRef.current) {
+      mainContainerRef.current.scrollTop = savedSearch.scrollTop;
+    }
+  }, [savedSearch]);
+
+  // Persist search state whenever valid search results or filters are active
+  useEffect(() => {
+    if (searchResults !== null) {
+      saveSearchState({
+        origin,
+        destination,
+        searchResults,
+        lastQuery,
+        activeCity,
+        activeCategory,
+        catalogRoutes: catalogRoutesRef.current,
+        scrollTop: mainContainerRef.current?.scrollTop || 0,
+      });
+    }
+  }, [origin, destination, searchResults, lastQuery, activeCity, activeCategory]);
 
   /* Swap origin and destination */
   const handleSwap = () => {
@@ -91,6 +155,7 @@ export function SearchPage() {
       }
       const term = checked.data;
       if (!term) {
+        clearSearchState();
         setSearchResults(null);
         setLastQuery('');
         setSearchError(null);
@@ -272,6 +337,7 @@ export function SearchPage() {
     // Empty query shows the idle suggestions state, never an error
     if (!value.trim()) {
       searchSeqRef.current += 1;
+      clearSearchState();
       setSearchResults(null);
       setLastQuery('');
       setActiveCity('all');
@@ -362,14 +428,26 @@ export function SearchPage() {
   };
 
   const handleSelectRoute = (route) => {
-    // Select the route only: pre-selecting a stop would open the stop
-    // drawer on the map instead of the route detail.
+    // Preserve current search results and scroll position before navigating to route detail
+    if (searchResults !== null) {
+      saveSearchState({
+        origin,
+        destination,
+        searchResults,
+        lastQuery,
+        activeCity,
+        activeCategory,
+        catalogRoutes: catalogRoutesRef.current,
+        scrollTop: mainContainerRef.current?.scrollTop || 0,
+      });
+    }
     selectRoute(route);
     navigate(`/mapa/ruta/${route.id}`, { state: { from: "/buscar" } });
   };
 
   const handleClear = () => {
     searchSeqRef.current += 1;
+    clearSearchState();
     setDestination('');
     setSearchResults(null);
     setLastQuery('');
@@ -418,7 +496,10 @@ export function SearchPage() {
       </header>
 
       {/* ── Main Content Container ─────────────────────────────────────── */}
-      <main className="flex-1 min-h-0 overflow-y-auto hide-scrollbar p-4 sm:p-5 max-w-lg mx-auto w-full space-y-4 sm:space-y-5">
+      <main
+        ref={mainContainerRef}
+        className="flex-1 min-h-0 overflow-y-auto hide-scrollbar p-4 sm:p-5 max-w-lg mx-auto w-full space-y-4 sm:space-y-5"
+      >
         {/* ── Dual Input Form Container ──────────────────────────────────── */}
         <form
           onSubmit={handleFormSubmit}
