@@ -62,9 +62,9 @@ export function AdminLoginPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-overlay border border-slate-200/80 p-6 sm:p-8 space-y-6 text-slate-800">
         <div className="text-center space-y-2">
           <img
-            src="/qruta-icon.svg"
+            src="/qruta-symbol.svg"
             alt="QRuta"
-            className="w-14 h-14 rounded-2xl mx-auto shadow-md shadow-black/20"
+            className="w-12 h-12 mx-auto shrink-0 drop-shadow-sm"
           />
           <h1 className="text-2xl font-bold text-slate-900">Portal de Administración</h1>
           <p className="text-xs text-slate-500">

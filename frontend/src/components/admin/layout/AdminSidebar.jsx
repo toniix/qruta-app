@@ -36,9 +36,9 @@ export function AdminSidebar({ mobileOpen, onCloseMobile }) {
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800/80">
           <Link to="/admin/overview" className="flex items-center gap-3 group">
             <img
-              src="/qruta-icon.svg"
+              src="/qruta-symbol-lime.svg"
               alt="QRuta"
-              className="h-10 w-10 rounded-xl shadow-lg shadow-black/40 group-hover:scale-105 transition-transform"
+              className="h-10 w-10 shrink-0 drop-shadow-md group-hover:scale-105 transition-transform"
             />
             <div>
               <div className="flex items-center gap-2">

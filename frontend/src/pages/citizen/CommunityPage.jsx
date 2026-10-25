@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   MessageSquare,
   Plus,
@@ -12,34 +12,34 @@ import {
   X,
   RefreshCw,
   Sparkles,
-} from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
-import { useCommunityIdentity } from '../../hooks/useCommunityIdentity';
+} from "lucide-react";
+import { useRoutes } from "../../contexts/RouteContext";
+import { useCommunityIdentity } from "../../hooks/useCommunityIdentity";
 import {
   communityService,
   COMMUNITY_CATEGORIES,
   getCategoryMeta,
-} from '../../services/communityService';
-import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
-import { MemoPostCard } from '../../components/community/PostCard';
+} from "../../services/communityService";
+import { ConfirmDialog } from "../../components/admin/common/ConfirmDialog";
+import { MemoPostCard } from "../../components/community/PostCard";
 import {
   aliasSchema,
   communityCommentSchema,
   communityPostSchema,
   validateWith,
-} from '../../schemas';
+} from "../../schemas";
 import {
   ComposeModal,
   AliasModal,
-} from '../../components/community/CommunityModals';
+} from "../../components/community/CommunityModals";
 
-const COMPOSE_DRAFT_KEY = 'rutasya:compose-draft';
+const COMPOSE_DRAFT_KEY = "rutasya:compose-draft";
 
 function readComposeDraft() {
   try {
-    return localStorage.getItem(COMPOSE_DRAFT_KEY) || '';
+    return localStorage.getItem(COMPOSE_DRAFT_KEY) || "";
   } catch {
-    return '';
+    return "";
   }
 }
 
@@ -62,7 +62,7 @@ const PUBLISH_COOLDOWN_MS = 8_000;
 const FEED_CACHE_TTL_MS = 60_000;
 const feedCache = new Map();
 function feedCacheKey(category, routeId, sort) {
-  return `${category || 'ALL'}|${routeId || ''}|${sort || 'recent'}`;
+  return `${category || "ALL"}|${routeId || ""}|${sort || "recent"}`;
 }
 function readFeedCache(key) {
   const hit = feedCache.get(key);
@@ -88,7 +88,7 @@ function invalidateFeedCache() {
 }
 
 function getInitials(name) {
-  if (!name) return 'U';
+  if (!name) return "U";
   const parts = name.trim().split(/\s+/);
   if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
   return (parts[0][0] + parts[1][0]).toUpperCase();
@@ -100,11 +100,11 @@ export function CommunityPage() {
   const { routes, selectRoute } = useRoutes();
   const { alias, setAlias, hasAlias } = useCommunityIdentity();
 
-  const routeFilterId = searchParams.get('routeId') || '';
-  const initialCreateOpen = searchParams.get('compose') === '1';
+  const routeFilterId = searchParams.get("routeId") || "";
+  const initialCreateOpen = searchParams.get("compose") === "1";
 
-  const [selectedCategory, setSelectedCategory] = useState('ALL');
-  const [sortOrder, setSortOrder] = useState('recent');
+  const [selectedCategory, setSelectedCategory] = useState("ALL");
+  const [sortOrder, setSortOrder] = useState("recent");
   const [mineOnly, setMineOnly] = useState(false);
   const [posts, setPosts] = useState([]);
   const [page, setPage] = useState(0);
@@ -117,10 +117,10 @@ export function CommunityPage() {
   // Compose modal state
   const [showComposeModal, setShowComposeModal] = useState(initialCreateOpen);
   const [formAlias, setFormAlias] = useState(alias);
-  const [formCategory, setFormCategory] = useState('ALERTA');
+  const [formCategory, setFormCategory] = useState("ALERTA");
   const [formRouteId, setFormRouteId] = useState(routeFilterId);
   const [formContent, setFormContent] = useState(readComposeDraft);
-  const [honeypot, setHoneypot] = useState('');
+  const [honeypot, setHoneypot] = useState("");
   const [submittingPost, setSubmittingPost] = useState(false);
   const [formError, setFormError] = useState(null);
 
@@ -201,7 +201,11 @@ export function CommunityPage() {
   const handleCategoryChange = (catId) => {
     if (catId === selectedCategory) return;
     const hit = readFeedCache(
-      feedCacheKey(catId === 'ALL' ? null : catId, routeFilterId || null, sortOrder),
+      feedCacheKey(
+        catId === "ALL" ? null : catId,
+        routeFilterId || null,
+        sortOrder,
+      ),
     );
     if (hit) {
       setPosts(hit.posts);
@@ -221,7 +225,7 @@ export function CommunityPage() {
     if (next === sortOrder) return;
     const hit = readFeedCache(
       feedCacheKey(
-        selectedCategory === 'ALL' ? null : selectedCategory,
+        selectedCategory === "ALL" ? null : selectedCategory,
         routeFilterId || null,
         next,
       ),
@@ -240,70 +244,78 @@ export function CommunityPage() {
     setSortOrder(next);
   };
 
-  const loadPage = useCallback(async (targetPage, { initial = false, signal, revalidate = false } = {}) => {
-    if (revalidate) {
-      setIsRevalidating(true);
-    } else if (initial) {
-      setLoading(true);
-    } else {
-      setLoadingMore(true);
-    }
-    if (!revalidate) setError(null);
-    let cancelled = false;
-    try {
-      const data = await communityService.getPosts(
-        {
-          category: selectedCategory === 'ALL' ? null : selectedCategory,
-          routeId: routeFilterId || null,
-          limit: PAGE_SIZE,
-          page: targetPage,
-          sort: sortOrder,
-        },
-        signal ? { signal } : undefined,
-      );
-      const key = feedCacheKey(
-        selectedCategory === 'ALL' ? null : selectedCategory,
-        routeFilterId || null,
-        sortOrder,
-      );
-      if (targetPage === 0) {
-        setPosts(data);
-        setPage(0);
-        const more = data.length >= PAGE_SIZE;
-        setHasMore(more);
-        writeFeedCache(key, { posts: data, page: 0, hasMore: more });
+  const loadPage = useCallback(
+    async (
+      targetPage,
+      { initial = false, signal, revalidate = false } = {},
+    ) => {
+      if (revalidate) {
+        setIsRevalidating(true);
+      } else if (initial) {
+        setLoading(true);
       } else {
-        setPosts((prev) => {
-          const merged = [...prev, ...data];
-          writeFeedCache(key, {
-            posts: merged.slice(0, PAGE_SIZE),
-            page: 0,
-            hasMore: true,
+        setLoadingMore(true);
+      }
+      if (!revalidate) setError(null);
+      let cancelled = false;
+      try {
+        const data = await communityService.getPosts(
+          {
+            category: selectedCategory === "ALL" ? null : selectedCategory,
+            routeId: routeFilterId || null,
+            limit: PAGE_SIZE,
+            page: targetPage,
+            sort: sortOrder,
+          },
+          signal ? { signal } : undefined,
+        );
+        const key = feedCacheKey(
+          selectedCategory === "ALL" ? null : selectedCategory,
+          routeFilterId || null,
+          sortOrder,
+        );
+        if (targetPage === 0) {
+          setPosts(data);
+          setPage(0);
+          const more = data.length >= PAGE_SIZE;
+          setHasMore(more);
+          writeFeedCache(key, { posts: data, page: 0, hasMore: more });
+        } else {
+          setPosts((prev) => {
+            const merged = [...prev, ...data];
+            writeFeedCache(key, {
+              posts: merged.slice(0, PAGE_SIZE),
+              page: 0,
+              hasMore: true,
+            });
+            return merged;
           });
-          return merged;
-        });
-        setPage(targetPage);
-        setHasMore(data.length >= PAGE_SIZE);
+          setPage(targetPage);
+          setHasMore(data.length >= PAGE_SIZE);
+        }
+      } catch (err) {
+        if (err?.code === "ERR_CANCELED" || err?.name === "CanceledError") {
+          // Request abortado por uno más nuevo: NO tocar loading, el request vivo manda
+          cancelled = true;
+          return;
+        }
+        console.error("Error al cargar publicaciones de la comunidad:", err);
+        // En revalidación silenciosa no pisamos el feed con error, solo avisamos
+        if (!revalidate) {
+          setError(
+            "No se pudieron cargar las publicaciones. Verifica tu conexión.",
+          );
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+          setLoadingMore(false);
+          setIsRevalidating(false);
+        }
       }
-    } catch (err) {
-      if (err?.code === 'ERR_CANCELED' || err?.name === 'CanceledError') {
-        // Request abortado por uno más nuevo: NO tocar loading, el request vivo manda
-        cancelled = true;
-        return;
-      }
-      console.error('Error al cargar publicaciones de la comunidad:', err);
-      // En revalidación silenciosa no pisamos el feed con error, solo avisamos
-      if (!revalidate) {
-        setError('No se pudieron cargar las publicaciones. Verifica tu conexión.');
-      }
-    } finally {
-      if (!cancelled) {
-        setLoading(false);
-        setLoadingMore(false);
-        setIsRevalidating(false);
-      }
-    }
-  }, [selectedCategory, routeFilterId, sortOrder]);
+    },
+    [selectedCategory, routeFilterId, sortOrder],
+  );
 
   const fetchPosts = useCallback(
     (signal) => loadPage(0, { initial: true, signal }),
@@ -312,7 +324,7 @@ export function CommunityPage() {
 
   // Clave del feed según los filtros actuales.
   const feedKey = feedCacheKey(
-    selectedCategory === 'ALL' ? null : selectedCategory,
+    selectedCategory === "ALL" ? null : selectedCategory,
     routeFilterId || null,
     sortOrder,
   );
@@ -358,7 +370,7 @@ export function CommunityPage() {
           loadPage(page + 1);
         }
       },
-      { rootMargin: '400px' },
+      { rootMargin: "400px" },
     );
     observer.observe(el);
     return () => observer.disconnect();
@@ -374,14 +386,16 @@ export function CommunityPage() {
     setPage(0);
     setHasMore(true);
     const next = new URLSearchParams(searchParams);
-    next.delete('routeId');
-    next.delete('compose');
+    next.delete("routeId");
+    next.delete("compose");
     setSearchParams(next, { replace: true });
   };
 
   const handleOpenRouteOnMap = (post) => {
     if (!post.routeId) return;
-    const matched = routes.find((r) => String(r.id) === String(post.routeId)) || {
+    const matched = routes.find(
+      (r) => String(r.id) === String(post.routeId),
+    ) || {
       id: post.routeId,
       code: post.routeCode,
       name: post.routeName,
@@ -396,9 +410,9 @@ export function CommunityPage() {
     setFormError(null);
 
     const result = validateWith(communityPostSchema, {
-      authorAlias: (formAlias || '').trim(),
+      authorAlias: (formAlias || "").trim(),
       category: formCategory,
-      content: (formContent || '').trim(),
+      content: (formContent || "").trim(),
       routeId: formRouteId || null,
     });
     if (!result.ok) {
@@ -430,7 +444,7 @@ export function CommunityPage() {
       setPosts((prev) => [created, ...prev]);
       invalidateFeedCache();
       setMineOnly(false);
-      setFormContent('');
+      setFormContent("");
       setCooldownUntil(Date.now() + PUBLISH_COOLDOWN_MS);
       setNowTick(Date.now());
       setShowComposeModal(false);
@@ -438,7 +452,7 @@ export function CommunityPage() {
       const msg =
         err.response?.data?.message ||
         err.response?.data?.errors?.content ||
-        'No se pudo publicar tu mensaje. Intenta nuevamente.';
+        "No se pudo publicar tu mensaje. Intenta nuevamente.";
       setFormError(msg);
     } finally {
       setSubmittingPost(false);
@@ -452,9 +466,10 @@ export function CommunityPage() {
         prev.map((p) => (String(p.id) === String(postId) ? updated : p)),
       );
     } catch (err) {
-      console.error('Error al actualizar reacción:', err);
+      console.error("Error al actualizar reacción:", err);
       setActionError(
-        err.response?.data?.message || 'No se pudo registrar tu reacción. Intenta de nuevo.',
+        err.response?.data?.message ||
+          "No se pudo registrar tu reacción. Intenta de nuevo.",
       );
     }
   };
@@ -468,7 +483,7 @@ export function CommunityPage() {
       setDeletePostTarget(null);
     } catch (err) {
       setActionError(
-        err.response?.data?.message || 'No se pudo eliminar la publicación.',
+        err.response?.data?.message || "No se pudo eliminar la publicación.",
       );
     } finally {
       setDeletingPost(false);
@@ -491,7 +506,7 @@ export function CommunityPage() {
         open: true,
         loading: true,
         items: prev[postId]?.items || [],
-        text: prev[postId]?.text || '',
+        text: prev[postId]?.text || "",
         sending: false,
       },
     }));
@@ -524,7 +539,7 @@ export function CommunityPage() {
 
   const sendComment = async (postId, aliasToUse) => {
     const state = commentsMap[postId];
-    const cleanText = (state?.text || '').trim();
+    const cleanText = (state?.text || "").trim();
     const result = validateWith(communityCommentSchema, {
       authorAlias: aliasToUse,
       content: cleanText,
@@ -543,7 +558,7 @@ export function CommunityPage() {
       const created = await communityService.addComment(postId, {
         authorAlias: aliasToUse,
         content: cleanText,
-        website: '',
+        website: "",
       });
 
       setCommentsMap((prev) => ({
@@ -551,7 +566,7 @@ export function CommunityPage() {
         [postId]: {
           ...prev[postId],
           sending: false,
-          text: '',
+          text: "",
           items: [...(prev[postId]?.items || []), created],
         },
       }));
@@ -574,7 +589,7 @@ export function CommunityPage() {
         [postId]: { ...prev[postId], sending: false },
       }));
       setActionError(
-        err.response?.data?.message || 'No se pudo enviar el comentario.',
+        err.response?.data?.message || "No se pudo enviar el comentario.",
       );
     }
   };
@@ -584,7 +599,7 @@ export function CommunityPage() {
     const activeAlias = alias.trim();
     if (activeAlias.length < 2) {
       // Sin prompt nativo: abrimos el modal de alias accesible y retomamos al guardar
-      setTempAlias('');
+      setTempAlias("");
       setPendingCommentPostId(postId);
       setShowAliasModal(true);
       return;
@@ -618,7 +633,7 @@ export function CommunityPage() {
       );
     } catch (err) {
       setActionError(
-        err.response?.data?.message || 'No se pudo eliminar el comentario.',
+        err.response?.data?.message || "No se pudo eliminar el comentario.",
       );
     }
   };
@@ -627,7 +642,7 @@ export function CommunityPage() {
     e.preventDefault();
     const parsed = aliasSchema.safeParse(tempAlias);
     if (!parsed.success) {
-      setAliasError(parsed.error.issues[0]?.message || 'Alias inválido.');
+      setAliasError(parsed.error.issues[0]?.message || "Alias inválido.");
       return;
     }
     const clean = parsed.data;
@@ -647,14 +662,14 @@ export function CommunityPage() {
   useEffect(() => {
     if (!showComposeModal && !showAliasModal) return undefined;
     function onKeyDown(event) {
-      if (event.key === 'Escape') {
+      if (event.key === "Escape") {
         setShowComposeModal(false);
         setShowAliasModal(false);
         setPendingCommentPostId(null);
       }
     }
-    document.addEventListener('keydown', onKeyDown);
-    return () => document.removeEventListener('keydown', onKeyDown);
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
   }, [showComposeModal, showAliasModal]);
 
   useEffect(() => {
@@ -680,10 +695,12 @@ export function CommunityPage() {
       <header className="bg-white pt-3.5 sm:pt-4 pb-3 px-4 sm:px-6 border-b border-slate-200/80 shrink-0 z-20 space-y-2.5">
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="p-1 rounded-lg bg-surface-navy text-brand-lime shrink-0">
-                <MessageSquare className="w-4 h-4" />
-              </span>
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/qruta-symbol.svg"
+                alt="QRuta"
+                className="w-10 h-10 shrink-0"
+              />
               <h1 className="text-lg sm:text-xl font-extrabold text-ink-primary tracking-tight truncate">
                 Comunidad
               </h1>
@@ -705,7 +722,7 @@ export function CommunityPage() {
             >
               <User className="w-3.5 h-3.5 text-brand-primary shrink-0" />
               <span className="truncate">
-                {hasAlias ? alias : 'Elegir alias'}
+                {hasAlias ? alias : "Elegir alias"}
               </span>
             </button>
 
@@ -728,12 +745,12 @@ export function CommunityPage() {
         >
           <button
             type="button"
-            onClick={() => handleCategoryChange('ALL')}
-            aria-pressed={selectedCategory === 'ALL'}
+            onClick={() => handleCategoryChange("ALL")}
+            aria-pressed={selectedCategory === "ALL"}
             className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-all shrink-0 cursor-pointer ${
-              selectedCategory === 'ALL'
-                ? 'bg-brand-navy text-brand-lime border-border-navy shadow-xs'
-                : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+              selectedCategory === "ALL"
+                ? "bg-brand-navy text-brand-lime border-border-navy shadow-xs"
+                : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
             }`}
           >
             Todos
@@ -751,7 +768,7 @@ export function CommunityPage() {
                 className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
                   active
                     ? cat.activeChipClass
-                    : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
+                    : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -765,13 +782,16 @@ export function CommunityPage() {
         {routeFilterId && (
           <div className="flex items-center justify-between gap-2 bg-blue-50/90 border border-blue-200/80 rounded-xl px-3 py-2 text-xs">
             <div className="flex items-center gap-2 min-w-0">
-              <RouteIcon className="w-4 h-4 text-brand-primary shrink-0" aria-hidden="true" />
+              <RouteIcon
+                className="w-4 h-4 text-brand-primary shrink-0"
+                aria-hidden="true"
+              />
               <span className="text-slate-700 truncate">
-                Filtrando por ruta:{' '}
+                Filtrando por ruta:{" "}
                 <strong className="text-slate-900">
                   {filteredRouteObj
                     ? `${filteredRouteObj.code} - ${filteredRouteObj.name}`
-                    : 'Ruta seleccionada'}
+                    : "Ruta seleccionada"}
                 </strong>
               </span>
             </div>
@@ -795,24 +815,24 @@ export function CommunityPage() {
           >
             <button
               type="button"
-              onClick={() => handleSortChange('recent')}
-              aria-pressed={sortOrder === 'recent'}
+              onClick={() => handleSortChange("recent")}
+              aria-pressed={sortOrder === "recent"}
               className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${
-                sortOrder === 'recent'
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                  : 'text-slate-500'
+                sortOrder === "recent"
+                  ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                  : "text-slate-500"
               }`}
             >
               Recientes
             </button>
             <button
               type="button"
-              onClick={() => handleSortChange('popular')}
-              aria-pressed={sortOrder === 'popular'}
+              onClick={() => handleSortChange("popular")}
+              aria-pressed={sortOrder === "popular"}
               className={`px-3 py-1.5 rounded-full text-[11px] font-bold transition-colors ${
-                sortOrder === 'popular'
-                  ? 'bg-white text-slate-900 shadow-xs border border-slate-200'
-                  : 'text-slate-500'
+                sortOrder === "popular"
+                  ? "bg-white text-slate-900 shadow-xs border border-slate-200"
+                  : "text-slate-500"
               }`}
             >
               Más útiles
@@ -825,8 +845,8 @@ export function CommunityPage() {
             aria-pressed={mineOnly}
             className={`px-3 py-1.5 rounded-full text-[11px] font-bold border transition-colors ${
               mineOnly
-                ? 'bg-brand-primary text-white border-brand-primary'
-                : 'bg-slate-50 text-slate-600 border-slate-200'
+                ? "bg-brand-primary text-white border-brand-primary"
+                : "bg-slate-50 text-slate-600 border-slate-200"
             }`}
           >
             Mis publicaciones
@@ -888,7 +908,11 @@ export function CommunityPage() {
         </button>
 
         {loading ? (
-          <div className="space-y-3 py-4" role="status" aria-label="Cargando publicaciones">
+          <div
+            className="space-y-3 py-4"
+            role="status"
+            aria-label="Cargando publicaciones"
+          >
             {[1, 2, 3].map((n) => (
               <div
                 key={n}
@@ -921,16 +945,19 @@ export function CommunityPage() {
           </div>
         ) : visiblePosts.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center border border-slate-200/80 shadow-card space-y-3 animate-fade-in">
-            <MessageSquare className="w-8 h-8 text-slate-400 mx-auto" aria-hidden="true" />
+            <MessageSquare
+              className="w-8 h-8 text-slate-400 mx-auto"
+              aria-hidden="true"
+            />
             <h3 className="text-sm font-bold text-ink-primary">
               {mineOnly
-                ? 'Aún no tienes publicaciones'
-                : 'Aún no hay publicaciones en esta sección'}
+                ? "Aún no tienes publicaciones"
+                : "Aún no hay publicaciones en esta sección"}
             </h3>
             <p className="text-xs text-ink-muted max-w-xs mx-auto">
               {mineOnly
-                ? 'Cuando publiques con este dispositivo, las verás aquí.'
-                : 'Sé el primero en compartir una alerta de ruta, recomendación o pregunta con la comunidad.'}
+                ? "Cuando publiques con este dispositivo, las verás aquí."
+                : "Sé el primero en compartir una alerta de ruta, recomendación o pregunta con la comunidad."}
             </p>
             <button
               type="button"
@@ -938,7 +965,7 @@ export function CommunityPage() {
               className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-primary px-4 py-2.5 rounded-xl hover:bg-brand-primary-dark transition-colors"
             >
               <Plus className="w-4 h-4" aria-hidden="true" />
-              {mineOnly ? 'Crear publicación' : 'Crear primera publicación'}
+              {mineOnly ? "Crear publicación" : "Crear primera publicación"}
             </button>
           </div>
         ) : (
@@ -950,7 +977,7 @@ export function CommunityPage() {
                 open: false,
                 loading: false,
                 items: [],
-                text: '',
+                text: "",
                 sending: false,
               };
               return (
@@ -979,7 +1006,10 @@ export function CommunityPage() {
             })}
             <div ref={sentinelRef} aria-hidden="true" className="h-2" />
             {loadingMore && (
-              <div className="flex items-center justify-center py-4 text-xs text-slate-500 gap-2" role="status">
+              <div
+                className="flex items-center justify-center py-4 text-xs text-slate-500 gap-2"
+                role="status"
+              >
                 <span className="w-4 h-4 rounded-full border-2 border-brand-primary/30 border-t-brand-primary animate-spin" />
                 <span>Cargando más publicaciones...</span>
               </div>

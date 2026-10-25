@@ -28,9 +28,9 @@ export function Header() {
         {/* Brand logo & tagline */}
         <Link to="/" className="flex items-center gap-2.5 group shrink-0">
           <img
-            src="/qruta-icon.svg"
+            src="/qruta-symbol.svg"
             alt="QRuta"
-            className="w-11 h-11 rounded-xl shadow-2xs group-hover:scale-105 transition-transform duration-200"
+            className="w-10 h-10 shrink-0 group-hover:scale-105 transition-transform duration-200"
           />
           <div className="flex flex-col justify-center">
             <div className="flex items-center gap-2 leading-none">

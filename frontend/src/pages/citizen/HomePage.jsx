@@ -137,9 +137,9 @@ export function HomePage() {
         <div className="flex justify-between items-center">
           <div className="flex sm:hidden items-center gap-3">
             <img
-              src="/qruta-icon.svg"
+              src="/qruta-symbol-lime.svg"
               alt="QRuta"
-              className="w-12 h-12 rounded-2xl shadow-md shadow-black/40 shrink-0"
+              className="w-12 h-12 shrink-0 drop-shadow-md"
             />
             <div className="flex flex-col justify-center min-w-0">
               <span className="font-black text-2xl leading-none tracking-tight text-white">

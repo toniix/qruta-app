@@ -1,8 +1,8 @@
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { MapPin, Heart, Trash2, ArrowRight, Bookmark } from 'lucide-react';
-import { usePlaces } from '../../hooks/usePlaces';
-import { useFavorites } from '../../hooks/useFavorites';
-import { useRoutes } from '../../contexts/RouteContext';
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { MapPin, Heart, Trash2, ArrowRight } from "lucide-react";
+import { usePlaces } from "../../hooks/usePlaces";
+import { useFavorites } from "../../hooks/useFavorites";
+import { useRoutes } from "../../contexts/RouteContext";
 
 export function PlacesPage() {
   const { places, removePlace } = usePlaces();
@@ -11,22 +11,21 @@ export function PlacesPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const activeTab = searchParams.get('tab') === 'rutas' ? 'rutas' : 'lugares';
+  const activeTab = searchParams.get("tab") === "rutas" ? "rutas" : "lugares";
 
   const handleTabChange = (tab) => {
     setSearchParams({ tab }, { replace: true });
   };
 
   const handleOpenRoute = (fav) => {
-    const full =
-      routes.find((r) => String(r.id) === String(fav.id)) || {
-        id: fav.id,
-        code: fav.code,
-        name: fav.name,
-        color: fav.color,
-        fare: fav.fare,
-        transportLineName: fav.transportLineName,
-      };
+    const full = routes.find((r) => String(r.id) === String(fav.id)) || {
+      id: fav.id,
+      code: fav.code,
+      name: fav.name,
+      color: fav.color,
+      fare: fav.fare,
+      transportLineName: fav.transportLineName,
+    };
     selectRoute(full);
     navigate(`/mapa/ruta/${fav.id}`, { state: { from: "/lugares" } });
   };
@@ -36,10 +35,12 @@ export function PlacesPage() {
       <header className="bg-white pt-3.5 sm:pt-4 pb-3 px-4 sm:px-6 border-b border-slate-200/80 shrink-0 z-20 space-y-2.5">
         <div className="flex items-center justify-between">
           <div className="min-w-0">
-            <div className="flex items-center gap-2">
-              <span className="p-1 rounded-lg bg-surface-navy text-brand-lime shrink-0">
-                <Bookmark className="w-4 h-4" />
-              </span>
+            <div className="flex items-center gap-2.5">
+              <img
+                src="/qruta-symbol.svg"
+                alt="QRuta"
+                className="w-10 h-10 shrink-0"
+              />
               <h1 className="text-lg sm:text-xl font-extrabold text-ink-primary tracking-tight truncate">
                 Guardados
               </h1>
@@ -59,21 +60,23 @@ export function PlacesPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === 'lugares'}
-            onClick={() => handleTabChange('lugares')}
+            aria-selected={activeTab === "lugares"}
+            onClick={() => handleTabChange("lugares")}
             className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'lugares'
-                ? 'bg-brand-navy text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+              activeTab === "lugares"
+                ? "bg-brand-navy text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <MapPin className={`w-3.5 h-3.5 ${activeTab === 'lugares' ? 'text-brand-lime' : ''}`} />
+            <MapPin
+              className={`w-3.5 h-3.5 ${activeTab === "lugares" ? "text-brand-lime" : ""}`}
+            />
             <span>Mis Lugares</span>
             <span
               className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                activeTab === 'lugares'
-                  ? 'bg-brand-lime text-brand-navy'
-                  : 'bg-slate-200/80 text-slate-600'
+                activeTab === "lugares"
+                  ? "bg-brand-lime text-brand-navy"
+                  : "bg-slate-200/80 text-slate-600"
               }`}
             >
               {places.length}
@@ -83,21 +86,23 @@ export function PlacesPage() {
           <button
             type="button"
             role="tab"
-            aria-selected={activeTab === 'rutas'}
-            onClick={() => handleTabChange('rutas')}
+            aria-selected={activeTab === "rutas"}
+            onClick={() => handleTabChange("rutas")}
             className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-              activeTab === 'rutas'
-                ? 'bg-brand-navy text-white shadow-xs'
-                : 'text-slate-600 hover:text-slate-900'
+              activeTab === "rutas"
+                ? "bg-brand-navy text-white shadow-xs"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
-            <Heart className={`w-3.5 h-3.5 ${activeTab === 'rutas' ? 'text-rose-400' : ''}`} />
+            <Heart
+              className={`w-3.5 h-3.5 ${activeTab === "rutas" ? "text-rose-400" : ""}`}
+            />
             <span>Rutas Favoritas</span>
             <span
               className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
-                activeTab === 'rutas'
-                  ? 'bg-rose-500 text-white'
-                  : 'bg-slate-200/80 text-slate-600'
+                activeTab === "rutas"
+                  ? "bg-rose-500 text-white"
+                  : "bg-slate-200/80 text-slate-600"
               }`}
             >
               {favorites.length}
@@ -107,7 +112,7 @@ export function PlacesPage() {
       </header>
 
       <main className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
-        {activeTab === 'lugares' ? (
+        {activeTab === "lugares" ? (
           places.length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200/80 shadow-card space-y-3 animate-fade-in">
               <MapPin className="w-8 h-8 text-slate-400 mx-auto" />
@@ -118,7 +123,7 @@ export function PlacesPage() {
                 Guarda tu casa, el trabajo u otros destinos que visites seguido.
               </p>
               <button
-                onClick={() => navigate('/mapa')}
+                onClick={() => navigate("/mapa")}
                 className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-primary px-4 py-2 rounded-xl hover:bg-brand-primary-dark transition-colors"
               >
                 Explorar el mapa
@@ -156,7 +161,7 @@ export function PlacesPage() {
                   </button>
                 </div>
                 <button
-                  onClick={() => navigate('/mapa')}
+                  onClick={() => navigate("/mapa")}
                   className="w-full inline-flex items-center justify-center gap-1.5 text-xs font-bold text-brand-primary bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-xl border border-blue-200/60 transition-colors"
                 >
                   Ver en el mapa
@@ -172,10 +177,11 @@ export function PlacesPage() {
               Aún no tienes rutas favoritas
             </h3>
             <p className="text-xs text-ink-muted">
-              Toca el corazón en cualquier ruta para guardarla aquí y acceder rápido.
+              Toca el corazón en cualquier ruta para guardarla aquí y acceder
+              rápido.
             </p>
             <button
-              onClick={() => navigate('/rutas')}
+              onClick={() => navigate("/rutas")}
               className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-primary px-4 py-2 rounded-xl hover:bg-brand-primary-dark transition-colors"
             >
               Ver catálogo de rutas
@@ -193,14 +199,15 @@ export function PlacesPage() {
                   <div
                     className="min-w-[3.5rem] h-9 text-white font-bold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider"
                     style={{
-                      backgroundColor: fav.color || 'var(--color-brand-primary)',
+                      backgroundColor:
+                        fav.color || "var(--color-brand-primary)",
                     }}
                   >
                     {fav.code || <Heart className="w-4 h-4" />}
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="font-bold text-ink-primary text-sm leading-tight truncate">
-                      {fav.name || 'Ruta guardada'}
+                      {fav.name || "Ruta guardada"}
                     </p>
                     {fav.transportLineName && (
                       <p className="text-xs text-ink-muted mt-0.5 truncate">
@@ -211,7 +218,7 @@ export function PlacesPage() {
                 </div>
                 <button
                   onClick={() => removeFavorite(fav.id)}
-                  aria-label={`Quitar ${fav.name || 'ruta'} de favoritos`}
+                  aria-label={`Quitar ${fav.name || "ruta"} de favoritos`}
                   className="relative p-2 rounded-xl text-slate-500 hover:text-state-error hover:bg-red-50 transition-colors shrink-0 after:absolute after:-inset-1.5 after:content-['']"
                 >
                   <Trash2 className="w-4 h-4" />

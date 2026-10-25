@@ -1,34 +1,42 @@
-import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, X, MapPin, Route, AlertCircle, RefreshCw } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
-import { matchesCategory } from '../../components/search/categoryFilter';
+import { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
+import { Search, X, MapPin, AlertCircle, RefreshCw } from "lucide-react";
+import { useRoutes } from "../../contexts/RouteContext";
+import { matchesCategory } from "../../components/search/categoryFilter";
 
 /** Categories dynamically generated or default */
 const CATEGORIES = [
-  { id: 'all', label: 'Todas las rutas' },
-  { id: 'urbano', label: 'Urbano' },
-  { id: 'interurbano', label: 'Interurbano' },
-  { id: 'nocturno', label: 'Nocturno' },
+  { id: "all", label: "Todas las rutas" },
+  { id: "urbano", label: "Urbano" },
+  { id: "interurbano", label: "Interurbano" },
+  { id: "nocturno", label: "Nocturno" },
 ];
 
 export function RoutesListPage() {
-  const { routes, selectRoute, selectStop, currentCity, loading, error, loadData } = useRoutes();
-  const cityName = currentCity?.name || 'Ica';
+  const {
+    routes,
+    selectRoute,
+    selectStop,
+    currentCity,
+    loading,
+    error,
+    loadData,
+  } = useRoutes();
+  const cityName = currentCity?.name || "Ica";
   const navigate = useNavigate();
 
-  const [searchQuery, setSearchQuery] = useState('');
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [activeCategory, setActiveCategory] = useState("all");
 
   /* Filter routes based on search text and selected category */
   const filteredRoutes = useMemo(() => {
     let result = routes;
 
-    if (activeCategory !== 'all') {
+    if (activeCategory !== "all") {
       result = result.filter((r) => matchesCategory(r, activeCategory));
     }
 
-    if (searchQuery.trim() !== '') {
+    if (searchQuery.trim() !== "") {
       const term = searchQuery.toLowerCase().trim();
       result = result.filter(
         (r) =>
@@ -55,10 +63,12 @@ export function RoutesListPage() {
         {/* Title & Badge */}
         <div className="flex items-center justify-between gap-3">
           <div className="min-w-0">
-            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 truncate">
-              <span className="p-1 rounded-lg bg-surface-navy text-brand-lime shrink-0">
-                <Route className="w-4 h-4" />
-              </span>
+            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2.5 truncate">
+              <img
+                src="/qruta-symbol.svg"
+                alt="QRuta"
+                className="w-10 h-10 shrink-0"
+              />
               <span className="truncate">Rutas en {cityName}</span>
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
@@ -72,7 +82,7 @@ export function RoutesListPage() {
             aria-atomic="true"
             className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0"
           >
-            {loading ? 'Cargando…' : `${filteredRoutes.length} rutas`}
+            {loading ? "Cargando…" : `${filteredRoutes.length} rutas`}
           </span>
         </div>
 
@@ -89,7 +99,7 @@ export function RoutesListPage() {
           {searchQuery && (
             <button
               type="button"
-              onClick={() => setSearchQuery('')}
+              onClick={() => setSearchQuery("")}
               aria-label="Limpiar búsqueda"
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
             >
@@ -108,8 +118,8 @@ export function RoutesListPage() {
                 onClick={() => setActiveCategory(cat.id)}
                 className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs transition-all active:scale-95 cursor-pointer ${
                   isActive
-                    ? 'bg-brand-navy text-brand-lime font-extrabold border border-border-navy shadow-xs'
-                    : 'bg-slate-100/90 text-slate-600 font-semibold border border-slate-200/60 hover:bg-slate-200/60'
+                    ? "bg-brand-navy text-brand-lime font-extrabold border border-border-navy shadow-xs"
+                    : "bg-slate-100/90 text-slate-600 font-semibold border border-slate-200/60 hover:bg-slate-200/60"
                 }`}
               >
                 {cat.label}
@@ -161,25 +171,27 @@ export function RoutesListPage() {
         ) : filteredRoutes.length === 0 ? (
           <div className="bg-white rounded-2xl p-8 text-center border border-slate-100 shadow-2xs space-y-3 animate-fade-in">
             <MapPin className="w-8 h-8 text-slate-400 mx-auto" />
-            <h3 className="text-sm font-bold text-slate-800">No se encontraron rutas</h3>
+            <h3 className="text-sm font-bold text-slate-800">
+              No se encontraron rutas
+            </h3>
             <p className="text-xs text-slate-500">
-              {activeCategory !== 'all' && searchQuery.trim() === ''
+              {activeCategory !== "all" && searchQuery.trim() === ""
                 ? `No hay rutas de tipo “${CATEGORIES.find((c) => c.id === activeCategory)?.label}” registradas en ${cityName} todavía.`
-                : 'Prueba con otro término de búsqueda o revisa las paradas cercanas en el mapa.'}
+                : "Prueba con otro término de búsqueda o revisa las paradas cercanas en el mapa."}
             </p>
             <button
               onClick={() => {
-                setSearchQuery('');
-                setActiveCategory('all');
+                setSearchQuery("");
+                setActiveCategory("all");
               }}
               className="text-xs font-bold text-brand-primary bg-blue-50 px-4 py-2 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors inline-block"
             >
               Restablecer filtros
             </button>
-            {searchQuery.trim() !== '' && (
+            {searchQuery.trim() !== "" && (
               <button
                 onClick={() =>
-                  navigate('/buscar', { state: { query: searchQuery.trim() } })
+                  navigate("/buscar", { state: { query: searchQuery.trim() } })
                 }
                 className="text-xs font-bold text-slate-700 bg-slate-100 px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-200 transition-colors inline-flex items-center gap-1.5"
               >
@@ -191,13 +203,14 @@ export function RoutesListPage() {
         ) : (
           filteredRoutes.map((route) => {
             const keyStops = route.keyStops || [];
-            const origin = keyStops[0]?.name || 'Origen';
+            const origin = keyStops[0]?.name || "Origen";
             const intermediate =
               keyStops.length > 2
                 ? keyStops[Math.floor(keyStops.length / 2)]?.name
                 : null;
-            const destination = keyStops[keyStops.length - 1]?.name || 'Destino';
-            const color = route.color || 'var(--color-brand-primary)';
+            const destination =
+              keyStops[keyStops.length - 1]?.name || "Destino";
+            const color = route.color || "var(--color-brand-primary)";
 
             return (
               <div
@@ -206,12 +219,12 @@ export function RoutesListPage() {
                 tabIndex={0}
                 onClick={() => handleSelectRoute(route)}
                 onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
+                  if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
                     handleSelectRoute(route);
                   }
                 }}
-                aria-label={`Ver recorrido de la ruta ${route.code || 'Ruta'}: ${route.name.replace(/^Ruta \w+:\s*/i, '')}`}
+                aria-label={`Ver recorrido de la ruta ${route.code || "Ruta"}: ${route.name.replace(/^Ruta \w+:\s*/i, "")}`}
                 className="bg-white rounded-2xl p-5 border border-slate-100 shadow-card space-y-3.5 hover:shadow-md hover:border-blue-200 transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
               >
                 {/* Header Row: Badge | Name & Subtitle | Fare */}
@@ -222,16 +235,16 @@ export function RoutesListPage() {
                       className="w-14 h-9 text-white font-bold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs mt-0.5"
                       style={{ backgroundColor: color }}
                     >
-                      {route.code || 'Ruta'}
+                      {route.code || "Ruta"}
                     </div>
 
                     {/* Name & Subtitle */}
                     <div className="min-w-0 flex-1">
                       <h3 className="font-bold text-slate-900 text-base leading-tight group-hover:text-brand-primary transition-colors truncate">
-                        {route.name.replace(/^Ruta \w+:\s*/i, '')}
+                        {route.name.replace(/^Ruta \w+:\s*/i, "")}
                       </h3>
                       <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
-                        {route.transportLineName || 'Línea urbana'}
+                        {route.transportLineName || "Línea urbana"}
                       </p>
                     </div>
                   </div>
@@ -239,10 +252,10 @@ export function RoutesListPage() {
                   {/* Fare */}
                   <div className="text-right shrink-0">
                     <span className="text-brand-primary font-bold text-base block">
-                      {route.fare || '—'}
+                      {route.fare || "—"}
                     </span>
                     <span className="text-xs text-slate-500 font-medium block">
-                      {route.frequency || '—'}
+                      {route.frequency || "—"}
                     </span>
                   </div>
                 </div>
@@ -255,21 +268,27 @@ export function RoutesListPage() {
                   {/* Origin */}
                   <div className="relative flex items-center justify-between text-xs">
                     <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-slate-300 bg-white shrink-0" />
-                    <span className="font-medium text-slate-600 truncate">{origin}</span>
+                    <span className="font-medium text-slate-600 truncate">
+                      {origin}
+                    </span>
                   </div>
 
                   {/* Intermediate (if exists) */}
                   {intermediate && (
                     <div className="relative flex items-center justify-between text-xs">
                       <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full bg-slate-300 shrink-0" />
-                      <span className="font-normal text-slate-500 truncate">{intermediate}</span>
+                      <span className="font-normal text-slate-500 truncate">
+                        {intermediate}
+                      </span>
                     </div>
                   )}
 
                   {/* Destination */}
                   <div className="relative flex items-center justify-between text-xs">
                     <div className="absolute -left-6 top-1/2 -translate-y-1/2 w-2.5 h-2.5 rounded-full border-2 border-brand-primary bg-brand-primary shrink-0" />
-                    <span className="font-bold text-slate-900 truncate">{destination}</span>
+                    <span className="font-bold text-slate-900 truncate">
+                      {destination}
+                    </span>
                   </div>
                 </div>
               </div>

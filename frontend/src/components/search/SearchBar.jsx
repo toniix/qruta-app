@@ -95,9 +95,9 @@ export function SearchBar({ onPickDestination = null }) {
           className="relative w-full bg-white rounded-full shadow-raised flex items-center px-3.5 py-2.5 border border-slate-200/90 cursor-pointer transition-all hover:border-slate-300 text-left group"
         >
           <img
-            src="/qruta-icon.svg"
+            src="/qruta-symbol.svg"
             alt="QRuta"
-            className="w-7 h-7 rounded-lg mr-2.5 shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
+            className="w-6 h-6 mr-2.5 shrink-0 group-hover:scale-105 transition-transform"
           />
           <span className="flex-1 text-slate-800 text-sm font-medium">
             {searchQuery || "¿A dónde quieres ir?"}
