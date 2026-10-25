@@ -103,10 +103,10 @@ export function RoutesListPage() {
               <button
                 key={cat.id}
                 onClick={() => setActiveCategory(cat.id)}
-                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95 ${
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-xs transition-all active:scale-95 cursor-pointer ${
                   isActive
-                    ? 'bg-brand-primary text-white shadow-xs'
-                    : 'bg-slate-100/90 text-slate-600 border border-slate-200/60 hover:bg-slate-200/60'
+                    ? 'bg-brand-navy text-brand-lime font-extrabold border border-border-navy shadow-xs'
+                    : 'bg-slate-100/90 text-slate-600 font-semibold border border-slate-200/60 hover:bg-slate-200/60'
                 }`}
               >
                 {cat.label}

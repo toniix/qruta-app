@@ -57,18 +57,18 @@ export function PlacesPage() {
             role="tab"
             aria-selected={activeTab === 'lugares'}
             onClick={() => handleTabChange('lugares')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'lugares'
-                ? 'bg-white text-brand-primary shadow-2xs'
+                ? 'bg-brand-navy text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <MapPin className="w-3.5 h-3.5" />
+            <MapPin className={`w-3.5 h-3.5 ${activeTab === 'lugares' ? 'text-brand-lime' : ''}`} />
             <span>Mis Lugares</span>
             <span
-              className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] ${
+              className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                 activeTab === 'lugares'
-                  ? 'bg-blue-50 text-brand-primary'
+                  ? 'bg-brand-lime text-brand-navy'
                   : 'bg-slate-200/80 text-slate-600'
               }`}
             >
@@ -81,18 +81,18 @@ export function PlacesPage() {
             role="tab"
             aria-selected={activeTab === 'rutas'}
             onClick={() => handleTabChange('rutas')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all ${
+            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'rutas'
-                ? 'bg-white text-brand-primary shadow-2xs'
+                ? 'bg-brand-navy text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'
             }`}
           >
-            <Heart className="w-3.5 h-3.5" />
+            <Heart className={`w-3.5 h-3.5 ${activeTab === 'rutas' ? 'text-rose-400' : ''}`} />
             <span>Rutas Favoritas</span>
             <span
-              className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] ${
+              className={`ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-extrabold ${
                 activeTab === 'rutas'
-                  ? 'bg-rose-50 text-rose-600'
+                  ? 'bg-rose-500 text-white'
                   : 'bg-slate-200/80 text-slate-600'
               }`}
             >

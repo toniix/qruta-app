@@ -49,7 +49,7 @@ export function Header() {
 
         {/* Desktop section nav (citizen mode only) */}
         {!isAdmin && (
-          <nav className="hidden lg:flex items-center gap-1" aria-label="Secciones">
+          <nav className="hidden lg:flex items-center gap-1.5" aria-label="Secciones">
             {CITIZEN_LINKS.map(({ label, path }) => {
               const active =
                 path === '/'
@@ -60,13 +60,18 @@ export function Header() {
                   key={path}
                   to={path}
                   aria-current={active ? 'page' : undefined}
-                  className={`px-3 py-2 rounded-xl text-sm font-bold transition-colors ${
+                  className={`px-3.5 py-2 rounded-xl text-sm font-extrabold transition-all duration-200 ${
                     active
-                      ? 'bg-brand-navy text-white shadow-2xs'
+                      ? 'bg-brand-navy text-brand-lime shadow-xs border border-border-navy'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
                 >
-                  {label}
+                  <span className="flex items-center gap-1.5">
+                    {active && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-brand-lime shadow-[0_0_6px_rgba(183,243,74,0.8)]" />
+                    )}
+                    {label}
+                  </span>
                 </Link>
               );
             })}

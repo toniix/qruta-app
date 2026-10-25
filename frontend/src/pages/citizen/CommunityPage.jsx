@@ -728,9 +728,9 @@ export function CommunityPage() {
             type="button"
             onClick={() => handleCategoryChange('ALL')}
             aria-pressed={selectedCategory === 'ALL'}
-            className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all shrink-0 ${
+            className={`px-3.5 py-1.5 rounded-full text-xs font-extrabold border transition-all shrink-0 cursor-pointer ${
               selectedCategory === 'ALL'
-                ? 'bg-brand-primary text-white border-brand-primary shadow-xs'
+                ? 'bg-brand-navy text-brand-lime border-border-navy shadow-xs'
                 : 'bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100'
             }`}
           >
