@@ -33,17 +33,21 @@ export function PlacesPage() {
 
   return (
     <div className="flex flex-col h-[100dvh] h-screen bg-surface-page overflow-hidden">
-      <header className="bg-white pt-10 pb-4 px-5 border-b border-slate-200/80 shrink-0 z-20 space-y-3.5">
-        <div>
-          <div className="flex items-center gap-2">
-            <Bookmark className="w-5 h-5 text-brand-primary shrink-0" />
-            <h1 className="text-xl font-bold text-ink-primary tracking-tight">
-              Lugares y Rutas Guardadas
-            </h1>
+      <header className="bg-white pt-3.5 sm:pt-4 pb-3 px-4 sm:px-6 border-b border-slate-200/80 shrink-0 z-20 space-y-2.5">
+        <div className="flex items-center justify-between">
+          <div className="min-w-0">
+            <div className="flex items-center gap-2">
+              <span className="p-1 rounded-lg bg-surface-navy text-brand-lime shrink-0">
+                <Bookmark className="w-4 h-4" />
+              </span>
+              <h1 className="text-lg sm:text-xl font-extrabold text-ink-primary tracking-tight truncate">
+                Guardados
+              </h1>
+            </div>
+            <p className="text-[11px] sm:text-xs text-ink-muted font-medium truncate mt-0.5">
+              Paraderos frecuentes y rutas favoritas
+            </p>
           </div>
-          <p className="text-xs text-ink-muted font-medium mt-0.5">
-            Accede rápido a tus paraderos frecuentes y rutas favoritas.
-          </p>
         </div>
 
         {/* Segmented Tabs: Mis Lugares | Rutas Favoritas */}
@@ -57,7 +61,7 @@ export function PlacesPage() {
             role="tab"
             aria-selected={activeTab === 'lugares'}
             onClick={() => handleTabChange('lugares')}
-            className={`flex items-center justify-center gap-1.5 py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+            className={`flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer ${
               activeTab === 'lugares'
                 ? 'bg-brand-navy text-white shadow-xs'
                 : 'text-slate-600 hover:text-slate-900'

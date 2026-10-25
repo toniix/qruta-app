@@ -51,16 +51,18 @@ export function RoutesListPage() {
   return (
     <div className="flex flex-col h-[100dvh] h-screen bg-slate-50/70 overflow-hidden">
       {/* ── Top Header / Search & Category Filters ────────────────────────── */}
-      <header className="bg-white pt-10 pb-4 px-5 space-y-4 border-b border-slate-100/90 shadow-2xs shrink-0 z-20">
-        {/* Title & Subtitle */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl font-bold text-slate-900 tracking-tight flex items-center gap-2">
-              <Route className="w-5 h-5 text-brand-primary shrink-0" />
-              Catálogo de Rutas en {cityName}
+      <header className="bg-white pt-3.5 sm:pt-4 pb-3 px-4 sm:px-6 space-y-3 border-b border-slate-200/80 shadow-2xs shrink-0 z-20">
+        {/* Title & Badge */}
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <h1 className="text-lg sm:text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2 truncate">
+              <span className="p-1 rounded-lg bg-surface-navy text-brand-lime shrink-0">
+                <Route className="w-4 h-4" />
+              </span>
+              <span className="truncate">Rutas en {cityName}</span>
             </h1>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Líneas y recorridos de transporte público en {cityName}
+            <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
+              Líneas y recorridos de transporte público
             </p>
           </div>
 
@@ -68,29 +70,30 @@ export function RoutesListPage() {
             role="status"
             aria-live="polite"
             aria-atomic="true"
-            className="text-xs font-bold text-brand-primary bg-blue-50 px-3 py-1 rounded-full border border-blue-200/60"
+            className="text-xs font-bold text-slate-700 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0"
           >
-            {loading ? 'Cargando…' : `${filteredRoutes.length} disponibles`}
+            {loading ? 'Cargando…' : `${filteredRoutes.length} rutas`}
           </span>
         </div>
 
         {/* Search bar */}
         <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" />
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por código, avenida o empresa..."
-            className="w-full bg-slate-100/80 rounded-2xl py-3 pl-11 pr-10 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500/30 border-0 text-sm font-medium transition-all"
+            className="w-full bg-slate-100/90 rounded-xl py-2.5 pl-10 pr-9 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white border border-slate-200/60 text-xs sm:text-sm font-medium transition-all"
           />
           {searchQuery && (
             <button
+              type="button"
               onClick={() => setSearchQuery('')}
               aria-label="Limpiar búsqueda"
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-500 hover:text-slate-600 rounded-full after:absolute after:-inset-3 after:content-['']"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
             >
-              <X className="w-4 h-4" />
+              <X className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

@@ -677,17 +677,19 @@ export function CommunityPage() {
   return (
     <div className="flex flex-col h-[100dvh] h-screen bg-surface-page overflow-hidden">
       {/* ── Top Header ──────────────────────────────────────────────────── */}
-      <header className="bg-white pt-10 pb-3.5 px-5 border-b border-slate-200/80 shrink-0 z-20 space-y-3">
+      <header className="bg-white pt-3.5 sm:pt-4 pb-3 px-4 sm:px-6 border-b border-slate-200/80 shrink-0 z-20 space-y-2.5">
         <div className="flex items-center justify-between gap-3">
-          <div>
+          <div className="min-w-0">
             <div className="flex items-center gap-2">
-              <MessageSquare className="w-5 h-5 text-brand-primary shrink-0" />
-              <h1 className="text-xl font-bold text-ink-primary tracking-tight">
-                Comunidad QRuta
+              <span className="p-1 rounded-lg bg-surface-navy text-brand-lime shrink-0">
+                <MessageSquare className="w-4 h-4" />
+              </span>
+              <h1 className="text-lg sm:text-xl font-extrabold text-ink-primary tracking-tight truncate">
+                Comunidad
               </h1>
             </div>
-            <p className="text-xs text-ink-muted font-medium mt-0.5">
-              Alertas en vivo, consultas y reportes entre pasajeros.
+            <p className="text-[11px] sm:text-xs text-ink-muted font-medium truncate mt-0.5">
+              Alertas en vivo y reportes ciudadanos
             </p>
           </div>
 
@@ -698,7 +700,7 @@ export function CommunityPage() {
                 setTempAlias(alias);
                 setShowAliasModal(true);
               }}
-              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-3 py-2 rounded-xl transition-colors max-w-[140px] truncate"
+              className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 px-2.5 py-1.5 rounded-lg transition-colors max-w-[110px] sm:max-w-[140px] truncate cursor-pointer"
               title="Cambiar mi alias público"
             >
               <User className="w-3.5 h-3.5 text-brand-primary shrink-0" />
@@ -710,9 +712,9 @@ export function CommunityPage() {
             <button
               type="button"
               onClick={openComposeModal}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-white bg-brand-primary hover:bg-brand-primary-dark px-3.5 py-2 rounded-xl shadow-xs transition-all active:scale-95"
+              className="inline-flex items-center gap-1 text-xs font-extrabold text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-3 py-1.5 rounded-lg shadow-2xs transition-all active:scale-95 cursor-pointer"
             >
-              <Plus className="w-4 h-4" />
+              <Plus className="w-3.5 h-3.5" />
               <span>Publicar</span>
             </button>
           </div>
