@@ -11,7 +11,7 @@ import {
 import L from "leaflet";
 import { Flag, Info } from "lucide-react";
 import { getBoundsFromPoints, calculateDistanceKm } from "../../utils/geoUtils";
-import { BRAND_PRIMARY, DEFAULT_ROUTE_COLOR } from "../../constants/brand";
+import { DEFAULT_ROUTE_COLOR } from "../../constants/brand";
 import { routingService } from "../../services/routingService";
 
 // CARTO basemap. CARTO exige API key en sus tiles raster desde el 25/09/2026:

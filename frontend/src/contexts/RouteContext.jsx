@@ -213,6 +213,7 @@ export function RouteProvider({ children }) {
       userLocation.lng,
       cities,
     );
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- syncs geolocation coordinates with coverage boundaries
     setOutsideCoverage(!result.isInsideCoverage);
 
     if (result.city && result.city.id !== currentCity?.id) {
@@ -224,6 +225,7 @@ export function RouteProvider({ children }) {
   // Reload routes whenever currentCity changes
   useEffect(() => {
     if (currentCity?.id) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- synchronizes route dataset with selected city
       loadData(currentCity.id);
     }
   }, [currentCity?.id, loadData]);
