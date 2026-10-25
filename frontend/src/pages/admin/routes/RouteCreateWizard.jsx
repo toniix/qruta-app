@@ -24,14 +24,14 @@ import { useAdminToast } from '../../../hooks/useAdminToast';
 import { BRAND_PRIMARY } from '../../../constants/brand';
 
 const PRESET_COLORS = [
-  '#2563eb',
-  '#059669',
-  '#d97706',
-  '#dc2626',
-  '#4f46e5',
-  '#7c3aed',
-  '#0284c7',
-  '#0d9488',
+  '#B7F34A', // Route Lime
+  '#60A5FA', // Route Blue
+  '#A78BFA', // Route Violet
+  '#FB923C', // Route Orange
+  '#35B779', // Emerald
+  '#F5B942', // Amber
+  '#F97066', // Coral
+  '#0B1220', // Midnight Navy
 ];
 
 const STEPS = [

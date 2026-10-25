@@ -1,8 +1,43 @@
 /**
- * Single source of truth for the brand hex, for code paths that must parse or
- * round-trip a real hex value (Leaflet icon shading, admin color pickers, mock
- * data). For CSS rendering prefer `var(--color-brand-primary)` / the
- * `bg-brand-gradient` utility from `src/index.css`.
+ * Single source of truth for QRuta brand and transit palette hex values.
+ * For CSS rendering prefer CSS variables (e.g. `var(--color-brand-lime)`, `var(--color-brand-navy)`)
+ * or `@theme` utility classes.
  */
-export const BRAND_PRIMARY = '#2563eb';
-export const BRAND_PRIMARY_DARK = '#1d4ed8';
+
+// Brand & Dark Surfaces
+export const BRAND_NAVY = '#0B1220';
+export const BRAND_SURFACE_NAVY = '#111B2E';
+export const BRAND_SURFACE_NAVY_ELEVATED = '#17243A';
+export const BRAND_BORDER_NAVY = '#29364A';
+
+// QRuta Lime Accents
+export const BRAND_LIME = '#B7F34A';
+export const BRAND_LIME_HOVER = '#A6E83A';
+export const BRAND_LIME_SOFT = '#EAF9C8';
+
+// Accessible Light Mode Green
+export const BRAND_PRIMARY_GREEN = '#537D13';
+
+// Transit Map Routes
+export const ROUTE_COLORS = {
+  lime: '#B7F34A',
+  blue: '#60A5FA',
+  violet: '#A78BFA',
+  orange: '#FB923C',
+};
+
+export const TRANSIT_COLOR_PALETTE = [
+  '#B7F34A', // Route Lime
+  '#60A5FA', // Route Blue
+  '#A78BFA', // Route Violet
+  '#FB923C', // Route Orange
+  '#35B779', // Success Emerald
+  '#F5B942', // Warning Amber
+  '#F97066', // Error Coral
+  '#0B1220', // Midnight Navy
+];
+
+// Compatibility aliases
+export const BRAND_PRIMARY = '#0B1220';
+export const BRAND_PRIMARY_DARK = '#070C16';
+export const DEFAULT_ROUTE_COLOR = '#60A5FA';

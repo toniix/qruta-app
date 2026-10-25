@@ -28,8 +28,8 @@ export function MapTopHeader({
             </button>
           )}
 
-          <div className="bg-slate-900/90 text-white backdrop-blur-md rounded-full px-4 py-2 shadow-overlay border border-slate-700/80 flex items-center gap-2 text-xs sm:text-sm font-bold truncate flex-1 min-w-0">
-            <MapPin className="w-4 h-4 text-red-400 shrink-0" />
+          <div className="bg-slate-900/95 text-white backdrop-blur-md rounded-full px-4 py-2 shadow-overlay border border-slate-700/80 flex items-center gap-2 text-xs sm:text-sm font-bold truncate flex-1 min-w-0">
+            <MapPin className="w-4 h-4 text-brand-lime shrink-0" />
             <span className="truncate">Elige tu destino en el mapa</span>
           </div>
 
@@ -67,29 +67,31 @@ export function MapTopHeader({
             )}
 
             {/* Selected Route Title Pill / Tracing Badge */}
-            <div className="bg-white rounded-full px-4 py-2 shadow-raised border border-slate-100 flex items-center gap-2 text-xs sm:text-sm font-bold text-slate-900 truncate flex-1 min-w-0 transition-all duration-200">
+            <div className="bg-slate-900/95 text-white backdrop-blur-md rounded-full px-4 py-2 shadow-overlay border border-slate-700/80 flex items-center gap-2 text-xs sm:text-sm font-bold truncate flex-1 min-w-0 transition-all duration-200">
               <span
                 className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                   isRouteLoading ? "animate-ping" : ""
                 }`}
                 style={{
                   backgroundColor:
-                    selectedRoute.color || "var(--color-brand-primary)",
+                    selectedRoute.color || "var(--color-brand-lime)",
                 }}
               />
               {isRouteLoading ? (
-                <span className="truncate text-brand-primary font-semibold flex items-center gap-1.5 animate-pulse">
+                <span className="truncate text-brand-lime font-semibold flex items-center gap-1.5 animate-pulse">
                   <span>Trazando trayecto</span>
                   {selectedRoute.code && (
-                    <span className="font-bold text-slate-800">
+                    <span className="font-bold text-white">
                       ({selectedRoute.code})
                     </span>
                   )}
                   <span>...</span>
                 </span>
               ) : (
-                <span className="truncate">
-                  {selectedRoute.code ? `${selectedRoute.code} - ` : ""}
+                <span className="truncate text-white">
+                  {selectedRoute.code ? (
+                    <span className="text-brand-lime mr-1 font-black">{selectedRoute.code}</span>
+                  ) : null}
                   {selectedRoute.name?.replace(/^Ruta \w+:\s*/i, "") || "Ruta"}
                 </span>
               )}

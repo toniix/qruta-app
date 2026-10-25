@@ -8,7 +8,6 @@ import {
   MessageSquare,
   Compass,
   LogOut,
-  ShieldCheck,
   X,
 } from 'lucide-react';
 import { authService } from '../../../services/authService';
@@ -36,13 +35,15 @@ export function AdminSidebar({ mobileOpen, onCloseMobile }) {
       <div>
         <div className="flex items-center justify-between px-6 py-5 border-b border-slate-800/80">
           <Link to="/admin/overview" className="flex items-center gap-3 group">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600 text-white shadow-lg shadow-blue-500/20 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
+            <img
+              src="/qruta-icon.svg"
+              alt="QRuta"
+              className="h-10 w-10 rounded-xl shadow-lg shadow-black/40 group-hover:scale-105 transition-transform"
+            />
             <div>
               <div className="flex items-center gap-2">
-                <span className="text-base font-extrabold text-white tracking-tight">RutaYa</span>
-                <span className="rounded-md bg-blue-500/20 px-1.5 py-0.5 text-[10px] font-bold text-blue-400">
+                <span className="text-base font-extrabold text-white tracking-tight">QRuta</span>
+                <span className="rounded-md bg-brand-lime/20 px-1.5 py-0.5 text-[10px] font-bold text-brand-lime">
                   ADMIN
                 </span>
               </div>

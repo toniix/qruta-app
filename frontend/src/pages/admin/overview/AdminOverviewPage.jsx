@@ -109,7 +109,7 @@ export function AdminOverviewPage() {
             </span>
           </div>
           <h1 className="text-xl sm:text-2xl font-black tracking-tight">
-            Gestión Operativa de Red RutaYa
+            Gestión Operativa de Red QRuta
           </h1>
           <p className="text-xs text-blue-100 max-w-xl">
             Supervisa en tiempo real las rutas, líneas concesionadas, paraderos georreferenciados y alertas de la ciudadanía.

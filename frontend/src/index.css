@@ -2,26 +2,48 @@
 @import "leaflet/dist/leaflet.css";
 
 @theme {
-  /* ── Brand ──────────────────────────────────────────────────────────── */
-  --color-brand-primary: #2563eb;
-  --color-brand-primary-dark: #1d4ed8;
-  --color-brand-secondary: #0d9488;
-  --color-brand-accent: #ea580c;
+  /* ── Brand Core ─────────────────────────────────────────────────────── */
+  --color-brand-primary: #0b1220;
+  --color-brand-primary-dark: #070c16;
+  --color-brand-secondary: #537d13;
+  --color-brand-accent: #b7f34a;
 
-  /* ── Surfaces ───────────────────────────────────────────────────────── */
-  --color-surface-page: #f8fafc;
+  /* ── QRuta Brand Tokens ─────────────────────────────────────────────── */
+  --color-brand-lime: #b7f34a;
+  --color-brand-lime-hover: #a6e83a;
+  --color-brand-lime-soft: #eaf9c8;
+  --color-brand-primary-green: #537d13;
+
+  /* ── Dark Chrome & Structural Surfaces ──────────────────────────────── */
+  --color-brand-navy: #0b1220;
+  --color-surface-navy: #111b2e;
+  --color-surface-navy-elevated: #17243a;
+  --color-border-navy: #29364a;
+
+  /* ── Surfaces (Outdoor Daytime Canvas) ──────────────────────────────── */
+  --color-surface-page: #f7f9fc;
   --color-surface-raised: #ffffff;
-  --color-surface-sunken: #f1f5f9;
+  --color-surface-sunken: #edf2f7;
+  --color-border-subtle: #d0d5dd;
 
-  /* ── Ink ────────────────────────────────────────────────────────────── */
-  --color-ink-primary: #0f172a;
-  --color-ink-secondary: #475569;
-  --color-ink-muted: #64748b;
+  /* ── Ink & Typography ───────────────────────────────────────────────── */
+  --color-ink-primary: #101828;
+  --color-ink-secondary: #475467;
+  --color-ink-muted: #8290a5;
+  --color-ink-inverse: #f8fafc;
+  --color-ink-inverse-muted: #b8c2d3;
 
-  /* ── State ──────────────────────────────────────────────────────────── */
-  --color-state-success: #16a34a;
-  --color-state-error: #dc2626;
-  --color-state-warning: #d97706;
+  /* ── Semantic States ────────────────────────────────────────────────── */
+  --color-state-success: #35b779;
+  --color-state-warning: #f5b942;
+  --color-state-error: #f97066;
+  --color-state-info: #60a5fa;
+
+  /* ── Transit Map Lines ──────────────────────────────────────────────── */
+  --color-route-lime: #b7f34a;
+  --color-route-blue: #60a5fa;
+  --color-route-violet: #a78bfa;
+  --color-route-orange: #fb923c;
 
   /* ── Radius scale (cards max 16px) ──────────────────────────────────── */
   --radius-sm: 6px;
@@ -29,10 +51,10 @@
   --radius-lg: 14px;
   --radius-xl: 16px;
 
-  /* ── Shadow scale (blur <= 16px; no wide soft shadows) ──────────────── */
-  --shadow-card: 0 1px 3px 0 rgb(15 23 42 / 0.08), 0 1px 2px -1px rgb(15 23 42 / 0.08);
-  --shadow-raised: 0 4px 8px -2px rgb(15 23 42 / 0.1), 0 2px 4px -2px rgb(15 23 42 / 0.06);
-  --shadow-overlay: 0 8px 12px -4px rgb(15 23 42 / 0.14), 0 4px 6px -4px rgb(15 23 42 / 0.08);
+  /* ── Shadow scale (crisp borders + tactile elevation for outdoor) ────── */
+  --shadow-card: 0 1px 3px 0 rgb(11 18 32 / 0.06), 0 1px 2px -1px rgb(11 18 32 / 0.06);
+  --shadow-raised: 0 4px 8px -2px rgb(11 18 32 / 0.08), 0 2px 4px -2px rgb(11 18 32 / 0.04);
+  --shadow-overlay: 0 12px 24px -4px rgb(11 18 32 / 0.16), 0 4px 8px -2px rgb(11 18 32 / 0.08);
 }
 
 @layer base {
@@ -150,28 +172,28 @@
   border: 1px solid rgba(226, 232, 240, 0.8);
 }
 
-/* The single app gradient. */
+/* The single app gradient: Midnight Navy with refined depth. */
 .bg-brand-gradient {
   background: linear-gradient(
     135deg,
-    var(--color-brand-primary-dark) 0%,
-    var(--color-brand-primary) 100%
+    var(--color-brand-navy) 0%,
+    var(--color-surface-navy) 100%
   );
 }
 
-/* Custom Pulse and Pulse Glow Animations */
+/* Custom Pulse and Pulse Glow Animations (Electric Lime glow with high outdoor visibility) */
 @keyframes pulse-ring {
   0% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgb(37 99 235 / 0.7);
+    box-shadow: 0 0 0 0 rgb(183 243 74 / 0.85);
   }
   70% {
     transform: scale(1.05);
-    box-shadow: 0 0 0 14px rgb(37 99 235 / 0);
+    box-shadow: 0 0 0 14px rgb(183 243 74 / 0);
   }
   100% {
     transform: scale(0.95);
-    box-shadow: 0 0 0 0 rgb(37 99 235 / 0);
+    box-shadow: 0 0 0 0 rgb(183 243 74 / 0);
   }
 }
 

@@ -239,7 +239,7 @@ export function GpsPermissionModal() {
           {/* — UNSUPPORTED state — */}
           {gpsPermissionState === "unsupported" && (
             <p className="text-xs text-slate-600 leading-relaxed mb-5">
-              Puedes seguir usando RutasYa sin GPS. Busca rutas por nombre o
+              Puedes seguir usando QRuta sin GPS. Busca rutas por nombre o
               explora el mapa manualmente.
             </p>
           )}

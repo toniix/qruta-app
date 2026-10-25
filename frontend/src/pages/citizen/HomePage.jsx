@@ -5,6 +5,8 @@ import {
   Search,
   Navigation,
   MapPin,
+  Map,
+  MessageSquare,
   Loader2,
   Bus,
   AlertCircle,
@@ -132,65 +134,78 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
-      {/* ── Header: location thesis + hero search, flat brand band ─────── */}
-      <header className="bg-white border-b border-slate-200 px-4 sm:px-6 pt-4 pb-5 space-y-4 relative z-10">
+      {/* ── QRuta Urban Tech Hero: Midnight Navy (#0B1220) + Electric Lime (#B7F34A) ─────── */}
+      <header className="bg-brand-navy border-b border-border-navy px-4 sm:px-6 pt-5 pb-6 text-white space-y-4 relative z-10 shadow-lg shadow-black/20">
         {/* Top row: brand (mobile only — global Header shows it on sm+) + notifications */}
-        <div className="flex justify-end items-center">
-          <div className="flex sm:hidden items-center gap-2.5 mr-auto">
-            <div className="w-9 h-9 rounded-xl bg-brand-primary flex items-center justify-center shadow-2xs">
-              <Bus className="w-4.5 h-4.5 text-white" />
+        <div className="flex justify-between items-center">
+          <div className="flex sm:hidden items-center gap-2.5">
+            <img
+              src="/qruta-icon.svg"
+              alt="QRuta"
+              className="w-9 h-9 rounded-xl shadow-md shadow-black/30 shrink-0"
+            />
+            <div className="flex flex-col">
+              <span className="font-extrabold text-lg leading-tight tracking-tight text-white">
+                Q<span className="text-brand-lime">Ruta</span>
+              </span>
+              <span className="text-[10px] font-semibold text-slate-400">
+                Pregunta menos, <span className="text-brand-lime">muévete más.</span>
+              </span>
             </div>
-            <span className="font-bold text-lg tracking-tight text-ink-primary">
-              Ruta<span className="text-brand-primary">Ya</span>
+          </div>
+
+          <div className="hidden sm:flex items-center gap-2">
+            <span className="text-xs font-bold uppercase tracking-widest text-slate-400">
+              {greeting}
             </span>
           </div>
 
           <button
             type="button"
-            className="p-2.5 rounded-xl text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors active:scale-90"
+            className="p-2.5 rounded-xl bg-surface-navy hover:bg-surface-navy-elevated border border-border-navy text-slate-300 hover:text-white transition-all active:scale-90 ml-auto"
             aria-label="Notificaciones"
           >
-            <Bell className="w-5 h-5" />
+            <Bell className="w-4.5 h-4.5" />
           </button>
         </div>
 
-        {/* Location block — the page's thesis: where you are */}
+        {/* Location & City block */}
         <div className="space-y-2">
-          <p className="text-xs font-bold uppercase tracking-widest text-ink-muted">
+          <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:hidden">
             {greeting}
           </p>
-          <div className="flex items-center gap-2.5">
+          <div className="flex flex-wrap items-center gap-2.5">
             <button
               type="button"
               onClick={() => setShowCitySelector(!showCitySelector)}
               aria-label={`Cambiar ciudad. Actual: ${cityName}`}
               aria-expanded={showCitySelector}
-              className="group flex items-center gap-2 min-w-0 shrink-0 text-left"
+              className="group flex items-center gap-2 bg-surface-navy hover:bg-surface-navy-elevated border border-border-navy rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
             >
-              <span className="p-1.5 rounded-lg bg-blue-50 border border-blue-100 text-brand-primary shrink-0">
-                <MapPin className="w-4 h-4" />
+              <span className="p-1 rounded-lg bg-brand-lime/10 text-brand-lime shrink-0">
+                <MapPin className="w-3.5 h-3.5" />
               </span>
-              <span className="text-[28px] leading-none font-extrabold text-ink-primary tracking-tight truncate">
+              <span className="text-xl sm:text-2xl font-extrabold text-white tracking-tight truncate">
                 {cityName}
               </span>
               <ChevronDown
-                className={`w-5 h-5 text-ink-muted shrink-0 transition-transform group-hover:text-ink-primary ${showCitySelector ? 'rotate-180' : ''}`}
+                className={`w-4 h-4 text-slate-400 shrink-0 transition-transform group-hover:text-white ${showCitySelector ? 'rotate-180' : ''}`}
               />
             </button>
 
             {userAddressDisplay ? (
-              <p className="flex items-center gap-1.5 min-w-0 flex-1 text-xs font-medium text-ink-secondary bg-slate-100/90 border border-slate-200/70 rounded-full pl-2 pr-3 py-1">
-                <span className="relative flex w-1.5 h-1.5 shrink-0">
-                  <span className="absolute inline-flex w-full h-full rounded-full bg-emerald-500 opacity-60 animate-ping" />
-                  <span className="relative inline-flex w-1.5 h-1.5 rounded-full bg-emerald-600" />
+              <p className="flex items-center gap-1.5 min-w-0 max-w-full sm:max-w-md text-xs font-semibold text-slate-200 bg-surface-navy border border-border-navy rounded-full pl-2.5 pr-3 py-1.5 shadow-2xs">
+                <span className="relative flex w-2 h-2 shrink-0">
+                  <span className="absolute inline-flex w-full h-full rounded-full bg-brand-lime opacity-80 animate-ping" />
+                  <span className="relative inline-flex w-2 h-2 rounded-full bg-brand-lime" />
                 </span>
                 <span className="truncate">{userAddressDisplay}</span>
               </p>
             ) : (
-              <p className="flex items-center gap-1.5 min-w-0 flex-1 text-xs font-medium text-ink-muted bg-slate-100/90 border border-slate-200/70 rounded-full px-3 py-1">
+              <p className="flex items-center gap-1.5 min-w-0 text-xs font-medium text-slate-400 bg-surface-navy border border-border-navy rounded-full px-3 py-1.5">
                 {isResolvingLocation ? (
                   <>
-                    <Loader2 className="w-3 h-3 animate-spin shrink-0" />
+                    <Loader2 className="w-3 h-3 animate-spin text-brand-lime shrink-0" />
                     <span className="truncate">Detectando tu ubicación…</span>
                   </>
                 ) : (
@@ -201,20 +216,21 @@ export function HomePage() {
           </div>
         </div>
 
-        {/* Primary action: hero search */}
+        {/* Primary action: Hero search bar */}
         <button
           type="button"
           onClick={() => navigate('/buscar')}
-          className="group relative w-full flex items-center gap-3 bg-slate-50 hover:bg-white border border-slate-200 hover:border-blue-300 rounded-2xl py-3.5 pl-4 pr-3 text-sm font-medium text-ink-muted shadow-2xs hover:shadow-card transition-all min-h-12 text-left"
+          className="group relative w-full flex items-center gap-3 bg-white rounded-2xl p-2.5 sm:p-3 shadow-overlay border border-slate-100 hover:border-brand-lime transition-all text-left cursor-pointer active:scale-[0.99]"
         >
-          <span className="w-8 h-8 rounded-xl bg-brand-primary text-white flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
-            <Search className="w-4 h-4 pointer-events-none" />
-          </span>
-          <span className="flex-1 truncate">
-            Buscar ruta, paradero o lugar…
-          </span>
-          <span className="shrink-0 text-[11px] font-bold text-brand-primary bg-blue-50 border border-blue-200/60 px-2.5 py-1 rounded-full">
-            Todas las ciudades
+          <div className="w-10 h-10 rounded-xl bg-brand-navy flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+            <Search className="w-5 h-5 text-brand-lime" />
+          </div>
+          <div className="flex-1 min-w-0 pr-1">
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">¿A dónde vas?</p>
+            <p className="text-sm sm:text-base font-extrabold text-slate-900 truncate">Buscar ruta, paradero o lugar…</p>
+          </div>
+          <span className="shrink-0 text-xs font-black text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-3.5 py-2 rounded-xl shadow-2xs transition-colors">
+            Buscar
           </span>
         </button>
       </header>
@@ -307,7 +323,71 @@ export function HomePage() {
       )}
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-8">
+      <main className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-7">
+        {/* ── QRuta Action Grid: Quick Urban Shortcuts ─────────────────── */}
+        <section aria-label="Accesos rápidos" className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          <button
+            type="button"
+            onClick={() => navigate('/mapa')}
+            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-brand-navy flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <Map className="w-5 h-5 text-brand-lime" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Mapa en vivo</p>
+              <p className="text-[11px] font-medium text-slate-500 truncate">Ver recorrido</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (nearbyStopsRef.current) {
+                nearbyStopsRef.current.scrollIntoView({ behavior: 'smooth' });
+              } else {
+                navigate('/mapa');
+              }
+            }}
+            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-brand-lime-soft flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <MapPin className="w-5 h-5 text-brand-secondary" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Paraderos</p>
+              <p className="text-[11px] font-medium text-slate-500 truncate">Cercanos a ti</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/rutas')}
+            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-blue-50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <Bus className="w-5 h-5 text-blue-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Catálogo</p>
+              <p className="text-[11px] font-medium text-slate-500 truncate">Todas las rutas</p>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/comunidad')}
+            className="flex items-center gap-3 p-3.5 bg-white hover:bg-slate-50 border border-slate-200/90 rounded-2xl shadow-card transition-all group text-left active:scale-[0.98] cursor-pointer"
+          >
+            <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
+              <MessageSquare className="w-5 h-5 text-amber-600" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-extrabold text-sm text-slate-900 leading-tight">Comunidad</p>
+              <p className="text-[11px] font-medium text-slate-500 truncate">Avisos y tráfico</p>
+            </div>
+          </button>
+        </section>
         {/* ── Continúa explorando: recents + favorites, compact one-liner ── */}
         {(recentSearches.length > 0 || favorites.length > 0) && (
           <section aria-label="Continúa explorando" className="space-y-2">
@@ -379,40 +459,41 @@ export function HomePage() {
               <button
                 type="button"
                 onClick={() => navigate('/mapa')}
-                className="text-xs text-brand-primary font-bold hover:text-brand-primary-dark transition-colors"
+                className="text-xs text-brand-navy bg-slate-100 hover:bg-slate-200 font-extrabold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1"
               >
-                Ver en mapa
+                <span>Ver en mapa</span>
+                <ChevronRight className="w-3.5 h-3.5" />
               </button>
             </div>
           </div>
 
           {/* GPS not active CTA */}
           {!gpsReady && !loadingStops && (
-            <div className="bg-white rounded-2xl p-5 shadow-card border border-slate-100">
+            <div className="bg-white rounded-2xl p-5 shadow-card border border-slate-200/90">
               <div className="flex flex-col items-center gap-2.5 py-2 text-center">
-                <div className="w-11 h-11 bg-blue-50 rounded-2xl flex items-center justify-center">
-                  <Navigation className="w-5 h-5 text-brand-primary" />
+                <div className="w-12 h-12 bg-brand-lime-soft rounded-2xl flex items-center justify-center">
+                  <Navigation className="w-6 h-6 text-brand-secondary" />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-ink-primary">
+                  <p className="text-base font-extrabold text-slate-900">
                     Activa tu ubicación GPS
                   </p>
-                  <p className="text-xs text-ink-secondary mt-0.5">
-                    Descubre los paraderos y puntos más cercanos a ti
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Descubre los paraderos y puntos más cercanos a ti en tiempo real
                   </p>
                 </div>
                 <button
                   type="button"
                   onClick={triggerGpsRequest}
                   disabled={isLocating}
-                  className="mt-1 flex items-center gap-2 bg-brand-primary text-white text-xs font-bold px-4 py-2.5 rounded-xl hover:bg-brand-primary-dark transition-colors active:scale-95 disabled:opacity-60 shadow-2xs min-h-11"
+                  className="mt-1 flex items-center gap-2 bg-brand-navy hover:bg-surface-navy-elevated text-white text-xs font-black px-5 py-2.5 rounded-xl transition-all active:scale-95 disabled:opacity-60 shadow-2xs min-h-11"
                 >
                   {isLocating ? (
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                    <Loader2 className="w-4 h-4 animate-spin text-brand-lime" />
                   ) : (
-                    <Navigation className="w-3.5 h-3.5" />
+                    <Navigation className="w-4 h-4 text-brand-lime" />
                   )}
-                  {isLocating ? 'Obteniendo GPS...' : 'Usar mi ubicación'}
+                  <span>{isLocating ? 'Obteniendo GPS...' : 'Usar mi ubicación'}</span>
                 </button>
               </div>
             </div>
@@ -507,10 +588,10 @@ export function HomePage() {
             <button
               type="button"
               onClick={() => navigate('/rutas')}
-              className="text-xs text-brand-primary font-bold hover:text-brand-primary-dark transition-colors flex items-center gap-0.5"
+              className="text-xs text-brand-navy bg-slate-100 hover:bg-slate-200 font-extrabold px-3 py-1.5 rounded-full transition-colors flex items-center gap-0.5"
             >
               <span>Ver todas</span>
-              <ChevronRight className="w-4 h-4" />
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
 
@@ -524,14 +605,14 @@ export function HomePage() {
               <PopularRouteSkeleton />
             </div>
           ) : displayedPopularRoutes.length === 0 ? (
-            <div className="bg-white rounded-2xl p-6 text-center border border-slate-100 shadow-card space-y-2">
-              <p className="text-xs text-ink-secondary font-medium">
+            <div className="bg-white rounded-2xl p-6 text-center border border-slate-200/90 shadow-card space-y-2">
+              <p className="text-xs text-slate-500 font-medium">
                 No hay rutas populares a menos de 2 km de tu ubicación actual.
               </p>
               <button
                 type="button"
                 onClick={() => navigate('/rutas')}
-                className="text-xs font-bold text-brand-primary bg-blue-50 px-4 py-2 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors min-h-11"
+                className="text-xs font-black text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-4 py-2 rounded-xl transition-colors min-h-11 shadow-2xs"
               >
                 Ver todo el catálogo
               </button>
@@ -544,31 +625,31 @@ export function HomePage() {
                   type="button"
                   onClick={() => handleSelectPopularRoute(item)}
                   aria-label={`Ver recorrido de la ruta ${item.code}: ${item.name}`}
-                  className="w-full bg-white rounded-2xl p-4 border border-slate-100 shadow-card flex items-center justify-between gap-3.5 hover:border-blue-200 hover:shadow-md transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-primary text-left"
+                  className="w-full bg-white rounded-2xl p-4 border border-slate-200/90 shadow-card flex items-center justify-between gap-3.5 hover:border-slate-300 hover:shadow-raised transition-all duration-200 cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-lime text-left"
                 >
-                  {/* Route code pill — the app's signature; data carries the color */}
+                  {/* Route code squircle pill */}
                   <div
-                    className="w-14 h-10 text-white font-bold text-xs rounded-2xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
-                    style={{ backgroundColor: item.color || '#E8532E' }}
+                    className="w-14 h-10 text-white font-black text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+                    style={{ backgroundColor: item.color || '#60A5FA' }}
                   >
                     {item.code}
                   </div>
 
                   <div className="min-w-0 flex-1">
-                    <h3 className="font-bold text-ink-primary text-sm truncate leading-tight group-hover:text-brand-primary transition-colors">
+                    <h3 className="font-extrabold text-slate-900 text-sm truncate leading-tight group-hover:text-brand-secondary transition-colors">
                       {item.name}
                     </h3>
-                    <p className="text-xs font-medium text-ink-secondary mt-0.5">
+                    <p className="text-xs font-semibold text-slate-500 mt-0.5">
                       {item.totalStops} pts. frecuentes
                     </p>
                   </div>
 
-                  {/* Popularity band — plain language, quiet styling */}
-                  <span className="shrink-0 text-xs font-semibold text-ink-secondary bg-slate-100 border border-slate-200/80 px-2.5 py-1 rounded-full">
+                  {/* Popularity band */}
+                  <span className="shrink-0 text-xs font-bold text-slate-700 bg-slate-100 border border-slate-200/80 px-2.5 py-1 rounded-full">
                     {popularityLabel(item.popularityScore)}
                   </span>
 
-                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-brand-primary transition-colors shrink-0" />
+                  <ChevronRight className="w-4 h-4 text-slate-300 group-hover:text-slate-800 transition-colors shrink-0" />
                 </button>
               ))}
             </div>

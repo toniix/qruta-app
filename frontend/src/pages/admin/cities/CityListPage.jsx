@@ -209,7 +209,7 @@ export function CityListPage() {
             </h1>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Zonas urbanas y departamentos donde opera el ecosistema de transporte RutaYa.
+            Zonas urbanas y departamentos donde opera el ecosistema de transporte QRuta.
           </p>
         </div>
 

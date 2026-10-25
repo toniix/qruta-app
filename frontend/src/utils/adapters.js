@@ -1,7 +1,8 @@
 /**
- * Data Normalizers / Adapters for RutasYa Domain
+ * Data Normalizers / Adapters for QRuta Domain
  * Transforms heterogeneous backend payloads into consistent, predictable objects.
  */
+import { DEFAULT_ROUTE_COLOR } from "../constants/brand";
 
 /**
  * Normalizes a Stop entity
@@ -98,7 +99,7 @@ export function normalizeRoute(raw) {
     id: raw.id,
     code: raw.code || "Ruta",
     name: raw.name || "",
-    color: raw.color || "#2563eb",
+    color: raw.color || DEFAULT_ROUTE_COLOR,
     fare: raw.fare || null,
     description: raw.description || "",
     status: raw.status || "ACTIVE",

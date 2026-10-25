@@ -6,14 +6,14 @@ import { lineSchema, validateWith } from '../../../schemas';
 import { BRAND_PRIMARY } from '../../../constants/brand';
 
 const PRESET_COLORS = [
-  '#2563eb', // Blue
-  '#059669', // Emerald
-  '#d97706', // Amber
-  '#dc2626', // Crimson
-  '#4f46e5', // Indigo
-  '#7c3aed', // Purple
-  '#0284c7', // Sky
-  '#0d9488', // Teal
+  '#B7F34A', // Route Lime
+  '#60A5FA', // Route Blue
+  '#A78BFA', // Route Violet
+  '#FB923C', // Route Orange
+  '#35B779', // Emerald
+  '#F5B942', // Amber
+  '#F97066', // Coral
+  '#0B1220', // Midnight Navy
 ];
 
 function LineFormDrawerContent({

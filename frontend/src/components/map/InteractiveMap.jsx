@@ -11,7 +11,7 @@ import {
 import L from "leaflet";
 import { Flag, Info } from "lucide-react";
 import { getBoundsFromPoints, calculateDistanceKm } from "../../utils/geoUtils";
-import { BRAND_PRIMARY } from "../../constants/brand";
+import { BRAND_PRIMARY, DEFAULT_ROUTE_COLOR } from "../../constants/brand";
 import { routingService } from "../../services/routingService";
 
 // CARTO basemap. CARTO exige API key en sus tiles raster desde el 25/09/2026:
@@ -40,7 +40,7 @@ if (import.meta.env.DEV && !CARTO_KEY) {
 
 // Lighten (positive) or darken (negative) a hex color by a percentage (0..100).
 function shadeColor(color, percent) {
-  const clean = (color || BRAND_PRIMARY).replace("#", "");
+  const clean = (color || DEFAULT_ROUTE_COLOR).replace("#", "");
   let num = parseInt(clean, 16);
   let r = num >> 16;
   let g = (num >> 8) & 0xff;
@@ -336,8 +336,8 @@ const createUserLocationIcon = (showLabel = true) =>
       <div class="flex flex-col items-center pointer-events-auto">
     
         <div class="relative flex items-center justify-center w-7 h-7">
-          <div class="absolute w-7 h-7 rounded-full bg-blue-500/30 user-location-pulse"></div>
-          <div class="w-4 h-4 rounded-full bg-brand-primary border-2 border-white shadow-md"></div>
+          <div class="absolute w-7 h-7 rounded-full bg-lime-400/50 user-location-pulse"></div>
+          <div class="w-4 h-4 rounded-full bg-slate-900 border-2 border-white shadow-md ring-2 ring-lime-400/80"></div>
         </div>
       </div>
     `,
@@ -927,7 +927,7 @@ function InteractiveMapComponent({
                 key={route.id}
                 positions={positions}
                 pathOptions={{
-                  color: route.color || BRAND_PRIMARY,
+                  color: route.color || DEFAULT_ROUTE_COLOR,
                   weight: 4,
                   opacity: selectedRoute ? 0.25 : 0.75,
                   lineCap: "round",
@@ -965,7 +965,7 @@ function InteractiveMapComponent({
                 const isActive =
                   dir.direction === activeDirection ||
                   (!hasBoth && dir.direction !== "INBOUND");
-                const baseColor = selectedRoute.color || BRAND_PRIMARY;
+                const baseColor = selectedRoute.color || DEFAULT_ROUTE_COLOR;
 
                 return (
                   <Polyline

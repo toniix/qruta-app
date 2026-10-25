@@ -40,47 +40,47 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
           }
         }}
         aria-label={`Paradero ${stop.name}${routeCount > 0 ? `, ${routeCount} ${routeCount === 1 ? "ruta" : "rutas"}` : ", ver en el mapa"}`}
-        className="bg-white rounded-2xl p-5 shadow-card border border-slate-100 animate-slide-in-bottom cursor-pointer hover:border-blue-200 transition-all group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+        className="bg-white rounded-2xl p-4 sm:p-5 shadow-card border border-slate-200/90 animate-slide-in-bottom cursor-pointer hover:border-slate-300 hover:shadow-raised transition-all group focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-lime"
       >
         {/* Stop header */}
-        <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-50">
+        <div className="flex justify-between items-start mb-3 pb-3 border-b border-slate-100">
           <div className="min-w-0 flex-1">
-            <h3 className="font-bold text-slate-900 text-base leading-tight pr-2 group-hover:text-brand-primary transition-colors truncate">
+            <h3 className="font-extrabold text-slate-900 text-base leading-tight pr-2 group-hover:text-brand-secondary transition-colors truncate">
               {stop.name}
             </h3>
             {(stop.reference || stop.address) && (
-              <p className="text-xs text-slate-500 mt-0.5 truncate">
+              <p className="text-xs text-slate-500 mt-1 truncate">
                 Ref: {stop.reference || stop.address}
               </p>
             )}
           </div>
 
           {distanceKm != null && (
-            <div className="flex items-center gap-1.5 text-brand-primary text-sm font-bold shrink-0 bg-blue-50 px-3 py-1 rounded-full border border-blue-200/50">
+            <div className="flex items-center gap-1.5 text-brand-secondary text-xs font-black shrink-0 bg-brand-lime-soft px-2.5 py-1 rounded-full border border-brand-lime/40 shadow-2xs">
               <span>{formatDistance(distanceKm)}</span>
-              <ChevronRight className="w-4 h-4 text-blue-500" />
+              <ChevronRight className="w-3.5 h-3.5 text-brand-secondary" />
             </div>
           )}
         </div>
 
         {/* Route count + CTA — opens StopRoutesModal with the full list */}
         {routeCount > 0 ? (
-          <div className="flex items-center justify-between gap-2">
-            <span className="text-xs font-bold text-brand-primary-dark bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 shrink-0">
+          <div className="flex items-center justify-between gap-2 pt-1">
+            <span className="text-xs font-extrabold text-slate-800 bg-slate-100 px-2.5 py-1 rounded-full border border-slate-200/80 shrink-0">
               {routeCount} {routeCount === 1 ? "ruta" : "rutas"}
             </span>
-            <span className="text-xs font-bold text-brand-primary group-hover:text-brand-primary-dark transition-colors flex items-center gap-1 min-w-0 truncate">
-              Ver rutas del paradero
-              <ChevronRight className="w-4 h-4 shrink-0" />
+            <span className="text-xs font-extrabold text-slate-900 group-hover:text-brand-secondary transition-colors flex items-center gap-1 min-w-0 truncate">
+              Ver rutas
+              <ChevronRight className="w-3.5 h-3.5 shrink-0" />
             </span>
           </div>
         ) : (
-          <div className="flex items-center justify-between gap-1 text-xs font-bold text-brand-primary group-hover:text-brand-primary-dark transition-colors">
+          <div className="flex items-center justify-between gap-1 text-xs font-extrabold text-slate-900 group-hover:text-brand-secondary transition-colors pt-1">
             <span className="flex items-center gap-1.5">
-              <Navigation className="w-4 h-4 shrink-0" />
-              Ver paradero en el mapa
+              <Navigation className="w-4 h-4 shrink-0 text-brand-secondary" />
+              Ver en el mapa
             </span>
-            <ChevronRight className="w-4 h-4 shrink-0" />
+            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
           </div>
         )}
       </div>

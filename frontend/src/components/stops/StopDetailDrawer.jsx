@@ -147,7 +147,7 @@ export function StopDetailDrawer({ stop, context = "map" }) {
               {isRouteContext && selectedRoute?.code && (
                 <span
                   data-testid="route-context-chip"
-                  className="text-xs font-bold text-brand-primary-dark bg-blue-50 px-2 py-0.5 rounded border border-blue-200/60"
+                  className="text-xs font-extrabold text-slate-900 bg-brand-lime px-2 py-0.5 rounded border border-brand-lime/80"
                 >
                   Ruta {selectedRoute.code}
                 </span>

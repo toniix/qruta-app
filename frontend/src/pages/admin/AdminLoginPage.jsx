@@ -7,7 +7,7 @@ import { loginSchema, validateWith } from '../../schemas';
 
 function useNoIndex() {
   useEffect(() => {
-    document.title = 'Administración · RutaYa';
+    document.title = 'Administración · QRuta';
     let meta = document.querySelector('meta[name="robots"]');
     const created = !meta;
     if (!meta) {
@@ -61,12 +61,14 @@ export function AdminLoginPage() {
     <div className="min-h-screen flex flex-col items-center justify-center p-4 bg-slate-900 text-slate-100">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-overlay border border-slate-200/80 p-6 sm:p-8 space-y-6 text-slate-800">
         <div className="text-center space-y-2">
-          <div className="w-12 h-12 rounded-2xl bg-blue-600 text-white flex items-center justify-center mx-auto shadow-lg shadow-blue-500/30">
-            <ShieldCheck className="w-6 h-6" />
-          </div>
+          <img
+            src="/qruta-icon.svg"
+            alt="QRuta"
+            className="w-14 h-14 rounded-2xl mx-auto shadow-md shadow-black/20"
+          />
           <h1 className="text-2xl font-bold text-slate-900">Portal de Administración</h1>
           <p className="text-xs text-slate-500">
-            Gestión de rutas, líneas de transporte y paraderos de RutaYa
+            Gestión de rutas, líneas de transporte y paraderos de QRuta
           </p>
         </div>
 
@@ -140,10 +142,10 @@ export function AdminLoginPage() {
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white font-bold text-sm rounded-xl shadow-md shadow-blue-500/20 transition-all flex items-center justify-center gap-2 disabled:opacity-60"
+            className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white font-bold text-sm rounded-xl shadow-md transition-all flex items-center justify-center gap-2 disabled:opacity-60"
           >
             <span>{loading ? 'Ingresando...' : 'Iniciar Sesión'}</span>
-            <ArrowRight className="w-4 h-4" />
+            <ArrowRight className="w-4 h-4 text-brand-lime" />
           </button>
         </form>
 

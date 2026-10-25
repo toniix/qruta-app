@@ -92,9 +92,13 @@ export function SearchBar({ onPickDestination = null }) {
         <button
           type="button"
           onClick={() => setIsExpanded(true)}
-          className="relative w-full bg-white rounded-full shadow-card flex items-center px-4 py-3 border border-slate-100/90 cursor-pointer transition-all hover:border-blue-300 text-left"
+          className="relative w-full bg-white rounded-full shadow-raised flex items-center px-3.5 py-2.5 border border-slate-200/90 cursor-pointer transition-all hover:border-slate-300 text-left group"
         >
-          <Search className="w-5 h-5 text-slate-500 mr-3 shrink-0" />
+          <img
+            src="/qruta-icon.svg"
+            alt="QRuta"
+            className="w-7 h-7 rounded-lg mr-2.5 shrink-0 shadow-2xs group-hover:scale-105 transition-transform"
+          />
           <span className="flex-1 text-slate-800 text-sm font-medium">
             {searchQuery || "¿A dónde quieres ir?"}
           </span>
@@ -119,7 +123,7 @@ export function SearchBar({ onPickDestination = null }) {
               <X className="w-4 h-4" />
             </span>
           ) : (
-            <span className="text-xs font-bold text-brand-primary bg-blue-50 px-2.5 py-1 rounded-full border border-blue-200/60 ml-2">
+            <span className="text-xs font-black text-brand-navy bg-brand-lime px-3 py-1 rounded-full shadow-2xs ml-2">
               Buscar
             </span>
           )}

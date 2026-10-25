@@ -9,7 +9,7 @@ export function MapControls({
   return (
     <div className="absolute -top-36 right-4 sm:right-2 z-40 pointer-events-auto flex flex-col items-center gap-2">
       {/* Zoom In & Zoom Out Compact Button Group */}
-      <div className="flex flex-col bg-white rounded-2xl shadow-overlay border border-slate-100 overflow-hidden divide-y divide-slate-100">
+      <div className="flex flex-col bg-white rounded-2xl shadow-raised border border-slate-200/90 overflow-hidden divide-y divide-slate-100">
         <button
           onClick={onZoomIn}
           className="w-11 h-11 flex items-center justify-center text-slate-700 hover:text-slate-900 hover:bg-slate-50 transition-all active:scale-90"
@@ -32,15 +32,15 @@ export function MapControls({
       <button
         onClick={onRecenterGPS}
         disabled={isLocating}
-        className="w-12 h-12 rounded-full bg-white text-slate-800 shadow-overlay border border-slate-100 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90"
+        className="w-12 h-12 rounded-full bg-white text-slate-800 shadow-raised border border-slate-200/90 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90 group"
         title="Centrar en mi ubicación GPS"
         aria-label="Centrar en mi ubicación GPS"
       >
         <Target
           className={`w-5 h-5 ${
             isLocating
-              ? "animate-spin text-brand-primary"
-              : "text-brand-primary hover:scale-110 transition-transform"
+              ? "animate-spin text-brand-primary-green"
+              : "text-slate-800 group-hover:text-brand-primary-green hover:scale-110 transition-transform"
           }`}
         />
       </button>

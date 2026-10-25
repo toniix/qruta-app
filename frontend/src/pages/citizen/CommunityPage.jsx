@@ -683,7 +683,7 @@ export function CommunityPage() {
             <div className="flex items-center gap-2">
               <MessageSquare className="w-5 h-5 text-brand-primary shrink-0" />
               <h1 className="text-xl font-bold text-ink-primary tracking-tight">
-                Comunidad RutaYa
+                Comunidad QRuta
               </h1>
             </div>
             <p className="text-xs text-ink-muted font-medium mt-0.5">
