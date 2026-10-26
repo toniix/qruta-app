@@ -31,12 +31,16 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 .requestMatchers("/api/auth/me").authenticated()
                 .requestMatchers("/api/auth/**").permitAll()
+                // Must stay ahead of the permissive GET rule below: matchers are
+                // evaluated top-down, first match wins. Moving this line after
+                // `GET /api/**` exposes every admin read endpoint to anonymous
+                // callers (see EndpointAuthorizationTest).
+                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/stops/nearby").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/routes/nearby").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/community/**").permitAll()
                 .requestMatchers(HttpMethod.DELETE, "/api/community/**").permitAll()
-                .requestMatchers("/api/admin/**").hasRole("ADMIN")
                 .anyRequest().authenticated()
             )
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
