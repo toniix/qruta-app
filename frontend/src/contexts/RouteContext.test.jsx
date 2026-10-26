@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, waitFor, act } from "@testing-library/react";
 import { RouteProvider, useRoutes } from "./RouteContext";
+import { cityService } from "../services/cityService";
 
 const geoState = vi.hoisted(() => ({
   location: null,
@@ -113,5 +114,63 @@ describe("RouteContext addressStatus GPS re-request regression", () => {
           frame.addressStatus === "ready" && frame.userAddress == null,
       );
     expect(staleFrames).toEqual([]);
+  });
+});
+
+describe("RouteContext city caching and waterfall optimization", () => {
+  const MOCK_CITY = {
+    id: "city-ica-123",
+    name: "Ica",
+    latitude: -14.0678,
+    longitude: -75.7286,
+    radiusKm: 30,
+  };
+
+  it("boots with cached city synchronously on render 0", () => {
+    localStorage.setItem(
+      "rutasya_cities_cache",
+      JSON.stringify({ timestamp: Date.now(), cities: [MOCK_CITY] }),
+    );
+    localStorage.setItem("rutasya_selected_city_id", "city-ica-123");
+
+    let firstFrameCity = "unrendered";
+    function Probe() {
+      const { currentCity } = useRoutes();
+      if (firstFrameCity === "unrendered") {
+        firstFrameCity = currentCity;
+      }
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    expect(firstFrameCity).toMatchObject({ id: "city-ica-123", name: "Ica" });
+  });
+
+  it("updates localStorage cache when cityService.getAllCities resolves", async () => {
+    localStorage.clear();
+    const freshCities = [
+      { id: "city-lima-1", name: "Lima", latitude: -12.04, longitude: -77.04 },
+      { id: "city-ica-2", name: "Ica", latitude: -14.06, longitude: -75.72 },
+    ];
+    cityService.getAllCities.mockResolvedValueOnce(freshCities);
+
+    render(
+      <RouteProvider>
+        <div />
+      </RouteProvider>,
+    );
+
+    await waitFor(() => {
+      const raw = localStorage.getItem("rutasya_cities_cache");
+      expect(raw).not.toBeNull();
+      const parsed = JSON.parse(raw);
+      expect(parsed.cities).toHaveLength(2);
+      expect(parsed.cities[0].name).toBe("Lima");
+    });
   });
 });
