@@ -5,6 +5,16 @@ import { MemoryRouter } from 'react-router-dom';
 import { SearchPage } from './SearchPage';
 import { routeService } from '../../services/routeService';
 
+const mockNavigate = vi.fn();
+
+vi.mock('react-router-dom', async () => {
+  const actual = await vi.importActual('react-router-dom');
+  return {
+    ...actual,
+    useNavigate: () => mockNavigate,
+  };
+});
+
 const routeState = vi.hoisted(() => ({ current: {} }));
 
 vi.mock('../../contexts/RouteContext', () => ({
@@ -73,10 +83,10 @@ const BASE_STATE = {
   selectRoute: vi.fn(),
 };
 
-function renderSearchPage() {
+function renderSearchPage(initialEntries = ['/buscar']) {
   routeState.current = { ...BASE_STATE };
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={initialEntries}>
       <SearchPage />
     </MemoryRouter>,
   );
@@ -211,5 +221,31 @@ describe('SearchPage city filtering & search workflow', () => {
     unmountSecond();
     renderSearchPage();
     expect(screen.getByText('Explora antes de buscar')).toBeInTheDocument();
+  });
+
+  it('navigates back using react-router state.from, passing returnTo and avoiding route detail loop', async () => {
+    const user = userEvent.setup();
+
+    // 1. Enter SearchPage with state.from = '/rutas'
+    renderSearchPage([{ pathname: '/buscar', state: { from: '/rutas' } }]);
+
+    const backButton = screen.getByRole('button', { name: 'Regresar' });
+    await user.click(backButton);
+
+    // Should navigate to '/rutas'
+    expect(mockNavigate).toHaveBeenCalledWith('/rutas');
+  });
+
+  it('falls back to "/" when state.from points to route detail or is missing', async () => {
+    const user = userEvent.setup();
+
+    // Enter SearchPage with invalid / looping state.from
+    renderSearchPage([{ pathname: '/buscar', state: { from: '/mapa/ruta/route-123' } }]);
+
+    const backButton = screen.getByRole('button', { name: 'Regresar' });
+    await user.click(backButton);
+
+    // Must NEVER navigate into /mapa/ruta/...; should safely fall back to '/'
+    expect(mockNavigate).toHaveBeenCalledWith('/');
   });
 });

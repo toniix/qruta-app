@@ -1,7 +1,6 @@
-import { useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
-  Bell,
   Search,
   Navigation,
   MapPin,
@@ -13,28 +12,31 @@ import {
   X,
   Clock3,
   Star,
-} from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
-import { useFavorites } from '../../hooks/useFavorites';
-import { streetLine } from '../../services/geocodingService';
-import { getGreeting } from '../../utils/dateUtils';
-import { NearbyStopCard, StopSkeleton } from '../../components/home';
+} from "lucide-react";
+import { useRoutes } from "../../contexts/RouteContext";
+import { useFavorites } from "../../hooks/useFavorites";
+import { streetLine } from "../../services/geocodingService";
+import { getGreeting } from "../../utils/dateUtils";
+import { NearbyStopCard, StopSkeleton } from "../../components/home";
+import { QrutaSymbol } from "../../components/common/QrutaSymbol";
 
 /** Present the backend popularity score as a plain-language band, not a false-precision percentage. */
 function popularityLabel(score) {
-  if (score == null) return 'Popular';
-  return score >= 70 ? 'Muy popular' : 'Popular';
+  if (score == null) return "Popular";
+  return score >= 70 ? "Muy popular" : "Popular";
 }
 
 /** Mirrors SearchPage's RECENT_KEY: recent global-search queries. */
-const RECENT_SEARCHES_KEY = 'rutasya_recent_searches';
+const RECENT_SEARCHES_KEY = "rutasya_recent_searches";
 const MAX_HOME_RECENTS = 5;
 
 function readRecentSearches() {
   try {
-    const stored = JSON.parse(localStorage.getItem(RECENT_SEARCHES_KEY) || '[]');
+    const stored = JSON.parse(
+      localStorage.getItem(RECENT_SEARCHES_KEY) || "[]",
+    );
     return Array.isArray(stored)
-      ? stored.filter((q) => typeof q === 'string').slice(0, MAX_HOME_RECENTS)
+      ? stored.filter((q) => typeof q === "string").slice(0, MAX_HOME_RECENTS)
       : [];
   } catch {
     return [];
@@ -98,55 +100,56 @@ export function HomePage() {
       });
     }
     const targetId = matchedRoute?.id || item.id;
-    navigate(`/mapa/ruta/${targetId}`, { state: { from: '/' } });
+    navigate(`/mapa/ruta/${targetId}`, { state: { from: "/" } });
   };
 
   const scrollNearbyStops = (direction) => {
     if (nearbyStopsRef.current) {
-      const amount = direction === 'left' ? -300 : 300;
-      nearbyStopsRef.current.scrollBy({ left: amount, behavior: 'smooth' });
+      const amount = direction === "left" ? -300 : 300;
+      nearbyStopsRef.current.scrollBy({ left: amount, behavior: "smooth" });
     }
   };
 
   const greeting = getGreeting();
-  const cityName = currentCity?.name || 'Ica';
+  const cityName = currentCity?.name || "Ica";
 
   // User address line: street + number + district ("Av. Bolívar 123, Ica"),
   // falling back to the formatted address when there is no street.
   const userStreetLine = streetLine(userAddress);
   const userDistrict =
-    typeof userAddress?.district === 'string'
+    typeof userAddress?.district === "string"
       ? userAddress.district.trim()
-      : '';
+      : "";
   const userAddressDisplay = userStreetLine
     ? userDistrict && !userStreetLine.includes(userDistrict)
       ? `${userStreetLine}, ${userDistrict}`
       : userStreetLine
-    : userAddress?.formattedAddress || '';
+    : userAddress?.formattedAddress || "";
 
   // GPS may already be ready while the reverse-geocode request is still in
   // flight; treat that gap as loading so the pill never flashes "Sin ubicación activa".
   const isResolvingLocation =
-    isLocating || (gpsReady && (addressStatus === 'idle' || addressStatus === 'loading'));
+    isLocating ||
+    (gpsReady && (addressStatus === "idle" || addressStatus === "loading"));
 
   return (
     <div className="flex flex-col min-h-[calc(100dvh-4rem)] bg-surface-page">
       {/* ── QRuta Urban Tech Hero: Surface Navy (#111B2E) + Electric Lime (#B7F34A) ─────── */}
       <header className="bg-brand-navy border-b border-border-navy px-4 sm:px-6 pt-3.5 sm:pt-4 pb-5 text-white space-y-3.5 relative z-10 shadow-lg shadow-black/20">
-        {/* Top row: brand (mobile only — global Header shows it on sm+) + notifications */}
-        <div className="flex justify-between items-center">
-          <div className="flex sm:hidden items-center gap-3">
-            <img
-              src="/qruta-symbol-lime.svg"
-              alt="QRuta"
-              className="w-12 h-12 shrink-0 drop-shadow-md"
+        {/* Top row: brand (mobile only — global Header shows it on sm+) + City selector button */}
+        <div className="flex justify-between items-center gap-3">
+          <div className="flex sm:hidden items-center gap-2">
+            <QrutaSymbol
+              variant="lime"
+              className="w-14 h-14 shrink-0 drop-shadow-md"
             />
             <div className="flex flex-col justify-center min-w-0">
               <span className="font-black text-2xl leading-none tracking-tight text-white">
                 Q<span className="text-brand-lime">Ruta</span>
               </span>
               <span className="text-[11px] font-semibold text-slate-300 mt-1 leading-tight">
-                Pregunta menos, <span className="text-brand-lime">muévete más.</span>
+                Pregunta menos,{" "}
+                <span className="text-brand-lime">muévete más.</span>
               </span>
             </div>
           </div>
@@ -159,44 +162,37 @@ export function HomePage() {
 
           <button
             type="button"
-            className="p-2.5 rounded-xl bg-surface-navy hover:bg-surface-navy-elevated border border-border-navy text-slate-300 hover:text-white transition-all active:scale-90 ml-auto"
-            aria-label="Notificaciones"
+            onClick={() => setShowCitySelector(!showCitySelector)}
+            aria-label={`Cambiar ciudad. Actual: ${cityName}`}
+            aria-expanded={showCitySelector}
+            className="group flex items-center gap-1.5 sm:gap-2 bg-surface-navy hover:bg-surface-navy-elevated border border-border-navy rounded-xl px-2.5 sm:px-3 py-1.5 transition-colors cursor-pointer shrink-0 ml-auto"
           >
-            <Bell className="w-4.5 h-4.5" />
+            <span className="p-1 rounded-lg bg-brand-lime/10 text-brand-lime shrink-0">
+              <MapPin className="w-3.5 h-3.5" />
+            </span>
+            <span className="text-xs sm:text-sm font-bold text-white tracking-tight truncate max-w-[120px] sm:max-w-none">
+              {cityName}
+            </span>
+            <ChevronDown
+              className={`w-3.5 h-3.5 text-slate-400 shrink-0 transition-transform group-hover:text-white ${showCitySelector ? "rotate-180" : ""}`}
+            />
           </button>
         </div>
 
-        {/* Location & City block */}
-        <div className="space-y-2">
+        {/* Location & Address block */}
+        <div className="space-y-1.5">
           <p className="text-[11px] font-bold uppercase tracking-widest text-slate-400 sm:hidden">
             {greeting}
           </p>
-          <div className="flex flex-wrap items-center gap-2.5">
-            <button
-              type="button"
-              onClick={() => setShowCitySelector(!showCitySelector)}
-              aria-label={`Cambiar ciudad. Actual: ${cityName}`}
-              aria-expanded={showCitySelector}
-              className="group flex items-center gap-2 bg-surface-navy hover:bg-surface-navy-elevated border border-border-navy rounded-xl px-3 py-1.5 transition-colors cursor-pointer"
-            >
-              <span className="p-1 rounded-lg bg-brand-lime/10 text-brand-lime shrink-0">
-                <MapPin className="w-3.5 h-3.5" />
-              </span>
-              <span className="text-xl sm:text-2xl font-extrabold text-white tracking-tight truncate">
-                {cityName}
-              </span>
-              <ChevronDown
-                className={`w-4 h-4 text-slate-400 shrink-0 transition-transform group-hover:text-white ${showCitySelector ? 'rotate-180' : ''}`}
-              />
-            </button>
-
+          <div className="flex items-center">
             {userAddressDisplay ? (
               <p className="flex items-center gap-1.5 min-w-0 max-w-full sm:max-w-md text-xs font-semibold text-slate-200 bg-surface-navy border border-border-navy rounded-full pl-2.5 pr-3 py-1.5 shadow-2xs">
                 <span className="relative flex w-2 h-2 shrink-0">
                   <span className="absolute inline-flex w-full h-full rounded-full bg-brand-lime opacity-80 animate-ping" />
                   <span className="relative inline-flex w-2 h-2 rounded-full bg-brand-lime" />
                 </span>
-                <span className="truncate">{userAddressDisplay}</span>
+                <span className="text-slate-400 font-normal shrink-0">Tu ubicación:</span>
+                <span className="truncate font-semibold text-slate-100">{userAddressDisplay}</span>
               </p>
             ) : (
               <p className="flex items-center gap-1.5 min-w-0 text-xs font-medium text-slate-400 bg-surface-navy border border-border-navy rounded-full px-3 py-1.5">
@@ -216,15 +212,19 @@ export function HomePage() {
         {/* Primary action: Hero search bar */}
         <button
           type="button"
-          onClick={() => navigate('/buscar')}
+          onClick={() => navigate("/buscar")}
           className="group relative w-full flex items-center gap-3 bg-white rounded-2xl p-2.5 sm:p-3 shadow-overlay border border-slate-100 hover:border-brand-lime transition-all text-left cursor-pointer active:scale-[0.99]"
         >
           <div className="w-10 h-10 rounded-xl bg-brand-navy flex items-center justify-center shrink-0 shadow-2xs group-hover:scale-105 transition-transform">
             <Search className="w-5 h-5 text-brand-lime" />
           </div>
           <div className="flex-1 min-w-0 pr-1">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">¿A dónde vas?</p>
-            <p className="text-sm sm:text-base font-extrabold text-slate-900 truncate">Buscar ruta, paradero o lugar…</p>
+            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+              ¿A dónde vas?
+            </p>
+            <p className="text-sm sm:text-base font-extrabold text-slate-900 truncate">
+              Buscar ruta, paradero o lugar…
+            </p>
           </div>
           <span className="shrink-0 text-xs font-black text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-3.5 py-2 rounded-xl shadow-2xs transition-colors">
             Buscar
@@ -268,7 +268,7 @@ export function HomePage() {
                     setShowCitySelector(false);
                   }}
                   className={`w-full text-left px-4 py-3 hover:bg-slate-50 transition-colors flex items-center justify-between ${
-                    currentCity?.id === city.id ? 'bg-brand-primary/5' : ''
+                    currentCity?.id === city.id ? "bg-brand-primary/5" : ""
                   }`}
                 >
                   <div>
@@ -314,7 +314,7 @@ export function HomePage() {
           role="status"
           className="mx-4 mt-3 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 text-xs text-amber-800"
         >
-          No encontramos rutas en tu ubicación actual. Mostrando rutas de{' '}
+          No encontramos rutas en tu ubicación actual. Mostrando rutas de{" "}
           {currentCity.name}
         </div>
       )}
@@ -329,7 +329,7 @@ export function HomePage() {
                 <button
                   key={`recent-${query}`}
                   type="button"
-                  onClick={() => navigate('/buscar', { state: { query } })}
+                  onClick={() => navigate("/buscar", { state: { query } })}
                   className="flex-shrink-0 inline-flex items-center gap-1.5 max-w-44 rounded-full px-3.5 py-1.5 bg-white border border-slate-200/80 text-xs font-semibold text-slate-700 shadow-2xs hover:border-blue-300 hover:bg-blue-50/50 transition-all active:scale-95"
                 >
                   <Clock3 className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -371,7 +371,7 @@ export function HomePage() {
                 <div className="hidden sm:flex items-center gap-1">
                   <button
                     type="button"
-                    onClick={() => scrollNearbyStops('left')}
+                    onClick={() => scrollNearbyStops("left")}
                     className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                     title="Anterior"
                     aria-label="Paradero anterior"
@@ -380,7 +380,7 @@ export function HomePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => scrollNearbyStops('right')}
+                    onClick={() => scrollNearbyStops("right")}
                     className="p-1.5 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors"
                     title="Siguiente"
                     aria-label="Paradero siguiente"
@@ -391,7 +391,7 @@ export function HomePage() {
               )}
               <button
                 type="button"
-                onClick={() => navigate('/mapa')}
+                onClick={() => navigate("/mapa")}
                 className="text-xs text-brand-navy bg-slate-100 hover:bg-slate-200 font-extrabold px-3 py-1.5 rounded-full transition-colors flex items-center gap-1"
               >
                 <span>Ver en mapa</span>
@@ -412,7 +412,8 @@ export function HomePage() {
                     Activa tu ubicación GPS
                   </p>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    Descubre los paraderos y puntos más cercanos a ti en tiempo real
+                    Descubre los paraderos y puntos más cercanos a ti en tiempo
+                    real
                   </p>
                 </div>
                 <button
@@ -426,7 +427,9 @@ export function HomePage() {
                   ) : (
                     <Navigation className="w-4 h-4 text-brand-lime" />
                   )}
-                  <span>{isLocating ? 'Obteniendo GPS...' : 'Usar mi ubicación'}</span>
+                  <span>
+                    {isLocating ? "Obteniendo GPS..." : "Usar mi ubicación"}
+                  </span>
                 </button>
               </div>
             </div>
@@ -513,14 +516,14 @@ export function HomePage() {
               Rutas populares
               {gpsReady && (
                 <span className="text-sm font-medium text-ink-muted">
-                  {' '}
+                  {" "}
                   · a 2 km o menos
                 </span>
               )}
             </h2>
             <button
               type="button"
-              onClick={() => navigate('/rutas')}
+              onClick={() => navigate("/rutas")}
               className="text-xs text-brand-navy bg-slate-100 hover:bg-slate-200 font-extrabold px-3 py-1.5 rounded-full transition-colors flex items-center gap-0.5"
             >
               <span>Ver todas</span>
@@ -544,7 +547,7 @@ export function HomePage() {
               </p>
               <button
                 type="button"
-                onClick={() => navigate('/rutas')}
+                onClick={() => navigate("/rutas")}
                 className="text-xs font-black text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-4 py-2 rounded-xl transition-colors min-h-11 shadow-2xs"
               >
                 Ver todo el catálogo
@@ -563,7 +566,7 @@ export function HomePage() {
                   {/* Route code squircle pill */}
                   <div
                     className="w-14 h-10 text-white font-black text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
-                    style={{ backgroundColor: item.color || '#60A5FA' }}
+                    style={{ backgroundColor: item.color || "#60A5FA" }}
                   >
                     {item.code}
                   </div>

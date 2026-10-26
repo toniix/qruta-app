@@ -427,6 +427,20 @@ export function SearchPage() {
     }
   };
 
+  const handleBack = () => {
+    const fromPath = location.state?.from;
+    if (
+      fromPath &&
+      typeof fromPath === 'string' &&
+      fromPath !== '/buscar' &&
+      !fromPath.startsWith('/mapa/ruta/')
+    ) {
+      navigate(fromPath);
+    } else {
+      navigate('/');
+    }
+  };
+
   const handleSelectRoute = (route) => {
     // Preserve current search results and scroll position before navigating to route detail
     if (searchResults !== null) {
@@ -442,7 +456,15 @@ export function SearchPage() {
       });
     }
     selectRoute(route);
-    navigate(`/mapa/ruta/${route.id}`, { state: { from: "/buscar" } });
+    const returnTo =
+      location.state?.from &&
+      location.state.from !== '/buscar' &&
+      !location.state.from.startsWith('/mapa/ruta/')
+        ? location.state.from
+        : '/';
+    navigate(`/mapa/ruta/${route.id}`, {
+      state: { from: "/buscar", returnTo },
+    });
   };
 
   const handleClear = () => {
@@ -473,8 +495,8 @@ export function SearchPage() {
       <header className="bg-white pt-3.5 sm:pt-4 pb-3 px-4 sm:px-6 border-b border-slate-200/80 flex items-center gap-3 sticky top-0 z-20 shadow-2xs shrink-0">
         <button
           type="button"
-          onClick={() => navigate(-1)}
-          className="w-10 h-10 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 shrink-0 border border-slate-200/60"
+          onClick={handleBack}
+          className="w-10 h-10 rounded-xl bg-slate-100/90 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-all active:scale-90 shrink-0 border border-slate-200/60 cursor-pointer"
           title="Regresar"
           aria-label="Regresar"
         >

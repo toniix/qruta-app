@@ -2,6 +2,7 @@ import { Navigation, MapPin, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useRoutes } from '../../contexts/RouteContext';
 import { streetLine } from '../../services/geocodingService';
+import { QrutaSymbol } from './QrutaSymbol';
 
 const CITIZEN_LINKS = [
   { label: 'Inicio', path: '/' },
@@ -27,9 +28,8 @@ export function Header() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         {/* Brand logo & tagline */}
         <Link to="/" className="flex items-center gap-2.5 group shrink-0">
-          <img
-            src="/qruta-symbol.svg"
-            alt="QRuta"
+          <QrutaSymbol
+            variant="lime"
             className="w-10 h-10 shrink-0 group-hover:scale-105 transition-transform duration-200"
           />
           <div className="flex flex-col justify-center">
@@ -83,6 +83,7 @@ export function Header() {
           {!isAdmin && (
             <Link
               to="/buscar"
+              state={{ from: location.pathname }}
               aria-label="Buscar rutas en todas las ciudades"
               title="Buscar rutas"
               className="flex items-center gap-1.5 text-xs font-semibold px-3 py-2 rounded-xl transition-colors text-slate-700 bg-slate-100 hover:bg-slate-200"

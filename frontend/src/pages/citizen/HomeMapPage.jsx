@@ -61,7 +61,24 @@ export function HomeMapPage() {
   const [recenterTrigger, setRecenterTrigger] = useState(0);
   const [isTracingMap, setIsTracingMap] = useState(false);
   const [mapInstance, setMapInstance] = useState(null);
+  const [isSearchActive, setIsSearchActive] = useState(() =>
+    Boolean(
+      location.state?.searchState?.isSearchActive || location.state?.isSearchActive
+    )
+  );
   const carouselRef = useRef(null);
+
+  // Restore search active state from router state if present across navigation
+  const [prevLocationKey, setPrevLocationKey] = useState(location.key);
+  if (prevLocationKey !== location.key) {
+    setPrevLocationKey(location.key);
+    if (
+      location.state?.searchState?.isSearchActive ||
+      location.state?.isSearchActive
+    ) {
+      setIsSearchActive(true);
+    }
+  }
 
   const selectedRouteId = selectedRoute?.id;
   const hasSelectedStop = Boolean(selectedStop);
@@ -95,7 +112,9 @@ export function HomeMapPage() {
           selectStop(stop);
         }
         if (route.id) {
-          navigate(`/mapa/ruta/${route.id}`);
+          navigate(`/mapa/ruta/${route.id}`, {
+            state: { from: "/mapa" },
+          });
         }
       }
     },
@@ -110,7 +129,13 @@ export function HomeMapPage() {
       selectStop(fromStop);
       navigate("/mapa", {
         replace: true,
-        state: fromOrigin ? { from: fromOrigin } : null,
+        state: fromOrigin
+          ? {
+              from: fromOrigin,
+              returnTo: location.state?.returnTo,
+              searchState: location.state?.searchState,
+            }
+          : null,
       });
       setTimeout(() => {
         isClosingRef.current = false;
@@ -118,22 +143,50 @@ export function HomeMapPage() {
       return;
     }
 
-    if (fromOrigin) {
-      isClosingRef.current = true;
-      clearSelectedRoute();
-      selectStop(null);
-      navigate(fromOrigin);
-      setTimeout(() => {
-        isClosingRef.current = false;
-      }, 100);
-    }
-  }, [selectedRoute, fromStop, fromOrigin, clearSelectedRoute, selectStop, navigate]);
+    const targetOrigin = fromOrigin || "/mapa";
+    isClosingRef.current = true;
+    clearSelectedRoute();
+    selectStop(null);
+
+    // If target is /mapa, pass the preserved search state so search results and query are restored!
+    const backState =
+      targetOrigin === "/mapa"
+        ? (location.state?.searchState
+            ? {
+                searchState: location.state.searchState,
+                isSearchActive: true,
+              }
+            : location.state?.isSearchActive
+            ? { isSearchActive: true }
+            : null)
+        : location.state?.returnTo
+        ? { from: location.state.returnTo }
+        : null;
+
+    navigate(targetOrigin, {
+      replace: true,
+      state: backState,
+    });
+
+    setTimeout(() => {
+      isClosingRef.current = false;
+    }, 100);
+  }, [
+    selectedRoute,
+    fromStop,
+    fromOrigin,
+    location.state,
+    clearSelectedRoute,
+    selectStop,
+    navigate,
+  ]);
 
   // Close route detail explicitly in one click when user clicks X
   const handleCloseDetail = useCallback(() => {
     isClosingRef.current = true;
     clearSelectedRoute();
     selectStop(null);
+    setIsSearchActive(false);
     navigate("/mapa", { replace: true, state: null });
     // Reset flag after navigation completes
     setTimeout(() => {
@@ -626,7 +679,11 @@ export function HomeMapPage() {
         isRouteLoading={isRouteLoading}
         onCloseDetail={handleCloseDetail}
         onClearStop={handleClearStop}
-        onBack={fromOrigin || fromStop ? handleBack : null}
+        onBack={
+          selectedRoute || selectedStop || fromOrigin || fromStop
+            ? handleBack
+            : null
+        }
         onPickDestination={
           selectedRoute == null && !destinationActive
             ? handleEnterDestinationMode
@@ -636,17 +693,20 @@ export function HomeMapPage() {
           isPinMode || (showingDestinationResults && selectedRoute == null)
         }
         onCloseDestination={handleCloseDestination}
+        onSearchActiveChange={setIsSearchActive}
       />
 
       {/* ── Bottom Floating Area (Carousel OR Route Drawer OR Stop Info) ───── */}
       <div className="mt-auto relative z-20 pointer-events-none w-full max-w-lg mx-auto">
-        {/* Floating Controls: Zoom (+ / -) & GPS Recenter */}
-        <MapControls
-          onZoomIn={handleZoomIn}
-          onZoomOut={handleZoomOut}
-          onRecenterGPS={handleRecenterGPS}
-          isLocating={isLocating}
-        />
+        {/* Floating Controls: Zoom (+ / -) & GPS Recenter (hidden during active search) */}
+        {!isSearchActive && (
+          <MapControls
+            onZoomIn={handleZoomIn}
+            onZoomOut={handleZoomOut}
+            onRecenterGPS={handleRecenterGPS}
+            isLocating={isLocating}
+          />
+        )}
 
         {/* Dynamic Bottom Panels.
             Route detail wins over destination results so the preserved
@@ -698,7 +758,7 @@ export function HomeMapPage() {
           />
         ) : selectedStop ? (
           <StopDetailDrawer stop={selectedStop} />
-        ) : (
+        ) : isSearchActive ? null : (
           <RouteCarousel
             routes={filteredRoutes}
             selectedRoute={selectedRoute}

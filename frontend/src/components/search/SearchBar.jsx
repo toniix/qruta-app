@@ -1,12 +1,12 @@
 import { useState, useMemo, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import {
-  Search,
   X,
   Target,
   MapPin,
   MapPinned,
   ArrowUpDown,
+  ArrowLeft,
   Navigation,
   Layers,
   Star,
@@ -14,8 +14,10 @@ import {
 import { useRoutes } from "../../contexts/RouteContext";
 import { usePlaces } from "../../hooks/usePlaces";
 
-export function SearchBar({ onPickDestination = null }) {
+export function SearchBar({ onPickDestination = null, onSearchActiveChange = null }) {
   const navigate = useNavigate();
+  const location = useLocation();
+  const containerRef = useRef(null);
   const {
     routes,
     searchQuery,
@@ -31,23 +33,53 @@ export function SearchBar({ onPickDestination = null }) {
   const { places } = usePlaces();
   const quickPlaces = places.slice(0, 2);
 
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(() =>
+    Boolean(
+      location.state?.searchState?.isSearchActive || location.state?.isSearchActive
+    )
+  );
   const FALLBACK_ORIGIN = "Mi ubicación";
   const defaultOrigin = userAddress?.formattedAddress || FALLBACK_ORIGIN;
-  const [origin, setOrigin] = useState(defaultOrigin);
-  // GPS-backed origin default: sync until the user edits the field manually
-  const originTouchedRef = useRef(false);
-  useEffect(() => {
-    if (!originTouchedRef.current) {
-      setOrigin(defaultOrigin);
+  const [customOrigin, setCustomOrigin] = useState(() => location.state?.searchState?.origin || null);
+  const origin = customOrigin ?? defaultOrigin;
+
+  // Sync state if restored from react-router navigation history
+  const [prevLocationKey, setPrevLocationKey] = useState(location.key);
+  if (prevLocationKey !== location.key) {
+    setPrevLocationKey(location.key);
+    if (location.state?.searchState?.isSearchActive || location.state?.isSearchActive) {
+      setIsExpanded(true);
+      if (location.state?.searchState?.origin !== undefined) {
+        setCustomOrigin(location.state.searchState.origin);
+      }
     }
-  }, [defaultOrigin]);
+  }
+
+  // Notify parent container (HomeMapPage) when search mode is active so background controls and carousel can hide
+  useEffect(() => {
+    onSearchActiveChange?.(isExpanded);
+  }, [isExpanded, onSearchActiveChange]);
+
+  // Click outside to collapse search view back to pill
+  useEffect(() => {
+    if (!isExpanded) return undefined;
+    const handleClickOutside = (e) => {
+      if (containerRef.current && !containerRef.current.contains(e.target)) {
+        setIsExpanded(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    document.addEventListener("touchstart", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
+    };
+  }, [isExpanded]);
 
   const handleSwap = (e) => {
     e.stopPropagation();
     const temp = origin;
-    originTouchedRef.current = true;
-    setOrigin(searchQuery || defaultOrigin);
+    setCustomOrigin(searchQuery || defaultOrigin);
     setSearchQuery(temp === defaultOrigin ? "" : temp);
   };
 
@@ -74,8 +106,16 @@ export function SearchBar({ onPickDestination = null }) {
     // Select the route only: pre-selecting a stop would open the stop
     // drawer on the map instead of the route detail.
     selectRoute(route);
-    setIsExpanded(false);
-    navigate(`/mapa/ruta/${route.id}`);
+    navigate(`/mapa/ruta/${route.id}`, {
+      state: {
+        from: "/mapa",
+        searchState: {
+          query: searchQuery,
+          origin,
+          isSearchActive: true,
+        },
+      },
+    });
   };
 
   const handleClear = (e) => {
@@ -85,7 +125,7 @@ export function SearchBar({ onPickDestination = null }) {
   };
 
   return (
-    <div className="w-full space-y-2.5 pointer-events-auto">
+    <div ref={containerRef} className="w-full space-y-2.5 pointer-events-auto">
       {/* ── Collapsed vs Expanded Search Card ───────────────────────────── */}
       {!isExpanded ? (
         /* Collapsed Pill — a real button that opens the search sheet */
@@ -97,7 +137,7 @@ export function SearchBar({ onPickDestination = null }) {
           <img
             src="/qruta-symbol.svg"
             alt="QRuta"
-            className="w-6 h-6 mr-2.5 shrink-0 group-hover:scale-105 transition-transform"
+            className="w-7 h-7 mr-2.5 shrink-0 group-hover:scale-105 transition-transform"
           />
           <span className="flex-1 text-slate-800 text-sm font-medium">
             {searchQuery || "¿A dónde quieres ir?"}
@@ -160,6 +200,33 @@ export function SearchBar({ onPickDestination = null }) {
       ) : (
         /* Expanded Dual Input Card (Origen + Destino + Swap) */
         <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-raised relative space-y-3 animate-slide-in-top">
+          {/* Header row with Volver and Cerrar (X) buttons */}
+          <div className="flex items-center justify-between pb-1 border-b border-slate-100">
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+              title="Volver"
+              aria-label="Volver"
+            >
+              <ArrowLeft className="w-4 h-4" />
+            </button>
+            <span className="text-xs font-bold text-ink-primary">Buscar ruta</span>
+            <button
+              type="button"
+              onClick={() => {
+                setIsExpanded(false);
+                setSearchQuery("");
+                clearSelection();
+              }}
+              className="w-7 h-7 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-700 flex items-center justify-center transition-colors cursor-pointer"
+              title="Cerrar búsqueda"
+              aria-label="Cerrar búsqueda"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+
           {/* Map shortcut floating on right edge: jump straight to pin mode.
               Replaces swap here: when typing a destination, going to the map
               beats swapping fields. Falls back to swap if no handler. */}
@@ -170,7 +237,7 @@ export function SearchBar({ onPickDestination = null }) {
                 setIsExpanded(false);
                 onPickDestination();
               }}
-              className="w-8 h-8 rounded-full bg-slate-900 border border-slate-900 text-white flex items-center justify-center absolute right-4 top-1/2 -translate-y-1/2 shadow-2xs hover:bg-slate-700 transition-all active:scale-95 z-10"
+              className="w-8 h-8 rounded-full bg-slate-900 border border-slate-900 text-white flex items-center justify-center absolute right-4 top-[56%] -translate-y-1/2 shadow-2xs hover:bg-slate-700 transition-all active:scale-95 z-10 cursor-pointer"
               title="Buscar en el mapa"
               aria-label="Buscar destino en el mapa"
             >
@@ -180,7 +247,7 @@ export function SearchBar({ onPickDestination = null }) {
             <button
               type="button"
               onClick={handleSwap}
-              className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center absolute right-4 top-1/2 -translate-y-1/2 shadow-2xs hover:bg-slate-200 transition-transform active:rotate-180 duration-300 z-10"
+              className="w-8 h-8 rounded-full bg-slate-100 border border-slate-200/80 text-slate-600 flex items-center justify-center absolute right-4 top-[56%] -translate-y-1/2 shadow-2xs hover:bg-slate-200 transition-transform active:rotate-180 duration-300 z-10 cursor-pointer"
               title="Intercambiar origen y destino"
             >
               <ArrowUpDown className="w-3.5 h-3.5" />
@@ -194,8 +261,7 @@ export function SearchBar({ onPickDestination = null }) {
               type="text"
               value={origin}
               onChange={(e) => {
-                originTouchedRef.current = true;
-                setOrigin(e.target.value);
+                setCustomOrigin(e.target.value);
               }}
               placeholder="Punto de partida"
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
@@ -227,44 +293,33 @@ export function SearchBar({ onPickDestination = null }) {
             )}
           </div>
 
-          {/* Form Actions Row */}
-          <div className="flex items-center justify-between pt-1 border-t border-slate-50">
-            <button
-              type="button"
-              onClick={() => setIsExpanded(false)}
-              className="text-xs font-bold text-slate-500 hover:text-slate-800"
-            >
-              Cerrar
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                if (searchResults.length > 0) {
-                  handleSelectOption(searchResults[0]);
-                } else if (searchQuery.trim()) {
-                  navigate("/buscar", { state: { query: searchQuery } });
-                } else {
-                  setIsExpanded(false);
-                }
-              }}
-              className="flex items-center gap-1.5 bg-brand-primary hover:bg-brand-primary-dark text-white font-bold text-xs px-3.5 py-1.5 rounded-xl shadow-2xs transition-all active:scale-95"
-            >
-              <Search className="w-3.5 h-3.5" />
-              <span>Ver en mapa</span>
-            </button>
+          {/* Guidance text */}
+          <div className="pt-2 border-t border-slate-100 flex items-center">
+            <p className="text-xs text-ink-muted">
+              Encuentra tu ruta y descubre cómo llegar.
+            </p>
           </div>
         </div>
       )}
 
       {/* ── Search Results Popup (when expanded & searching) ─────────────── */}
       {isExpanded && searchQuery.trim() !== "" && (
-        <div className="bg-white/98 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-100 shadow-raised space-y-2.5 max-h-[42vh] overflow-y-auto hide-scrollbar animate-slide-in-top">
+        <div className="bg-white/98 backdrop-blur-xl rounded-2xl p-3.5 border border-slate-200/90 shadow-overlay space-y-2.5 max-h-[55vh] sm:max-h-[60vh] overflow-y-auto hide-scrollbar animate-slide-in-top">
           <div className="flex items-center justify-between px-1">
-            <span className="text-xs font-bold text-slate-900">
+            <span className="text-xs font-bold text-ink-primary">
               {searchResults.length === 1
                 ? "1 ruta encontrada"
                 : `${searchResults.length} rutas encontradas`}
             </span>
+            <button
+              type="button"
+              onClick={() => setIsExpanded(false)}
+              className="w-6 h-6 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-colors cursor-pointer"
+              title="Cerrar resultados"
+              aria-label="Cerrar resultados"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
 
           {searchResults.length === 0 ? (
@@ -273,9 +328,11 @@ export function SearchBar({ onPickDestination = null }) {
               <button
                 type="button"
                 onClick={() =>
-                  navigate("/buscar", { state: { query: searchQuery } })
+                  navigate("/buscar", {
+                    state: { query: searchQuery, from: location.pathname },
+                  })
                 }
-                className="text-xs font-bold text-brand-primary bg-blue-50 px-4 py-2.5 rounded-xl border border-blue-200/60 hover:bg-blue-100 transition-colors"
+                className="text-xs font-black text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-4 py-2.5 rounded-xl transition-colors shadow-2xs cursor-pointer"
               >
                 Buscar en todas las ciudades
               </button>
@@ -295,30 +352,30 @@ export function SearchBar({ onPickDestination = null }) {
                     }
                   }}
                   aria-label={`Seleccionar ruta ${route.code}: ${route.name}`}
-                  className="bg-white rounded-2xl p-3 border border-slate-100 shadow-2xs space-y-1.5 hover:border-blue-300 hover:shadow-xs transition-all cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
+                  className="bg-white rounded-2xl p-3 border border-slate-200/80 shadow-2xs space-y-1.5 hover:border-brand-lime hover:shadow-card transition-all cursor-pointer group active:scale-[0.99] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-navy"
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div
-                        className="px-2.5 py-1 text-white font-bold text-xs rounded-xl flex items-center justify-center shrink-0 uppercase tracking-wider"
-                        style={{ backgroundColor: route.color || "#2563eb" }}
+                        className="px-2.5 py-1 text-white font-bold text-xs rounded-xl flex items-center justify-center shrink-0 uppercase tracking-wider shadow-2xs"
+                        style={{ backgroundColor: route.color || "#111B2E" }}
                       >
                         {route.code}
                       </div>
-                      <span className="text-xs font-bold text-slate-900 truncate">
+                      <span className="text-xs font-bold text-ink-primary truncate">
                         {route.name}
                       </span>
                     </div>
 
                     {route.fare && (
-                      <span className="text-2xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0">
+                      <span className="text-2xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full shrink-0 border border-emerald-200/60">
                         {route.fare}
                       </span>
                     )}
                   </div>
 
                   {route.transportLineName && (
-                    <p className="text-xs text-slate-500 truncate">
+                    <p className="text-xs text-ink-muted truncate">
                       {route.transportLineName}
                     </p>
                   )}

@@ -11,6 +11,7 @@ export function MapTopHeader({
   onPickDestination = null,
   destinationActive = false,
   onCloseDestination = null,
+  onSearchActiveChange = null,
 }) {
   // Render when searching for a destination
   if (destinationActive) {
@@ -156,8 +157,11 @@ export function MapTopHeader({
   }
 
   return (
-    <div className="absolute top-0 left-0 right-0 z-20 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
-      <SearchBar onPickDestination={onPickDestination} />
+    <div className="absolute top-0 left-0 right-0 z-30 p-4 sm:p-5 pointer-events-none max-w-lg mx-auto w-full">
+      <SearchBar
+        onPickDestination={onPickDestination}
+        onSearchActiveChange={onSearchActiveChange}
+      />
     </div>
   );
 }

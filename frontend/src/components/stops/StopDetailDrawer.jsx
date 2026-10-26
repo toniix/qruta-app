@@ -12,6 +12,7 @@ import {
   ArrowRight,
   AlertCircle,
   RefreshCw,
+  Info,
 } from "lucide-react";
 import { stopService } from "../../services/stopService";
 import { useRoutes } from "../../contexts/RouteContext";
@@ -183,8 +184,12 @@ export function StopDetailDrawer({ stop, context = "map" }) {
               type="button"
               onClick={() => setIsCollapsed((prev) => !prev)}
               className="relative w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all active:scale-90 cursor-pointer after:absolute after:-inset-1.5 after:content-['']"
-              title={isCollapsed ? "Ver rutas de este paradero" : "Ocultar rutas"}
-              aria-label={isCollapsed ? "Ver rutas de este paradero" : "Ocultar rutas"}
+              title={
+                isCollapsed ? "Ver rutas de este paradero" : "Ocultar rutas"
+              }
+              aria-label={
+                isCollapsed ? "Ver rutas de este paradero" : "Ocultar rutas"
+              }
             >
               {isCollapsed ? (
                 <ChevronDown className="w-4 h-4" />
@@ -196,20 +201,33 @@ export function StopDetailDrawer({ stop, context = "map" }) {
         )}
       </div>
 
+      {/* ── Informative Reference Note ────────────────────────────────────── */}
+      {(isRouteContext || isCollapsed) && (
+        <div className="flex items-start gap-2.5 bg-slate-100/80 border border-slate-200/80 rounded-2xl p-3 text-xs text-slate-700 shadow-2xs">
+          <Info className="w-4 h-4 text-brand-primary-green shrink-0 mt-0.5" />
+          <p className="leading-relaxed font-medium">
+            <strong className="font-bold text-slate-900">Nota informativa:</strong> Este
+            paradero no es oficial; señala un punto frecuente de concurrencia o
+            lugar conocido (universidad, centro comercial o cruce) para orientar
+            tu viaje.
+          </p>
+        </div>
+      )}
+
       {/* Reference image (in route context always visible; in map context visible while collapsed) */}
       {stop.imageUrl &&
         failedImageUrl !== stop.imageUrl &&
         (isRouteContext || isCollapsed) && (
-        <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
-          <img
-            src={stop.imageUrl}
-            alt={`Foto de referencia: ${stop.name}`}
-            loading="lazy"
-            onError={() => setFailedImageUrl(stop.imageUrl)}
-            className="h-40 w-full object-cover sm:h-48"
-          />
-        </div>
-      )}
+          <div className="overflow-hidden rounded-xl border border-slate-100 bg-slate-50">
+            <img
+              src={stop.imageUrl}
+              alt={`Foto de referencia: ${stop.name}`}
+              loading="lazy"
+              onError={() => setFailedImageUrl(stop.imageUrl)}
+              className="h-40 w-full object-cover sm:h-48"
+            />
+          </div>
+        )}
 
       {/* Routes section ONLY in standalone map context (omitted in route context to maintain linear flow) */}
       {!isRouteContext && (
@@ -240,7 +258,8 @@ export function StopDetailDrawer({ stop, context = "map" }) {
 
                 {!loading && !error && (
                   <span className="text-xs font-bold text-brand-primary-dark bg-blue-50 px-2 py-0.5 rounded-full border border-blue-200/60">
-                    {stopRoutes.length} {stopRoutes.length === 1 ? "ruta" : "rutas"}
+                    {stopRoutes.length}{" "}
+                    {stopRoutes.length === 1 ? "ruta" : "rutas"}
                   </span>
                 )}
               </div>
@@ -307,8 +326,8 @@ export function StopDetailDrawer({ stop, context = "map" }) {
                             <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                               {isBoth ? (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-emerald-700 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-200/60">
-                                  <ArrowLeftRight className="w-2.5 h-2.5" /> Ida y
-                                  Vuelta
+                                  <ArrowLeftRight className="w-2.5 h-2.5" /> Ida
+                                  y Vuelta
                                 </span>
                               ) : (
                                 <span className="inline-flex items-center gap-1 text-[11px] font-bold text-brand-primary-dark bg-blue-50 px-1.5 py-0.2 rounded border border-blue-200/60">
