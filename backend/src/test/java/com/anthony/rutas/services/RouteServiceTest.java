@@ -678,6 +678,28 @@ class RouteServiceTest {
             verify(routeRepository).save(any(Route.class));
             verify(routeDirectionRepository).findByRouteIdWithStops(routeId);
         }
+
+        @Test
+        @DisplayName("Should normalize category and default to MICRO when empty")
+        void shouldNormalizeCategory() {
+            CreateRouteRequest requestCombi = CreateRouteRequest.builder()
+                    .transportLineId(transportLineId.toString())
+                    .code("R2")
+                    .name("Ruta 2")
+                    .category("  combi  ")
+                    .build();
+
+            when(transportLineRepository.findById(transportLineId)).thenReturn(Optional.of(transportLine));
+            when(routeRepository.save(any(Route.class))).thenAnswer(invocation -> invocation.getArgument(0));
+            when(routeRepository.findById(any())).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteIdWithStops(any())).thenReturn(List.of());
+
+            routeService.create(requestCombi);
+
+            var captor = ArgumentCaptor.forClass(Route.class);
+            verify(routeRepository).save(captor.capture());
+            assertEquals("COMBI", captor.getValue().getCategory());
+        }
     }
 
     // ==================== UPDATE ====================
@@ -691,6 +713,7 @@ class RouteServiceTest {
         void shouldPartiallyUpdateRoute() {
             UpdateRouteRequest request = UpdateRouteRequest.builder()
                     .name("Ruta Actualizada")
+                    .category("combi")
                     .color("#00FF00")
                     .build();
 
@@ -700,7 +723,9 @@ class RouteServiceTest {
             AdminRouteSummaryResponse result = routeService.update(routeId, request);
 
             assertNotNull(result);
-            verify(routeRepository).save(any(Route.class));
+            var captor = ArgumentCaptor.forClass(Route.class);
+            verify(routeRepository).save(captor.capture());
+            assertEquals("COMBI", captor.getValue().getCategory());
         }
     }
 

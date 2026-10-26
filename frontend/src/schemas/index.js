@@ -97,6 +97,7 @@ export const routeBasicsSchema = z.object({
   transportLineId: uuidField("Seleccioná una línea de transporte."),
   code: requiredText(1, 20, "El código de ruta es obligatorio."),
   name: requiredText(1, 120, "El nombre de la ruta es obligatorio."),
+  category: z.enum(["MICRO", "COMBI"]).default("MICRO"),
   color: colorField(),
   fare: z
     .string()

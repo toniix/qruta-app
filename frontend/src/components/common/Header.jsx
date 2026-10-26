@@ -42,7 +42,7 @@ export function Header() {
               </span>
             </div>
             <p className="text-xs font-medium text-ink-muted hidden lg:flex items-center gap-1 mt-1 leading-none">
-              Pregunta menos, <span className="text-brand-primary-green font-semibold">muévete más.</span>
+              Menos preguntas, <span className="text-brand-primary-green font-semibold">más viajes.</span>
             </p>
           </div>
         </Link>

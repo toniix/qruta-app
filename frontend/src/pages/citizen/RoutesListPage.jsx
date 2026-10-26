@@ -2,15 +2,7 @@ import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, MapPin, AlertCircle, RefreshCw } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
-import { matchesCategory } from "../../components/search/categoryFilter";
-
-/** Categories dynamically generated or default */
-const CATEGORIES = [
-  { id: "all", label: "Todas las rutas" },
-  { id: "urbano", label: "Urbano" },
-  { id: "interurbano", label: "Interurbano" },
-  { id: "nocturno", label: "Nocturno" },
-];
+import { matchesCategory, SEARCH_CATEGORIES } from "../../components/search/categoryFilter";
 
 export function RoutesListPage() {
   const {
@@ -110,7 +102,7 @@ export function RoutesListPage() {
 
         {/* Category Pills */}
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pt-0.5 pb-0.5">
-          {CATEGORIES.map((cat) => {
+          {SEARCH_CATEGORIES.map((cat) => {
             const isActive = activeCategory === cat.id;
             return (
               <button
@@ -213,6 +205,10 @@ export function RoutesListPage() {
             const destination =
               keyStops[keyStops.length - 1]?.name || "Destino";
             const color = route.color || "var(--color-brand-primary)";
+            const categoryLabel =
+              (route.category || "MICRO").toUpperCase() === "COMBI"
+                ? "Combi"
+                : "Micro";
 
             return (
               <div
@@ -245,8 +241,8 @@ export function RoutesListPage() {
                       <h3 className="font-bold text-slate-900 text-base leading-tight group-hover:text-brand-primary transition-colors truncate">
                         {route.name.replace(/^Ruta \w+:\s*/i, "")}
                       </h3>
-                      <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
-                        {route.transportLineName || "Línea urbana"}
+                      <p className="text-xs font-semibold text-slate-500 mt-0.5 truncate">
+                        {categoryLabel}
                       </p>
                     </div>
                   </div>

@@ -84,4 +84,60 @@ class DtoMapperTest {
         assertNotNull(response);
         assertNull(response.getImageUrl());
     }
+
+    @Test
+    @DisplayName("RouteSummaryResponse, PopularRouteResponse, RouteDetailResponse and AdminRouteSummaryResponse propagate category and default to MICRO when null")
+    void shouldMapRouteCategoryWithFallback() {
+        com.anthony.rutas.entities.City testCity = com.anthony.rutas.entities.City.builder()
+                .id(UUID.randomUUID())
+                .name("Ica")
+                .build();
+        com.anthony.rutas.entities.TransportLine testLine = com.anthony.rutas.entities.TransportLine.builder()
+                .id(UUID.randomUUID())
+                .name("Linea 1")
+                .city(testCity)
+                .build();
+
+        com.anthony.rutas.entities.Route routeWithCombi = com.anthony.rutas.entities.Route.builder()
+                .id(UUID.randomUUID())
+                .code("L1")
+                .name("Ruta 1")
+                .category("COMBI")
+                .transportLine(testLine)
+                .directions(java.util.List.of())
+                .build();
+
+        com.anthony.rutas.entities.Route routeWithNullCategory = com.anthony.rutas.entities.Route.builder()
+                .id(UUID.randomUUID())
+                .code("L2")
+                .name("Ruta 2")
+                .category(null)
+                .transportLine(testLine)
+                .directions(java.util.List.of())
+                .build();
+
+        // 1. AdminRouteSummaryResponse
+        var admin1 = DtoMapper.toAdminRouteSummaryResponse(routeWithCombi);
+        assertEquals("COMBI", admin1.getCategory());
+        var admin2 = DtoMapper.toAdminRouteSummaryResponse(routeWithNullCategory);
+        assertEquals("MICRO", admin2.getCategory());
+
+        // 2. RouteSummaryResponse
+        var summary1 = DtoMapper.toRouteSummaryResponse(routeWithCombi, java.util.List.of());
+        assertEquals("COMBI", summary1.getCategory());
+        var summary2 = DtoMapper.toRouteSummaryResponse(routeWithNullCategory, java.util.List.of());
+        assertEquals("MICRO", summary2.getCategory());
+
+        // 3. RouteDetailResponse
+        var detail1 = DtoMapper.toRouteDetailResponse(routeWithCombi, java.util.List.of());
+        assertEquals("COMBI", detail1.getCategory());
+        var detail2 = DtoMapper.toRouteDetailResponse(routeWithNullCategory, java.util.List.of());
+        assertEquals("MICRO", detail2.getCategory());
+
+        // 4. PopularRouteResponse
+        var popular1 = DtoMapper.toPopularRouteResponse(routeWithCombi, 5);
+        assertEquals("COMBI", popular1.getCategory());
+        var popular2 = DtoMapper.toPopularRouteResponse(routeWithNullCategory, 5);
+        assertEquals("MICRO", popular2.getCategory());
+    }
 }

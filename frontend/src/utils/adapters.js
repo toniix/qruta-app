@@ -99,6 +99,7 @@ export function normalizeRoute(raw) {
     id: raw.id,
     code: raw.code || "Ruta",
     name: raw.name || "",
+    category: raw.category || "MICRO",
     color: raw.color || DEFAULT_ROUTE_COLOR,
     fare: raw.fare || null,
     description: raw.description || "",

@@ -50,6 +50,7 @@ class CreateRouteRequestValidationTest {
                 .transportLineId(lineId)
                 .code("R101")
                 .name("Huacachina - Centro")
+                .category("MICRO")
                 .directions(List.of(RouteDirectionRequest.builder()
                         .direction("IDA")
                         .originName("Terminal")

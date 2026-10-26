@@ -153,6 +153,19 @@ describe('routeBasicsSchema', () => {
   it('accepts valid basics with empty optional fare', () => {
     const result = validateWith(routeBasicsSchema, { ...base, fare: '' });
     expect(result.ok).toBe(true);
+    expect(result.data.category).toBe('MICRO');
+  });
+
+  it('accepts COMBI category', () => {
+    const result = validateWith(routeBasicsSchema, { ...base, category: 'COMBI' });
+    expect(result.ok).toBe(true);
+    expect(result.data.category).toBe('COMBI');
+  });
+
+  it('rejects invalid category', () => {
+    const result = validateWith(routeBasicsSchema, { ...base, category: 'TRAIN' });
+    expect(result.ok).toBe(false);
+    expect(result.fieldErrors.category).toBeTruthy();
   });
 
   it('rejects malformed fare', () => {

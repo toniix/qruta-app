@@ -14,6 +14,14 @@ import {
 import { useRoutes } from "../../contexts/RouteContext";
 import { usePlaces } from "../../hooks/usePlaces";
 
+const formatCategory = (cat) => {
+  if (!cat) return "Micro";
+  const upper = String(cat).toUpperCase();
+  if (upper === "MICRO") return "Micro";
+  if (upper === "COMBI") return "Combi";
+  return cat.charAt(0).toUpperCase() + cat.slice(1).toLowerCase();
+};
+
 export function SearchBar({ onPickDestination = null, onSearchActiveChange = null }) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -92,13 +100,14 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
       const matchName = route.name?.toLowerCase().includes(term);
       const matchCode = route.code?.toLowerCase().includes(term);
       const matchLine = route.transportLineName?.toLowerCase().includes(term);
+      const matchCategory = route.category?.toLowerCase().includes(term);
       const matchStops = (route.keyStops || route.stops || []).some(
         (s) =>
           s.name?.toLowerCase().includes(term) ||
           s.address?.toLowerCase().includes(term),
       );
 
-      return matchName || matchCode || matchLine || matchStops;
+      return matchName || matchCode || matchLine || matchCategory || matchStops;
     });
   }, [routes, searchQuery]);
 
@@ -374,11 +383,9 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
                     )}
                   </div>
 
-                  {route.transportLineName && (
-                    <p className="text-xs text-ink-muted truncate">
-                      {route.transportLineName}
-                    </p>
-                  )}
+                  <p className="text-xs text-ink-muted truncate">
+                    {formatCategory(route.category)}
+                  </p>
                 </div>
               ))}
             </div>

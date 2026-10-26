@@ -11,6 +11,7 @@ import lombok.*;
 public class UpdateRouteRequest {
     private String code;
     private String name;
+    private String category;
     private String color;
     private String description;
     private String fare;

@@ -29,6 +29,8 @@ export function RouteDrawerSkeleton({ route }) {
   const code = route?.code || "Ruta";
   const color = route?.color || "var(--color-brand-primary)";
   const fare = route?.fare || "—";
+  const categoryLabel =
+    (route?.category || "MICRO").toUpperCase() === "COMBI" ? "Combi" : "Micro";
 
   return (
     <div className="bg-white/98 backdrop-blur-xl rounded-2xl border border-slate-100/90 shadow-overlay p-4 sm:p-5 flex flex-col space-y-3.5 max-h-[46vh] overflow-y-auto hide-scrollbar animate-slide-in-bottom pb-8">
@@ -38,20 +40,25 @@ export function RouteDrawerSkeleton({ route }) {
       {/* Header */}
       <div className="flex items-center justify-between gap-3">
         <div
-          className="w-14 h-9 text-white font-bold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+          className="min-w-14 h-9 px-3 text-white font-bold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
           style={{ backgroundColor: color }}
         >
           {code}
         </div>
 
-        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200/70">
-          <span className="font-bold text-xs sm:text-sm">{fare}</span>
-          <span className="text-[11px] font-medium text-emerald-600/80">tarifa</span>
+        <div className="flex items-center gap-2">
+          <div className="h-9 px-3 rounded-xl flex items-center justify-center text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
+            {categoryLabel}
+          </div>
+          <div className="h-9 px-3 rounded-xl flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/70 shadow-2xs">
+            <span className="font-bold text-xs sm:text-sm">{fare}</span>
+            <span className="text-[11px] font-medium text-emerald-600/80">tarifa</span>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2.5 shrink-0">
-          <div className="w-10 h-10 rounded-xl bg-slate-100 animate-pulse" />
-          <div className="w-10 h-10 rounded-xl bg-slate-100 animate-pulse" />
+        <div className="flex items-center gap-2 shrink-0">
+          <div className="w-9 h-9 rounded-xl bg-slate-100 animate-pulse" />
+          <div className="w-9 h-9 rounded-xl bg-slate-100 animate-pulse" />
         </div>
       </div>
 
@@ -212,6 +219,10 @@ export function RouteDrawer() {
   const frequency =
     selectedRoute.schedule?.frequency || selectedRoute.frequency || "";
   const fare = selectedRoute.fare || "—";
+  const categoryLabel =
+    (selectedRoute.category || "MICRO").toUpperCase() === "COMBI"
+      ? "Combi"
+      : "Micro";
 
   const handleDirectionChange = (dir) => {
     if (dir === "INBOUND" && !inbound) return;
@@ -233,20 +244,25 @@ export function RouteDrawer() {
       {/* Sheet grab indicator (visual sheet chrome only — dismissal is the X in the header) */}
       <div className="w-12 h-1.5 bg-slate-300/80 rounded-full mx-auto shrink-0 mb-1" />
 
-      {/* ── Route Header: Code Badge (Left) | Fare (Center) | Share & Favorite (Right) ─ */}
+      {/* ── Route Header: Code Badge (Left) | Category & Fare (Center) | Share & Favorite (Right) ─ */}
       <div className="flex items-center justify-between gap-3">
         {/* Left: Route Code Badge */}
         <div
-          className="w-14 h-9 text-white font-bold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
+          className="min-w-14 h-9 px-3 text-white font-bold text-xs rounded-xl flex justify-center items-center shrink-0 uppercase tracking-wider shadow-2xs"
           style={{ backgroundColor: color }}
         >
           {code}
         </div>
 
-        {/* Center: Fare */}
-        <div className="flex items-center gap-1.5 bg-emerald-50 text-emerald-700 px-3 py-1.5 rounded-full border border-emerald-200/70 shadow-2xs">
-          <span className="font-bold text-xs sm:text-sm">{fare}</span>
-          <span className="text-[11px] font-medium text-emerald-600/80">tarifa</span>
+        {/* Center: Category & Fare */}
+        <div className="flex items-center gap-2">
+          <div className="h-9 px-3 rounded-xl flex items-center justify-center text-xs font-bold uppercase tracking-wider bg-slate-100 text-slate-700 border border-slate-200/80 shadow-2xs">
+            {categoryLabel}
+          </div>
+          <div className="h-9 px-3 rounded-xl flex items-center justify-center gap-1.5 bg-emerald-50 text-emerald-700 border border-emerald-200/70 shadow-2xs">
+            <span className="font-bold text-xs sm:text-sm">{fare}</span>
+            <span className="text-[11px] font-medium text-emerald-600/80">tarifa</span>
+          </div>
         </div>
 
         {/* Right: Actions */}
@@ -254,17 +270,17 @@ export function RouteDrawer() {
           <button
             type="button"
             onClick={handleShare}
-            className="w-10 h-10 rounded-xl text-slate-500 hover:text-slate-700 bg-slate-100/80 hover:bg-slate-200/70 flex items-center justify-center transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
+            className="w-9 h-9 rounded-xl text-slate-500 hover:text-slate-700 bg-slate-100/80 hover:bg-slate-200/70 flex items-center justify-center transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary"
             title="Compartir ruta"
             aria-label="Compartir ruta"
           >
-            <Share2 className="w-4.5 h-4.5" />
+            <Share2 className="w-4 h-4" />
           </button>
 
           <button
             type="button"
             onClick={() => toggleFavorite(selectedRoute)}
-            className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
+            className={`w-9 h-9 rounded-xl flex items-center justify-center transition-all active:scale-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-primary ${
               isFavorite(selectedRoute.id)
                 ? "text-red-500 bg-red-50 hover:bg-red-100 border border-red-100"
                 : "text-slate-500 hover:text-slate-700 bg-slate-100/80 hover:bg-slate-200/70"
@@ -281,7 +297,7 @@ export function RouteDrawer() {
             }
           >
             <Heart
-              className="w-4.5 h-4.5"
+              className="w-4 h-4"
               fill={isFavorite(selectedRoute.id) ? "currentColor" : "none"}
             />
           </button>

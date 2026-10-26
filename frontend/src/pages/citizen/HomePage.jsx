@@ -148,8 +148,8 @@ export function HomePage() {
                 Q<span className="text-brand-lime">Ruta</span>
               </span>
               <span className="text-[11px] font-semibold text-slate-300 mt-1 leading-tight">
-                Pregunta menos,{" "}
-                <span className="text-brand-lime">muévete más.</span>
+                Menos preguntas,{" "}
+                <span className="text-brand-lime">más viajes.</span>
               </span>
             </div>
           </div>
@@ -576,7 +576,9 @@ export function HomePage() {
                       {item.name}
                     </h3>
                     <p className="text-xs font-semibold text-slate-500 mt-0.5">
-                      {item.totalStops} pts. frecuentes
+                      {(item.category || "MICRO").toUpperCase() === "COMBI"
+                        ? "Combi"
+                        : "Micro"}
                     </p>
                   </div>
 

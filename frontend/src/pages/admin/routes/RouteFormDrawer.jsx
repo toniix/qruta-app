@@ -46,6 +46,7 @@ function RouteFormDrawerContent({
     transportLineId: initialData?.transportLineId || '',
     code: initialData?.code || '',
     name: initialData?.name || '',
+    category: initialData?.category || 'MICRO',
     color: initialData?.color || BRAND_PRIMARY,
     fare: initialData?.fare || '',
     schedule: initialData?.schedule || '',
@@ -165,7 +166,7 @@ function RouteFormDrawerContent({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {/* Código */}
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
@@ -180,6 +181,22 @@ function RouteFormDrawerContent({
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
           />
           <FieldError message={errors.code} />
+        </div>
+
+        {/* Categoría */}
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            Categoría <span className="text-rose-500">*</span>
+          </label>
+          <select
+            value={form.category || 'MICRO'}
+            onChange={(e) => update({ category: e.target.value }, 'category')}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+          >
+            <option value="MICRO">Micro</option>
+            <option value="COMBI">Combi</option>
+          </select>
+          <FieldError message={errors.category} />
         </div>
 
         {/* Tarifa */}

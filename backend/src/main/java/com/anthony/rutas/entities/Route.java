@@ -31,6 +31,10 @@ public class Route {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    @Builder.Default
+    private String category = "MICRO";
+
     private String color;
 
     private String description;

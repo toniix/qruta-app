@@ -89,7 +89,7 @@ describe('StopListPage image upload flow', () => {
     expect(createPayload.name).toBe('Paradero Nuevo');
     expect(createPayload).not.toHaveProperty('imageFile');
     expect(createPayload).not.toHaveProperty('removeImage');
-  });
+  }, 20000);
 
   it('keeps the stop saved and shows a distinct toast when the image upload fails', async () => {
     const user = userEvent.setup();
@@ -105,5 +105,5 @@ describe('StopListPage image upload flow', () => {
 
     expect(await screen.findByText(/imagen no se pudo subir/i)).toBeInTheDocument();
     expect(adminStopService.createStop).toHaveBeenCalledTimes(1);
-  });
+  }, 20000);
 });

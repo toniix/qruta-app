@@ -23,6 +23,8 @@ public class CreateRouteRequest {
     @NotBlank(message = "Name is required")
     private String name;
 
+    private String category;
+
     private String color;
     private String description;
     private String fare;

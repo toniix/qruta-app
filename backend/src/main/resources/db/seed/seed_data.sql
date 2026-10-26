@@ -1,5 +1,5 @@
 -- =============================================================================
--- RutaYa - Seed de datos de prueba (Lima + Ica + Huánuco)
+-- RutaYa - Seed de datos de prueba (Lima + Ica + Huánuco + Chincha + Huancayo)
 -- DESTRUYE TODO el contenido actual y lo reemplaza con datos reales de prueba.
 --
 -- Requiere: PostgreSQL con extensión PostGIS (Supabase ya la incluye).
@@ -31,7 +31,9 @@ TRUNCATE TABLE vehicle_locations, vehicles, route_points, route_stops,
 INSERT INTO cities (id, name, department, country, latitude, longitude, radius_km, created_at, updated_at) VALUES
 ('10000000-0000-4000-8000-000000000001', 'Lima',    'Lima',     'Perú', -12.0463740, -77.0427930, 60.00, NOW(), NOW()),
 ('10000000-0000-4000-8000-000000000002', 'Ica',     'Ica',      'Perú', -14.0677700, -75.7286100, 30.00, NOW(), NOW()),
-('10000000-0000-4000-8000-000000000003', 'Huánuco', 'Huánuco', 'Perú', -9.9300000, -76.2400000, 40.00, NOW(), NOW());
+('10000000-0000-4000-8000-000000000003', 'Huánuco', 'Huánuco', 'Perú', -9.9300000, -76.2400000, 40.00, NOW(), NOW()),
+('10000000-0000-4000-8000-000000000004', 'Chincha', 'Ica',      'Perú', -13.4172000, -76.1325000, 25.00, NOW(), NOW()),
+('10000000-0000-4000-8000-000000000005', 'Huancayo', 'Junín',   'Perú', -12.0651000, -75.2049000, 30.00, NOW(), NOW());
 
 -- ===========================================================================
 -- LÍNEAS DE TRANSPORTE
@@ -52,10 +54,21 @@ INSERT INTO transport_lines (id, city_id, name, code, color, company, contact, d
 ('20000000-0000-4000-8000-000000000012', '10000000-0000-4000-8000-000000000003', 'Línea 2: Circuito Universidad',     'H2',  '#e11d48', 'TransHuánuco Universitario S.A.C.',   '+51 962 333 444', 'Conecta la universidad con el centro',                      'ACTIVE', NOW(), NOW()),
 ('20000000-0000-4000-8000-000000000013', '10000000-0000-4000-8000-000000000003', 'Línea 3: Expreso Tingo María',      'H3',  '#16a34a', 'Expreso Tingo María S.A.',            '+51 962 555 666', 'Ruta rápida hacia el norte de Huánuco',                     'ACTIVE', NOW(), NOW()),
 ('20000000-0000-4000-8000-000000000014', '10000000-0000-4000-8000-000000000003', 'Línea 4: Circular Huánuco',         'H4',  '#9333ea', 'Circular Huánuco S.A.C.',              '+51 962 777 888', 'Circuito circular por los barrios principales',              'ACTIVE', NOW(), NOW()),
-('20000000-0000-4000-8000-000000000015', '10000000-0000-4000-8000-000000000003', 'Línea 5: Interurbano Acomayo',      'H5',  '#ca8a04', 'Interurbano Acomayo S.A.',            '+51 962 999 000', 'Conexión interurbana con distritos aledaños',               'ACTIVE', NOW(), NOW());
+('20000000-0000-4000-8000-000000000015', '10000000-0000-4000-8000-000000000003', 'Línea 5: Interurbano Acomayo',      'H5',  '#ca8a04', 'Interurbano Acomayo S.A.',            '+51 962 999 000', 'Conexión interurbana con distritos aledaños',               'ACTIVE', NOW(), NOW()),
+-- Chincha
+('20000000-0000-4000-8000-000000000016', '10000000-0000-4000-8000-000000000004', 'Línea 1: Consorcio Chinchano',       'CH1',  '#2563eb', 'Consorcio Chinchano S.A.',          '+51 956 111 222', 'Ruta troncal de Chincha Alta',                  'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000017', '10000000-0000-4000-8000-000000000004', 'Línea 2: Expreso Grocio Prado',     'CH2',  '#e11d48', 'Trans Grocio Prado S.A.C.',          '+51 956 222 333', 'Conecta Chincha Alta con Grocio Prado',          'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000018', '10000000-0000-4000-8000-000000000004', 'Línea 3: Brisas de Sunampe',        'CH3',  '#16a34a', 'Empresa Sunampe Express S.A.',       '+51 956 333 444', 'Conexión a Sunampe y Tambo de Mora',             'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000019', '10000000-0000-4000-8000-000000000004', 'Línea 4: Interurbano Pueblo Nuevo',  'CH4',  '#ca8a04', 'Transportes Pueblo Nuevo S.A.',       '+51 956 444 555', 'Eje Pueblo Nuevo - Mercado Central',            'ACTIVE', NOW(), NOW()),
+-- Huancayo
+('20000000-0000-4000-8000-000000000020', '10000000-0000-4000-8000-000000000005', 'Línea 1: Transportes San Carlos',    'HYO1', '#2563eb', 'Trans San Carlos S.A.',             '+51 964 111 222', 'Eje troncal Calle Real y El Tambo',              'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000021', '10000000-0000-4000-8000-000000000005', 'Línea 2: Consorcio Wanka Express',   'HYO2', '#0891b2', 'Consorcio Wanka S.A.C.',             '+51 964 222 333', 'Conecta Chilca con El Tambo',                    'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000022', '10000000-0000-4000-8000-000000000005', 'Línea 3: Trans Chupaca',             'HYO3', '#16a34a', 'Empresa Valle del Mantaro S.A.',     '+51 964 333 444', 'Ruta interurbana Huancayo - Chupaca',            'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000023', '10000000-0000-4000-8000-000000000005', 'Línea 4: Expreso San Jerónimo',     'HYO4', '#9333ea', 'Trans San Jerónimo S.A.',           '+51 964 444 555', 'Conecta Huancayo con San Jerónimo de Tunán',     'ACTIVE', NOW(), NOW()),
+('20000000-0000-4000-8000-000000000024', '10000000-0000-4000-8000-000000000005', 'Línea 5: Circuito Universidad UNCP', 'HYO5', '#dc2626', 'Trans Universitaria Wanka S.A.',       '+51 964 555 666', 'Ruta universitaria hacia la UNCP',               'ACTIVE', NOW(), NOW());
 
 -- ===========================================================================
--- PARADEROS (Lima: 14 ids 01-14, Ica: 13 ids 15-27)
+-- PARADEROS (Lima: 14, Ica: 14, Huánuco: 12, Chincha: 10, Huancayo: 15 = 65 paraderos)
 -- location = PostGIS point (longitud, latitud) en SR4326
 -- ===========================================================================
 INSERT INTO stops (id, city_id, name, location, reference, address, is_accessible, key_stop, created_at, updated_at) VALUES
@@ -101,46 +114,91 @@ INSERT INTO stops (id, city_id, name, location, reference, address, is_accessibl
 ('30000000-0000-4000-8000-000000000037', '10000000-0000-4000-8000-000000000003', 'San Francisco de Asís',             ST_SetSRID(ST_MakePoint(-76.2430, -9.9310), 4326), 'Huánuco',                     'Jr. San Francisco 200',                 true,  false, NOW(), NOW()),
 ('30000000-0000-4000-8000-000000000038', '10000000-0000-4000-8000-000000000003', 'Centro C comercial Mega Plaza',      ST_SetSRID(ST_MakePoint(-76.2470, -9.9260), 4326), 'Huánuco',                     'Av. Mega Plaza 100',                    true,  false, NOW(), NOW()),
 ('30000000-0000-4000-8000-000000000039', '10000000-0000-4000-8000-000000000003', 'Barrio de Acomayo',                 ST_SetSRID(ST_MakePoint(-76.2550, -9.9150), 4326), 'Acomayo',                     'Jr. Acomayo s/n',                       true,  false, NOW(), NOW()),
-('30000000-0000-4000-8000-000000000040', '10000000-0000-4000-8000-000000000003', 'Puente Huallaga',                   ST_SetSRID(ST_MakePoint(-76.2410, -9.9380), 4326), 'Huánuco',                     'Puente Huallaga s/n',                   true,  false, NOW(), NOW());
+('30000000-0000-4000-8000-000000000040', '10000000-0000-4000-8000-000000000003', 'Puente Huallaga',                   ST_SetSRID(ST_MakePoint(-76.2410, -9.9380), 4326), 'Huánuco',                     'Puente Huallaga s/n',                   true,  false, NOW(), NOW()),
+-- Chincha
+('30000000-0000-4000-8000-000000000041', '10000000-0000-4000-8000-000000000004', 'Plaza de Armas de Chincha',          ST_SetSRID(ST_MakePoint(-76.1325, -13.4172), 4326), 'Chincha Centro',               'Calle Mariscal Castilla 100',          true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000042', '10000000-0000-4000-8000-000000000004', 'Mercado Modelo de Chincha',          ST_SetSRID(ST_MakePoint(-76.1310, -13.4150), 4326), 'Chincha',                      'Av. Benavides 350',                    true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000043', '10000000-0000-4000-8000-000000000004', 'Plaza de Armas de Grocio Prado',      ST_SetSRID(ST_MakePoint(-76.1550, -13.4000), 4326), 'Grocio Prado',                  'Av. Centenario 200',                   true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000044', '10000000-0000-4000-8000-000000000004', 'Santuario Melchorita',               ST_SetSRID(ST_MakePoint(-76.1580, -13.3980), 4326), 'Grocio Prado',                  'Calle Melchorita s/n',                 true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000045', '10000000-0000-4000-8000-000000000004', 'Plaza de Armas de Sunampe',           ST_SetSRID(ST_MakePoint(-76.1520, -13.4280), 4326), 'Sunampe',                       'Av. 28 de Julio 150',                  true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000046', '10000000-0000-4000-8000-000000000004', 'Puerto de Tambo de Mora',             ST_SetSRID(ST_MakePoint(-76.1830, -13.4650), 4326), 'Tambo de Mora',                 'Malecón de Tambo de Mora',             false, true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000047', '10000000-0000-4000-8000-000000000004', 'Plaza Principal de Pueblo Nuevo',    ST_SetSRID(ST_MakePoint(-76.1260, -13.3980), 4326), 'Pueblo Nuevo',                  'Av. 2 de Mayo 400',                    true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000048', '10000000-0000-4000-8000-000000000004', 'Terminal Terrestre de Chincha',      ST_SetSRID(ST_MakePoint(-76.1380, -13.4250), 4326), 'Chincha Alta',                  'Panamericana Sur Km 201',              true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000049', '10000000-0000-4000-8000-000000000004', 'Hospital San José de Chincha',       ST_SetSRID(ST_MakePoint(-76.1350, -13.4210), 4326), 'Chincha Alta',                  'Av. Los Próceres 120',                 true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000050', '10000000-0000-4000-8000-000000000004', 'Óvalo de Chincha - Panamericana Sur',ST_SetSRID(ST_MakePoint(-76.1400, -13.4300), 4326), 'Chincha Alta',                  'Óvalo Panamericana / Cruce Sunampe',   true,  false, NOW(), NOW()),
+-- Huancayo
+('30000000-0000-4000-8000-000000000051', '10000000-0000-4000-8000-000000000005', 'Plaza Huamanmarca',                   ST_SetSRID(ST_MakePoint(-75.2049, -12.0651), 4326), 'Huancayo Centro',               'Paseo La Breña / Calle Real',          true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000052', '10000000-0000-4000-8000-000000000005', 'Plaza Constitución',                  ST_SetSRID(ST_MakePoint(-75.2070, -12.0680), 4326), 'Huancayo Centro',               'Calle Real cdra 5',                    true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000053', '10000000-0000-4000-8000-000000000005', 'Mercado Mayorista de Huancayo',        ST_SetSRID(ST_MakePoint(-75.2120, -12.0720), 4326), 'Huancayo',                      'Jr. Calixto / Jr. Mantaro',            true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000054', '10000000-0000-4000-8000-000000000005', 'Estación del Ferrocarril Central',   ST_SetSRID(ST_MakePoint(-75.2055, -12.0640), 4326), 'Huancayo',                      'Av. Ferrocarril 600',                  true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000055', '10000000-0000-4000-8000-000000000005', 'Parque Bolognesi - El Tambo',         ST_SetSRID(ST_MakePoint(-75.2200, -12.0480), 4326), 'El Tambo',                      'Av. Mariscal Castilla cdra 12',        true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000056', '10000000-0000-4000-8000-000000000005', 'Ciudad Universitaria UNCP',           ST_SetSRID(ST_MakePoint(-75.2350, -12.0300), 4326), 'El Tambo',                      'Av. Mariscal Castilla 3909',           true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000057', '10000000-0000-4000-8000-000000000005', 'Plaza Principal de Chilca',           ST_SetSRID(ST_MakePoint(-75.1980, -12.0820), 4326), 'Chilca',                         'Av. 9 de Diciembre 250',               true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000058', '10000000-0000-4000-8000-000000000005', 'Mercado de Chilca',                  ST_SetSRID(ST_MakePoint(-75.2010, -12.0800), 4326), 'Chilca',                         'Jr. Arterial / Av. Real',              true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000059', '10000000-0000-4000-8000-000000000005', 'Terminal Terrestre Los Andes',        ST_SetSRID(ST_MakePoint(-75.2160, -12.0520), 4326), 'El Tambo',                      'Av. Evitamiento 450',                  true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000060', '10000000-0000-4000-8000-000000000005', 'Hospital Regional Carrión',            ST_SetSRID(ST_MakePoint(-75.2030, -12.0610), 4326), 'Huancayo',                      'Av. Daniel A. Carrión s/n',            true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000061', '10000000-0000-4000-8000-000000000005', 'Hospital Materno Infantil El Carmen',  ST_SetSRID(ST_MakePoint(-75.2090, -12.0690), 4326), 'Huancayo',                      'Jr. Puno 350',                         true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000062', '10000000-0000-4000-8000-000000000005', 'Plaza Principal de San Jerónimo',     ST_SetSRID(ST_MakePoint(-75.2850, -11.9560), 4326), 'San Jerónimo',                  'Plaza Principal s/n',                  true,  true,  NOW(), NOW()),
+('30000000-0000-4000-8000-000000000063', '10000000-0000-4000-8000-000000000005', 'Parque de la Identidad Huanca',        ST_SetSRID(ST_MakePoint(-75.2150, -12.0450), 4326), 'San Antonio / Huancayo',        'Jr. San Martín esq. Huallaga',         true,  false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000064', '10000000-0000-4000-8000-000000000005', 'Puente Chupaca',                      ST_SetSRID(ST_MakePoint(-75.2800, -12.0600), 4326), 'Chupaca',                        'Av. Los Héroes s/n',                   false, false, NOW(), NOW()),
+('30000000-0000-4000-8000-000000000065', '10000000-0000-4000-8000-000000000005', 'Plaza Independencia de Chupaca',       ST_SetSRID(ST_MakePoint(-75.2880, -12.0630), 4326), 'Chupaca',                        'Jr. Grau / Jr. Bruno Terreros',         true,  true,  NOW(), NOW());
 
 -- ===========================================================================
--- RUTAS (13: 7 en Lima, 6 en Ica) -- con todas ellas se cumple "≥3 paraderos por dirección"
+-- RUTAS (42 rutas: 7 en Lima, 10 en Ica, 10 en Huánuco, 5 en Chincha, 10 en Huancayo)
+-- con todas ellas se cumple "≥3 paraderos por dirección"
 -- códigos de ruta únicos (routes.code = UNIQUE), popularityScore variado
 -- ===========================================================================
-INSERT INTO routes (id, transport_line_id, code, name, color, description, fare, schedule, frequency, popularity_score, status, created_at, updated_at) VALUES
+INSERT INTO routes (id, transport_line_id, code, name, category, color, description, fare, schedule, frequency, popularity_score, status, created_at, updated_at) VALUES
 -- Lima
-('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'LIMA-01', 'Plaza de Armas – Miraflores (Parque Kennedy)', '#2563eb', 'Eje turístico del Centro hacia Miraflores',        'S/ 2.50', '06:00 - 22:00', 'Cada 8 min', 95,  'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', 'LIMA-02', 'Yerbateros – Centro – San Marcos',              '#60a5fa', 'Conecta el terminal con la universidad',             'S/ 2.00', '05:30 - 21:30', 'Cada 10 min', 88, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', 'LIMA-03', 'Expreso Sur – Barranco',                          '#e11d48', 'Ruta rápida expresa del Centro a Barranco',        'S/ 3.00', '06:00 - 23:00', 'Cada 12 min', 90, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000003', 'LIMA-04', 'Centro – Hospital 2 de Mayo',                      '#16a34a', 'Servicio corto a los hospitales',                   'S/ 1.50', '06:30 - 20:00', 'Cada 15 min', 62, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000004', 'LIMA-05', 'Mercado Central – San Miguel',                     '#0891b2', 'Ratón + circuito comercial al oeste',               'S/ 2.00', '06:00 - 21:00', 'Cada 9 min',  70, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000006', '20000000-0000-4000-8000-000000000005', 'LIMA-06', 'Av. Grau – Costa Sur (Barranco)',                 '#dc2626', 'Perimetral por Av. Grau hacia la Costa Verde',      'S/ 2.80', '06:00 - 23:00', 'Cada 10 min', 82, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000007', '20000000-0000-4000-8000-000000000005', 'LIMA-07', 'Circuito Miraflores – Barranco',                 '#f43f5e', 'Circuito de los balnearios por la Costa',          'S/ 2.00', '06:00 - 22:30', 'Cada 9 min',   77, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000001', '20000000-0000-4000-8000-000000000001', 'LIMA-01', 'Plaza de Armas – Miraflores (Parque Kennedy)', 'MICRO', '#2563eb', 'Eje turístico del Centro hacia Miraflores',        'S/ 2.50', '06:00 - 22:00', 'Cada 8 min', 95,  'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000002', '20000000-0000-4000-8000-000000000001', 'LIMA-02', 'Yerbateros – Centro – San Marcos',              'MICRO', '#60a5fa', 'Conecta el terminal con la universidad',             'S/ 2.00', '05:30 - 21:30', 'Cada 10 min', 88, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000003', '20000000-0000-4000-8000-000000000002', 'LIMA-03', 'Expreso Sur – Barranco',                          'COMBI', '#e11d48', 'Ruta rápida expresa del Centro a Barranco',        'S/ 3.00', '06:00 - 23:00', 'Cada 12 min', 90, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000004', '20000000-0000-4000-8000-000000000003', 'LIMA-04', 'Centro – Hospital 2 de Mayo',                      'MICRO', '#16a34a', 'Servicio corto a los hospitales',                   'S/ 1.50', '06:30 - 20:00', 'Cada 15 min', 62, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000005', '20000000-0000-4000-8000-000000000004', 'LIMA-05', 'Mercado Central – San Miguel',                     'COMBI', '#0891b2', 'Ratón + circuito comercial al oeste',               'S/ 2.00', '06:00 - 21:00', 'Cada 9 min',  70, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000006', '20000000-0000-4000-8000-000000000005', 'LIMA-06', 'Av. Grau – Costa Sur (Barranco)',                 'MICRO', '#dc2626', 'Perimetral por Av. Grau hacia la Costa Verde',      'S/ 2.80', '06:00 - 23:00', 'Cada 10 min', 82, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000007', '20000000-0000-4000-8000-000000000005', 'LIMA-07', 'Circuito Miraflores – Barranco',                 'COMBI', '#f43f5e', 'Circuito de los balnearios por la Costa',          'S/ 2.00', '06:00 - 22:30', 'Cada 9 min',   77, 'ACTIVE', NOW(), NOW()),
 -- Ica
-('40000000-0000-4000-8000-000000000008', '20000000-0000-4000-8000-000000000006', 'ICA-01',  'Plaza de Armas – Huacachina',                    '#2563eb', 'Llegar a la laguna desde el centro',               'S/ 2.00', '06:00 - 21:00', 'Cada 10 min', 95,  'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000009', '20000000-0000-4000-8000-000000000007', 'ICA-02',  'Mercado Modelo – UNICA',                         '#9333ea', 'Ruta universitaria con parada en el santuario',    'S/ 2.20', '05:30 - 21:30', 'Cada 7 min',  88, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000010', '20000000-0000-4000-8000-000000000007', 'ICA-03',  'Óvalo Grau – Santuario Luren (Gira comercial)',   '#6d28d9', 'Circuito comercial que atraviesa el centro',       'S/ 2.20', '06:00 - 22:00', 'Cada 8 min',  82, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000011', '20000000-0000-4000-8000-000000000008', 'ICA-04',  'Ica – Parcona – La Tinguiña',                     '#0ea5e8', 'Interurbana a los distritos del norte',            'S/ 2.50', '06:00 - 20:00', 'Cada 15 min', 64, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000012', '20000000-0000-4000-8000-000000000009', 'ICA-05',  'Terminal Terrestre – Subtanjalla',                '#ca8a04', 'Conexión hacia el norte de Ica',                   'S/ 2.80', '05:00 - 21:00', 'Cada 12 min', 60, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000013', '20000000-0000-4000-8000-000000000010', 'ICA-06',  'Parcona – UNICA – El Quinde',                    '#6366f1', 'Interurbano con paradas claves',                   'S/ 2.30', '06:00 - 21:30', 'Cada 9 min',   75, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000024', '20000000-0000-4000-8000-000000000006', 'ICA-07',  'Centro – Cachiche – Subtanjalla',                '#059669', 'Ruta turística por el norte de Ica',               'S/ 2.50', '06:30 - 20:30', 'Cada 12 min', 70, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000025', '20000000-0000-4000-8000-000000000009', 'ICA-08',  'El Quinde – San Joaquín – Santuario',             '#7c3aed', 'Ruta comercial del sur de Ica',                    'S/ 2.00', '06:00 - 22:00', 'Cada 10 min', 68, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000026', '20000000-0000-4000-8000-000000000007', 'ICA-09',  'UNICA – Parcona – Terminal Terrestre',            '#db2777', 'Conexión universitaria con terminal',               'S/ 2.80', '05:30 - 21:00', 'Cada 11 min', 62, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000027', '20000000-0000-4000-8000-000000000008', 'ICA-10',  'Huacachina – La Tinguiña – Centro',                '#ea580c', 'Ruta circular por el este de Ica',                 'S/ 2.20', '06:00 - 21:30', 'Cada 9 min',  80, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000008', '20000000-0000-4000-8000-000000000006', 'ICA-01',  'Plaza de Armas – Huacachina',                    'MICRO', '#2563eb', 'Llegar a la laguna desde el centro',               'S/ 2.00', '06:00 - 21:00', 'Cada 10 min', 95,  'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000009', '20000000-0000-4000-8000-000000000007', 'ICA-02',  'Mercado Modelo – UNICA',                         'MICRO', '#9333ea', 'Ruta universitaria con parada en el santuario',    'S/ 2.20', '05:30 - 21:30', 'Cada 7 min',  88, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000010', '20000000-0000-4000-8000-000000000007', 'ICA-03',  'Óvalo Grau – Santuario Luren (Gira comercial)',   'COMBI', '#6d28d9', 'Circuito comercial que atraviesa el centro',       'S/ 2.20', '06:00 - 22:00', 'Cada 8 min',  82, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000011', '20000000-0000-4000-8000-000000000008', 'ICA-04',  'Ica – Parcona – La Tinguiña',                     'COMBI', '#0ea5e8', 'Interurbana a los distritos del norte',            'S/ 2.50', '06:00 - 20:00', 'Cada 15 min', 64, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000012', '20000000-0000-4000-8000-000000000009', 'ICA-05',  'Terminal Terrestre – Subtanjalla',                'MICRO', '#ca8a04', 'Conexión hacia el norte de Ica',                   'S/ 2.80', '05:00 - 21:00', 'Cada 12 min', 60, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000013', '20000000-0000-4000-8000-000000000010', 'ICA-06',  'Parcona – UNICA – El Quinde',                    'COMBI', '#6366f1', 'Interurbano con paradas claves',                   'S/ 2.30', '06:00 - 21:30', 'Cada 9 min',   75, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000024', '20000000-0000-4000-8000-000000000006', 'ICA-07',  'Centro – Cachiche – Subtanjalla',                'COMBI', '#059669', 'Ruta turística por el norte de Ica',               'S/ 2.50', '06:30 - 20:30', 'Cada 12 min', 70, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000025', '20000000-0000-4000-8000-000000000009', 'ICA-08',  'El Quinde – San Joaquín – Santuario',             'MICRO', '#7c3aed', 'Ruta comercial del sur de Ica',                    'S/ 2.00', '06:00 - 22:00', 'Cada 10 min', 68, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000026', '20000000-0000-4000-8000-000000000007', 'ICA-09',  'UNICA – Parcona – Terminal Terrestre',            'COMBI', '#db2777', 'Conexión universitaria con terminal',               'S/ 2.80', '05:30 - 21:00', 'Cada 11 min', 62, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000027', '20000000-0000-4000-8000-000000000008', 'ICA-10',  'Huacachina – La Tinguiña – Centro',                'MICRO', '#ea580c', 'Ruta circular por el este de Ica',                 'S/ 2.20', '06:00 - 21:30', 'Cada 9 min',  80, 'ACTIVE', NOW(), NOW()),
 -- Huánuco
-('40000000-0000-4000-8000-000000000014', '20000000-0000-4000-8000-000000000011', 'HUAN-01', 'Plaza de Armas – UNAH',                         '#2563eb', 'Corredor principal hacia la universidad',            'S/ 1.50', '06:00 - 22:00', 'Cada 8 min',  92, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000015', '20000000-0000-4000-8000-000000000011', 'HUAN-02', 'Mercado Central – Hospital Regional',             '#60a5fa', 'Conexión comercial con el hospital',                'S/ 1.20', '06:30 - 21:00', 'Cada 7 min',  85, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000016', '20000000-0000-4000-8000-000000000012', 'HUAN-03', 'UNAH – Centro – Estadio Municipal',              '#e11d48', 'Circuito universitario por el centro',               'S/ 1.50', '05:30 - 21:30', 'Cada 9 min',  88, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000017', '20000000-0000-4000-8000-000000000012', 'HUAN-04', 'Plaza de Armas – Jr. Huallaga',                   '#f43f5e', 'Recorrido céntrico por Jr. Huallaga',                'S/ 1.00', '06:00 - 20:00', 'Cada 10 min', 75, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000018', '20000000-0000-4000-8000-000000000013', 'HUAN-05', 'Terminal Terrestre – Tingo María Norte',        '#16a34a', 'Expreso hacia el norte de Huánuco',                 'S/ 2.00', '05:00 - 22:00', 'Cada 12 min', 78, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000019', '20000000-0000-4000-8000-000000000013', 'HUAN-06', 'Centro – Estadio – UNAH',                        '#84cc16', 'Conexión deportiva con universidad',                 'S/ 1.50', '06:30 - 21:00', 'Cada 8 min',  82, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000020', '20000000-0000-4000-8000-000000000014', 'HUAN-07', 'Circuito Mega Plaza – San Francisco',             '#9333ea', 'Circuito comercial y residencial',                   'S/ 1.20', '06:00 - 21:30', 'Cada 9 min',  70, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000021', '20000000-0000-4000-8000-000000000014', 'HUAN-08', 'Centro – Hospital – Mega Plaza',                  '#a855f7', 'Conexión hospitalaria con zona comercial',            'S/ 1.50', '06:00 - 20:30', 'Cada 10 min', 65, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000022', '20000000-0000-4000-8000-000000000015', 'HUAN-09', 'Terminal – Acomayo – Centro',                     '#ca8a04', 'Ruta interurbana hacia Acomayo',                    'S/ 2.50', '05:30 - 21:00', 'Cada 15 min', 60, 'ACTIVE', NOW(), NOW()),
-('40000000-0000-4000-8000-000000000023', '20000000-0000-4000-8000-000000000015', 'HUAN-10', 'Puente Huallaga – Plaza de Armas – UNAH',        '#f59e0b', 'Ruta completa por los principales puntos',          'S/ 1.80', '06:00 - 22:30', 'Cada 11 min', 85, 'ACTIVE', NOW(), NOW());
+('40000000-0000-4000-8000-000000000014', '20000000-0000-4000-8000-000000000011', 'HUAN-01', 'Plaza de Armas – UNAH',                         'MICRO', '#2563eb', 'Corredor principal hacia la universidad',            'S/ 1.50', '06:00 - 22:00', 'Cada 8 min',  92, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000015', '20000000-0000-4000-8000-000000000011', 'HUAN-02', 'Mercado Central – Hospital Regional',             'MICRO', '#60a5fa', 'Conexión comercial con el hospital',                'S/ 1.20', '06:30 - 21:00', 'Cada 7 min',  85, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000016', '20000000-0000-4000-8000-000000000012', 'HUAN-03', 'UNAH – Centro – Estadio Municipal',              'COMBI', '#e11d48', 'Circuito universitario por el centro',               'S/ 1.50', '05:30 - 21:30', 'Cada 9 min',  88, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000017', '20000000-0000-4000-8000-000000000012', 'HUAN-04', 'Plaza de Armas – Jr. Huallaga',                   'MICRO', '#f43f5e', 'Recorrido céntrico por Jr. Huallaga',                'S/ 1.00', '06:00 - 20:00', 'Cada 10 min', 75, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000018', '20000000-0000-4000-8000-000000000013', 'HUAN-05', 'Terminal Terrestre – Tingo María Norte',        'COMBI', '#16a34a', 'Expreso hacia el norte de Huánuco',                 'S/ 2.00', '05:00 - 22:00', 'Cada 12 min', 78, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000019', '20000000-0000-4000-8000-000000000013', 'HUAN-06', 'Centro – Estadio – UNAH',                        'MICRO', '#84cc16', 'Conexión deportiva con universidad',                 'S/ 1.50', '06:30 - 21:00', 'Cada 8 min',  82, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000020', '20000000-0000-4000-8000-000000000014', 'HUAN-07', 'Circuito Mega Plaza – San Francisco',             'COMBI', '#9333ea', 'Circuito comercial y residencial',                   'S/ 1.20', '06:00 - 21:30', 'Cada 9 min',  70, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000021', '20000000-0000-4000-8000-000000000014', 'HUAN-08', 'Centro – Hospital – Mega Plaza',                  'MICRO', '#a855f7', 'Conexión hospitalaria con zona comercial',            'S/ 1.50', '06:00 - 20:30', 'Cada 10 min', 65, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000022', '20000000-0000-4000-8000-000000000015', 'HUAN-09', 'Terminal – Acomayo – Centro',                     'COMBI', '#ca8a04', 'Ruta interurbana hacia Acomayo',                    'S/ 2.50', '05:30 - 21:00', 'Cada 15 min', 60, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000023', '20000000-0000-4000-8000-000000000015', 'HUAN-10', 'Puente Huallaga – Plaza de Armas – UNAH',        'MICRO', '#f59e0b', 'Ruta completa por los principales puntos',          'S/ 1.80', '06:00 - 22:30', 'Cada 11 min', 85, 'ACTIVE', NOW(), NOW()),
+-- Chincha (5 rutas)
+('40000000-0000-4000-8000-000000000028', '20000000-0000-4000-8000-000000000016', 'CHIN-01', 'Plaza de Armas – Mercado – Terminal Terrestre', 'MICRO', '#2563eb', 'Ruta troncal principal de Chincha Alta',              'S/ 1.50', '06:00 - 22:00', 'Cada 8 min',  92, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000029', '20000000-0000-4000-8000-000000000017', 'CHIN-02', 'Chincha Centro – Grocio Prado – Melchorita',    'COMBI', '#e11d48', 'Conecta Chincha con el santuario de Grocio Prado',   'S/ 1.80', '05:30 - 21:30', 'Cada 6 min',  95, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000030', '20000000-0000-4000-8000-000000000018', 'CHIN-03', 'Mercado Modelo – Sunampe – Tambo de Mora',      'COMBI', '#16a34a', 'Ruta comercial y costera hacia Tambo de Mora',       'S/ 2.00', '06:00 - 21:00', 'Cada 10 min', 84, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000031', '20000000-0000-4000-8000-000000000019', 'CHIN-04', 'Pueblo Nuevo – Plaza de Armas – Hospital',       'MICRO', '#ca8a04', 'Eje Pueblo Nuevo con centro y hospital San José',    'S/ 1.50', '05:45 - 22:00', 'Cada 7 min',  80, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000032', '20000000-0000-4000-8000-000000000016', 'CHIN-05', 'Óvalo Panamericana – Plaza – Sunampe',           'COMBI', '#0891b2', 'Conexión sur-centro con el distrito de Sunampe',     'S/ 1.80', '06:00 - 21:30', 'Cada 9 min',  78, 'ACTIVE', NOW(), NOW()),
+-- Huancayo (10 rutas)
+('40000000-0000-4000-8000-000000000033', '20000000-0000-4000-8000-000000000020', 'HYO-01',  'Chilca – Huancayo Centro – El Tambo',             'MICRO', '#2563eb', 'Eje troncal principal Calle Real y Av. Mariscal Castilla', 'S/ 1.50', '05:30 - 22:30', 'Cada 5 min',  98, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000034', '20000000-0000-4000-8000-000000000024', 'HYO-02',  'Plaza Huamanmarca – El Tambo – UNCP',             'MICRO', '#dc2626', 'Corredor universitario central hacia la UNCP',        'S/ 1.50', '06:00 - 22:00', 'Cada 6 min',  96, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000035', '20000000-0000-4000-8000-000000000021', 'HYO-03',  'Terminal Los Andes – Calle Real – Chilca',        'COMBI', '#0891b2', 'Ruta rápida desde terminal norte hasta Chilca',      'S/ 1.80', '05:30 - 22:00', 'Cada 7 min',  89, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000036', '20000000-0000-4000-8000-000000000022', 'HYO-04',  'Huancayo Centro – Puente Chupaca – Chupaca',       'MICRO', '#16a34a', 'Interurbano Valle del Mantaro hacia Chupaca',        'S/ 2.50', '05:00 - 21:30', 'Cada 10 min', 91, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000037', '20000000-0000-4000-8000-000000000023', 'HYO-05',  'Plaza Constitución – El Tambo – San Jerónimo',    'COMBI', '#9333ea', 'Conecta el centro con San Jerónimo de Tunán',        'S/ 2.20', '05:30 - 21:00', 'Cada 8 min',  87, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000038', '20000000-0000-4000-8000-000000000020', 'HYO-06',  'Hospital Carrión – Mayorista – Parque Identidad', 'MICRO', '#60a5fa', 'Circuito de salud y zonas turísticas de San Antonio', 'S/ 1.50', '06:00 - 21:00', 'Cada 8 min',  82, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000039', '20000000-0000-4000-8000-000000000021', 'HYO-07',  'Chilca – Hospital El Carmen – Parque Bolognesi',  'COMBI', '#0284c7', 'Conexión Chilca y hospital materno infantil',         'S/ 1.50', '06:00 - 21:30', 'Cada 9 min',  79, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000040', '20000000-0000-4000-8000-000000000024', 'HYO-08',  'Terminal Los Andes – Hospital El Carmen – UNCP',   'MICRO', '#e11d48', 'Conecta terminal terrestre con El Tambo y la UNCP',   'S/ 1.80', '06:00 - 22:00', 'Cada 8 min',  85, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000041', '20000000-0000-4000-8000-000000000022', 'HYO-09',  'Mercado Mayorista – Puente Chupaca – Chupaca',    'COMBI', '#15803d', 'Ruta comercial y rural hacia Chupaca',               'S/ 2.50', '05:30 - 21:00', 'Cada 12 min', 76, 'ACTIVE', NOW(), NOW()),
+('40000000-0000-4000-8000-000000000042', '20000000-0000-4000-8000-000000000023', 'HYO-10',  'Huamanmarca – Parque Identidad – San Jerónimo',   'MICRO', '#7c3aed', 'Ruta panorámica de Huancayo a San Jerónimo',         'S/ 2.20', '06:00 - 21:30', 'Cada 10 min', 81, 'ACTIVE', NOW(), NOW());
 
 -- ===========================================================================
--- DIRECCIONES DE RUTA (13 rutas × 2 = 26 direcciones)
+-- DIRECCIONES DE RUTA (42 rutas × 2 = 84 direcciones)
 -- OUTBOUND = ida, INBOUND = vuelta (cada una con origen/destino y tramo propio)
 -- ===========================================================================
 INSERT INTO route_directions (id, route_id, direction, origin_name, destination_name, total_distance_km, estimated_minutes, created_at, updated_at) VALUES
@@ -224,7 +282,52 @@ INSERT INTO route_directions (id, route_id, direction, origin_name, destination_
 ('50000000-0000-4000-8000-000000000072', '40000000-0000-4000-8000-000000000022', 'INBOUND',  'Barrio de Acomayo', 'Terminal Terrestre de Huánuco', 7.3, 25, NOW(), NOW()),
 -- HUAN-10
 ('50000000-0000-4000-8000-000000000073', '40000000-0000-4000-8000-000000000023', 'OUTBOUND', 'Puente Huallaga', 'UNAH', 4.8, 17, NOW(), NOW()),
-('50000000-0000-4000-8000-000000000074', '40000000-0000-4000-8000-000000000023', 'INBOUND',  'UNAH', 'Puente Huallaga', 4.9, 17, NOW(), NOW());
+('50000000-0000-4000-8000-000000000074', '40000000-0000-4000-8000-000000000023', 'INBOUND',  'UNAH', 'Puente Huallaga', 4.9, 17, NOW(), NOW()),
+-- CHIN-01
+('50000000-0000-4000-8000-000000000075', '40000000-0000-4000-8000-000000000028', 'OUTBOUND', 'Plaza de Armas de Chincha', 'Terminal Terrestre de Chincha', 5.2, 18, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000076', '40000000-0000-4000-8000-000000000028', 'INBOUND',  'Terminal Terrestre de Chincha', 'Plaza de Armas de Chincha', 5.4, 19, NOW(), NOW()),
+-- CHIN-02
+('50000000-0000-4000-8000-000000000077', '40000000-0000-4000-8000-000000000029', 'OUTBOUND', 'Plaza de Armas de Chincha', 'Santuario Melchorita', 6.8, 22, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000078', '40000000-0000-4000-8000-000000000029', 'INBOUND',  'Santuario Melchorita', 'Plaza de Armas de Chincha', 7.0, 23, NOW(), NOW()),
+-- CHIN-03
+('50000000-0000-4000-8000-000000000079', '40000000-0000-4000-8000-000000000030', 'OUTBOUND', 'Mercado Modelo de Chincha', 'Puerto de Tambo de Mora', 9.5, 28, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000080', '40000000-0000-4000-8000-000000000030', 'INBOUND',  'Puerto de Tambo de Mora', 'Mercado Modelo de Chincha', 9.6, 29, NOW(), NOW()),
+-- CHIN-04
+('50000000-0000-4000-8000-000000000081', '40000000-0000-4000-8000-000000000031', 'OUTBOUND', 'Plaza Principal de Pueblo Nuevo', 'Hospital San José de Chincha', 5.8, 20, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000082', '40000000-0000-4000-8000-000000000031', 'INBOUND',  'Hospital San José de Chincha', 'Plaza Principal de Pueblo Nuevo', 6.0, 20, NOW(), NOW()),
+-- CHIN-05
+('50000000-0000-4000-8000-000000000083', '40000000-0000-4000-8000-000000000032', 'OUTBOUND', 'Óvalo de Chincha', 'Plaza de Armas de Sunampe', 6.2, 21, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000084', '40000000-0000-4000-8000-000000000032', 'INBOUND',  'Plaza de Armas de Sunampe', 'Óvalo de Chincha', 6.3, 21, NOW(), NOW()),
+-- HYO-01
+('50000000-0000-4000-8000-000000000085', '40000000-0000-4000-8000-000000000033', 'OUTBOUND', 'Plaza Principal de Chilca', 'Parque Bolognesi - El Tambo', 8.5, 30, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000086', '40000000-0000-4000-8000-000000000033', 'INBOUND',  'Parque Bolognesi - El Tambo', 'Plaza Principal de Chilca', 8.7, 31, NOW(), NOW()),
+-- HYO-02
+('50000000-0000-4000-8000-000000000087', '40000000-0000-4000-8000-000000000034', 'OUTBOUND', 'Plaza Huamanmarca', 'Ciudad Universitaria UNCP', 9.2, 32, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000088', '40000000-0000-4000-8000-000000000034', 'INBOUND',  'Ciudad Universitaria UNCP', 'Plaza Huamanmarca', 9.4, 33, NOW(), NOW()),
+-- HYO-03
+('50000000-0000-4000-8000-000000000089', '40000000-0000-4000-8000-000000000035', 'OUTBOUND', 'Terminal Terrestre Los Andes', 'Mercado de Chilca', 9.0, 28, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000090', '40000000-0000-4000-8000-000000000035', 'INBOUND',  'Mercado de Chilca', 'Terminal Terrestre Los Andes', 9.2, 29, NOW(), NOW()),
+-- HYO-04
+('50000000-0000-4000-8000-000000000091', '40000000-0000-4000-8000-000000000036', 'OUTBOUND', 'Plaza Huamanmarca', 'Plaza Independencia de Chupaca', 12.8, 40, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000092', '40000000-0000-4000-8000-000000000036', 'INBOUND',  'Plaza Independencia de Chupaca', 'Plaza Huamanmarca', 13.0, 41, NOW(), NOW()),
+-- HYO-05
+('50000000-0000-4000-8000-000000000093', '40000000-0000-4000-8000-000000000037', 'OUTBOUND', 'Plaza Constitución', 'Plaza Principal de San Jerónimo', 16.2, 48, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000094', '40000000-0000-4000-8000-000000000037', 'INBOUND',  'Plaza Principal de San Jerónimo', 'Plaza Constitución', 16.5, 49, NOW(), NOW()),
+-- HYO-06
+('50000000-0000-4000-8000-000000000095', '40000000-0000-4000-8000-000000000038', 'OUTBOUND', 'Hospital Regional Carrión', 'Parque de la Identidad Huanca', 6.5, 22, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000096', '40000000-0000-4000-8000-000000000038', 'INBOUND',  'Parque de la Identidad Huanca', 'Hospital Regional Carrión', 6.6, 23, NOW(), NOW()),
+-- HYO-07
+('50000000-0000-4000-8000-000000000097', '40000000-0000-4000-8000-000000000039', 'OUTBOUND', 'Plaza Principal de Chilca', 'Parque Bolognesi - El Tambo', 7.2, 25, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000098', '40000000-0000-4000-8000-000000000039', 'INBOUND',  'Parque Bolognesi - El Tambo', 'Plaza Principal de Chilca', 7.4, 26, NOW(), NOW()),
+-- HYO-08
+('50000000-0000-4000-8000-000000000099', '40000000-0000-4000-8000-000000000040', 'OUTBOUND', 'Terminal Terrestre Los Andes', 'Ciudad Universitaria UNCP', 7.8, 26, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000100', '40000000-0000-4000-8000-000000000040', 'INBOUND',  'Ciudad Universitaria UNCP', 'Terminal Terrestre Los Andes', 8.0, 27, NOW(), NOW()),
+-- HYO-09
+('50000000-0000-4000-8000-000000000101', '40000000-0000-4000-8000-000000000041', 'OUTBOUND', 'Mercado Mayorista de Huancayo', 'Plaza Independencia de Chupaca', 12.2, 38, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000102', '40000000-0000-4000-8000-000000000041', 'INBOUND',  'Plaza Independencia de Chupaca', 'Mercado Mayorista de Huancayo', 12.5, 39, NOW(), NOW()),
+-- HYO-10
+('50000000-0000-4000-8000-000000000103', '40000000-0000-4000-8000-000000000042', 'OUTBOUND', 'Plaza Huamanmarca', 'Plaza Principal de San Jerónimo', 17.0, 50, NOW(), NOW()),
+('50000000-0000-4000-8000-000000000104', '40000000-0000-4000-8000-000000000042', 'INBOUND',  'Plaza Principal de San Jerónimo', 'Plaza Huamanmarca', 17.3, 51, NOW(), NOW());
 
 -- ===========================================================================
 -- RUTAS → PARADEROS (route_stops)
@@ -456,7 +559,139 @@ INSERT INTO route_stops (id, direction_id, stop_id, stop_order, distance_from_st
 ('60000000-0000-4000-8000-000000000194', '50000000-0000-4000-8000-000000000073', '30000000-0000-4000-8000-000000000031', 3, 3.0, NOW(), NOW()),
 ('60000000-0000-4000-8000-000000000195', '50000000-0000-4000-8000-000000000074', '30000000-0000-4000-8000-000000000031', 1, 0.0, NOW(), NOW()),
 ('60000000-0000-4000-8000-000000000196', '50000000-0000-4000-8000-000000000074', '30000000-0000-4000-8000-000000000029', 2, 1.8, NOW(), NOW()),
-('60000000-0000-4000-8000-000000000197', '50000000-0000-4000-8000-000000000074', '30000000-0000-4000-8000-000000000040', 3, 3.1, NOW(), NOW());
+('60000000-0000-4000-8000-000000000197', '50000000-0000-4000-8000-000000000074', '30000000-0000-4000-8000-000000000040', 3, 3.1, NOW(), NOW()),
+-- CHIN-01 (Plaza de Armas – Mercado – Terminal Terrestre)
+('60000000-0000-4000-8000-000000000198', '50000000-0000-4000-8000-000000000075', '30000000-0000-4000-8000-000000000041', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000199', '50000000-0000-4000-8000-000000000075', '30000000-0000-4000-8000-000000000042', 2, 1.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000200', '50000000-0000-4000-8000-000000000075', '30000000-0000-4000-8000-000000000049', 3, 3.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000201', '50000000-0000-4000-8000-000000000075', '30000000-0000-4000-8000-000000000048', 4, 5.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000202', '50000000-0000-4000-8000-000000000076', '30000000-0000-4000-8000-000000000048', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000203', '50000000-0000-4000-8000-000000000076', '30000000-0000-4000-8000-000000000049', 2, 1.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000204', '50000000-0000-4000-8000-000000000076', '30000000-0000-4000-8000-000000000042', 3, 4.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000205', '50000000-0000-4000-8000-000000000076', '30000000-0000-4000-8000-000000000041', 4, 5.4, NOW(), NOW()),
+-- CHIN-02 (Chincha Centro – Grocio Prado – Melchorita)
+('60000000-0000-4000-8000-000000000206', '50000000-0000-4000-8000-000000000077', '30000000-0000-4000-8000-000000000041', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000207', '50000000-0000-4000-8000-000000000077', '30000000-0000-4000-8000-000000000042', 2, 1.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000208', '50000000-0000-4000-8000-000000000077', '30000000-0000-4000-8000-000000000043', 3, 5.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000209', '50000000-0000-4000-8000-000000000077', '30000000-0000-4000-8000-000000000044', 4, 6.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000210', '50000000-0000-4000-8000-000000000078', '30000000-0000-4000-8000-000000000044', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000211', '50000000-0000-4000-8000-000000000078', '30000000-0000-4000-8000-000000000043', 2, 1.3, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000212', '50000000-0000-4000-8000-000000000078', '30000000-0000-4000-8000-000000000042', 3, 5.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000213', '50000000-0000-4000-8000-000000000078', '30000000-0000-4000-8000-000000000041', 4, 7.0, NOW(), NOW()),
+-- CHIN-03 (Mercado Modelo – Sunampe – Tambo de Mora)
+('60000000-0000-4000-8000-000000000214', '50000000-0000-4000-8000-000000000079', '30000000-0000-4000-8000-000000000042', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000215', '50000000-0000-4000-8000-000000000079', '30000000-0000-4000-8000-000000000045', 2, 3.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000216', '50000000-0000-4000-8000-000000000079', '30000000-0000-4000-8000-000000000046', 3, 9.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000217', '50000000-0000-4000-8000-000000000080', '30000000-0000-4000-8000-000000000046', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000218', '50000000-0000-4000-8000-000000000080', '30000000-0000-4000-8000-000000000045', 2, 5.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000219', '50000000-0000-4000-8000-000000000080', '30000000-0000-4000-8000-000000000042', 3, 9.6, NOW(), NOW()),
+-- CHIN-04 (Pueblo Nuevo – Plaza de Armas – Hospital)
+('60000000-0000-4000-8000-000000000220', '50000000-0000-4000-8000-000000000081', '30000000-0000-4000-8000-000000000047', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000221', '50000000-0000-4000-8000-000000000081', '30000000-0000-4000-8000-000000000041', 2, 2.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000222', '50000000-0000-4000-8000-000000000081', '30000000-0000-4000-8000-000000000049', 3, 5.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000223', '50000000-0000-4000-8000-000000000082', '30000000-0000-4000-8000-000000000049', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000224', '50000000-0000-4000-8000-000000000082', '30000000-0000-4000-8000-000000000041', 2, 3.3, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000225', '50000000-0000-4000-8000-000000000082', '30000000-0000-4000-8000-000000000047', 3, 6.0, NOW(), NOW()),
+-- CHIN-05 (Óvalo Panamericana – Plaza – Sunampe)
+('60000000-0000-4000-8000-000000000226', '50000000-0000-4000-8000-000000000083', '30000000-0000-4000-8000-000000000050', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000227', '50000000-0000-4000-8000-000000000083', '30000000-0000-4000-8000-000000000048', 2, 1.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000228', '50000000-0000-4000-8000-000000000083', '30000000-0000-4000-8000-000000000041', 3, 3.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000229', '50000000-0000-4000-8000-000000000083', '30000000-0000-4000-8000-000000000045', 4, 6.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000230', '50000000-0000-4000-8000-000000000084', '30000000-0000-4000-8000-000000000045', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000231', '50000000-0000-4000-8000-000000000084', '30000000-0000-4000-8000-000000000041', 2, 2.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000232', '50000000-0000-4000-8000-000000000084', '30000000-0000-4000-8000-000000000048', 3, 5.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000233', '50000000-0000-4000-8000-000000000084', '30000000-0000-4000-8000-000000000050', 4, 6.3, NOW(), NOW()),
+-- HYO-01 (Chilca – Huancayo Centro – El Tambo)
+('60000000-0000-4000-8000-000000000234', '50000000-0000-4000-8000-000000000085', '30000000-0000-4000-8000-000000000057', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000235', '50000000-0000-4000-8000-000000000085', '30000000-0000-4000-8000-000000000053', 2, 2.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000236', '50000000-0000-4000-8000-000000000085', '30000000-0000-4000-8000-000000000052', 3, 4.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000237', '50000000-0000-4000-8000-000000000085', '30000000-0000-4000-8000-000000000055', 4, 8.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000238', '50000000-0000-4000-8000-000000000086', '30000000-0000-4000-8000-000000000055', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000239', '50000000-0000-4000-8000-000000000086', '30000000-0000-4000-8000-000000000052', 2, 4.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000240', '50000000-0000-4000-8000-000000000086', '30000000-0000-4000-8000-000000000053', 3, 5.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000241', '50000000-0000-4000-8000-000000000086', '30000000-0000-4000-8000-000000000057', 4, 8.7, NOW(), NOW()),
+-- HYO-02 (Plaza Huamanmarca – El Tambo – UNCP)
+('60000000-0000-4000-8000-000000000242', '50000000-0000-4000-8000-000000000087', '30000000-0000-4000-8000-000000000051', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000243', '50000000-0000-4000-8000-000000000087', '30000000-0000-4000-8000-000000000054', 2, 1.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000244', '50000000-0000-4000-8000-000000000087', '30000000-0000-4000-8000-000000000055', 3, 4.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000245', '50000000-0000-4000-8000-000000000087', '30000000-0000-4000-8000-000000000056', 4, 9.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000246', '50000000-0000-4000-8000-000000000088', '30000000-0000-4000-8000-000000000056', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000247', '50000000-0000-4000-8000-000000000088', '30000000-0000-4000-8000-000000000055', 2, 4.4, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000248', '50000000-0000-4000-8000-000000000088', '30000000-0000-4000-8000-000000000054', 3, 8.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000249', '50000000-0000-4000-8000-000000000088', '30000000-0000-4000-8000-000000000051', 4, 9.4, NOW(), NOW()),
+-- HYO-03 (Terminal Los Andes – Calle Real – Chilca)
+('60000000-0000-4000-8000-000000000250', '50000000-0000-4000-8000-000000000089', '30000000-0000-4000-8000-000000000059', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000251', '50000000-0000-4000-8000-000000000089', '30000000-0000-4000-8000-000000000052', 2, 4.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000252', '50000000-0000-4000-8000-000000000089', '30000000-0000-4000-8000-000000000053', 3, 5.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000253', '50000000-0000-4000-8000-000000000089', '30000000-0000-4000-8000-000000000058', 4, 9.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000254', '50000000-0000-4000-8000-000000000090', '30000000-0000-4000-8000-000000000058', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000255', '50000000-0000-4000-8000-000000000090', '30000000-0000-4000-8000-000000000053', 2, 3.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000256', '50000000-0000-4000-8000-000000000090', '30000000-0000-4000-8000-000000000052', 3, 4.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000257', '50000000-0000-4000-8000-000000000090', '30000000-0000-4000-8000-000000000059', 4, 9.2, NOW(), NOW()),
+-- HYO-04 (Huancayo Centro – Puente Chupaca – Chupaca)
+('60000000-0000-4000-8000-000000000258', '50000000-0000-4000-8000-000000000091', '30000000-0000-4000-8000-000000000051', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000259', '50000000-0000-4000-8000-000000000091', '30000000-0000-4000-8000-000000000060', 2, 2.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000260', '50000000-0000-4000-8000-000000000091', '30000000-0000-4000-8000-000000000064', 3, 9.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000261', '50000000-0000-4000-8000-000000000091', '30000000-0000-4000-8000-000000000065', 4, 12.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000262', '50000000-0000-4000-8000-000000000092', '30000000-0000-4000-8000-000000000065', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000263', '50000000-0000-4000-8000-000000000092', '30000000-0000-4000-8000-000000000064', 2, 3.3, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000264', '50000000-0000-4000-8000-000000000092', '30000000-0000-4000-8000-000000000060', 3, 10.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000265', '50000000-0000-4000-8000-000000000092', '30000000-0000-4000-8000-000000000051', 4, 13.0, NOW(), NOW()),
+-- HYO-05 (Plaza Constitución – El Tambo – San Jerónimo)
+('60000000-0000-4000-8000-000000000266', '50000000-0000-4000-8000-000000000093', '30000000-0000-4000-8000-000000000052', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000267', '50000000-0000-4000-8000-000000000093', '30000000-0000-4000-8000-000000000055', 2, 4.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000268', '50000000-0000-4000-8000-000000000093', '30000000-0000-4000-8000-000000000056', 3, 8.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000269', '50000000-0000-4000-8000-000000000093', '30000000-0000-4000-8000-000000000062', 4, 16.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000270', '50000000-0000-4000-8000-000000000094', '30000000-0000-4000-8000-000000000062', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000271', '50000000-0000-4000-8000-000000000094', '30000000-0000-4000-8000-000000000056', 2, 7.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000272', '50000000-0000-4000-8000-000000000094', '30000000-0000-4000-8000-000000000055', 3, 12.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000273', '50000000-0000-4000-8000-000000000094', '30000000-0000-4000-8000-000000000052', 4, 16.5, NOW(), NOW()),
+-- HYO-06 (Hospital Carrión – Mayorista – Parque Identidad)
+('60000000-0000-4000-8000-000000000274', '50000000-0000-4000-8000-000000000095', '30000000-0000-4000-8000-000000000060', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000275', '50000000-0000-4000-8000-000000000095', '30000000-0000-4000-8000-000000000053', 2, 2.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000276', '50000000-0000-4000-8000-000000000095', '30000000-0000-4000-8000-000000000054', 3, 3.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000277', '50000000-0000-4000-8000-000000000095', '30000000-0000-4000-8000-000000000063', 4, 6.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000278', '50000000-0000-4000-8000-000000000096', '30000000-0000-4000-8000-000000000063', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000279', '50000000-0000-4000-8000-000000000096', '30000000-0000-4000-8000-000000000054', 2, 2.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000280', '50000000-0000-4000-8000-000000000096', '30000000-0000-4000-8000-000000000053', 3, 4.3, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000281', '50000000-0000-4000-8000-000000000096', '30000000-0000-4000-8000-000000000060', 4, 6.6, NOW(), NOW()),
+-- HYO-07 (Chilca – Hospital El Carmen – Parque Bolognesi)
+('60000000-0000-4000-8000-000000000282', '50000000-0000-4000-8000-000000000097', '30000000-0000-4000-8000-000000000057', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000283', '50000000-0000-4000-8000-000000000097', '30000000-0000-4000-8000-000000000061', 2, 2.5, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000284', '50000000-0000-4000-8000-000000000097', '30000000-0000-4000-8000-000000000051', 3, 3.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000285', '50000000-0000-4000-8000-000000000097', '30000000-0000-4000-8000-000000000055', 4, 7.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000286', '50000000-0000-4000-8000-000000000098', '30000000-0000-4000-8000-000000000055', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000287', '50000000-0000-4000-8000-000000000098', '30000000-0000-4000-8000-000000000051', 2, 3.4, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000288', '50000000-0000-4000-8000-000000000098', '30000000-0000-4000-8000-000000000061', 3, 4.7, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000289', '50000000-0000-4000-8000-000000000098', '30000000-0000-4000-8000-000000000057', 4, 7.4, NOW(), NOW()),
+-- HYO-08 (Terminal Los Andes – Hospital El Carmen – UNCP)
+('60000000-0000-4000-8000-000000000290', '50000000-0000-4000-8000-000000000099', '30000000-0000-4000-8000-000000000059', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000291', '50000000-0000-4000-8000-000000000099', '30000000-0000-4000-8000-000000000061', 2, 3.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000292', '50000000-0000-4000-8000-000000000099', '30000000-0000-4000-8000-000000000055', 3, 5.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000293', '50000000-0000-4000-8000-000000000099', '30000000-0000-4000-8000-000000000056', 4, 7.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000294', '50000000-0000-4000-8000-000000000100', '30000000-0000-4000-8000-000000000056', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000295', '50000000-0000-4000-8000-000000000100', '30000000-0000-4000-8000-000000000055', 2, 2.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000296', '50000000-0000-4000-8000-000000000100', '30000000-0000-4000-8000-000000000061', 3, 4.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000297', '50000000-0000-4000-8000-000000000100', '30000000-0000-4000-8000-000000000059', 4, 8.0, NOW(), NOW()),
+-- HYO-09 (Mercado Mayorista – Puente Chupaca – Chupaca)
+('60000000-0000-4000-8000-000000000298', '50000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000053', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000299', '50000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000060', 2, 1.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000300', '50000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000064', 3, 8.9, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000301', '50000000-0000-4000-8000-000000000101', '30000000-0000-4000-8000-000000000065', 4, 12.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000302', '50000000-0000-4000-8000-000000000102', '30000000-0000-4000-8000-000000000065', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000303', '50000000-0000-4000-8000-000000000102', '30000000-0000-4000-8000-000000000064', 2, 3.3, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000304', '50000000-0000-4000-8000-000000000102', '30000000-0000-4000-8000-000000000060', 3, 10.4, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000305', '50000000-0000-4000-8000-000000000102', '30000000-0000-4000-8000-000000000053', 4, 12.5, NOW(), NOW()),
+-- HYO-10 (Plaza Huamanmarca – Parque Identidad – San Jerónimo)
+('60000000-0000-4000-8000-000000000306', '50000000-0000-4000-8000-000000000103', '30000000-0000-4000-8000-000000000051', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000307', '50000000-0000-4000-8000-000000000103', '30000000-0000-4000-8000-000000000063', 2, 3.2, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000308', '50000000-0000-4000-8000-000000000103', '30000000-0000-4000-8000-000000000056', 3, 8.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000309', '50000000-0000-4000-8000-000000000103', '30000000-0000-4000-8000-000000000062', 4, 17.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000310', '50000000-0000-4000-8000-000000000104', '30000000-0000-4000-8000-000000000062', 1, 0.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000311', '50000000-0000-4000-8000-000000000104', '30000000-0000-4000-8000-000000000056', 2, 9.0, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000312', '50000000-0000-4000-8000-000000000104', '30000000-0000-4000-8000-000000000063', 3, 13.8, NOW(), NOW()),
+('60000000-0000-4000-8000-000000000313', '50000000-0000-4000-8000-000000000104', '30000000-0000-4000-8000-000000000051', 4, 17.3, NOW(), NOW());
+
 
 -- ===========================================================================
 -- PUNTOS DE RUTA (polilínea por dirección)

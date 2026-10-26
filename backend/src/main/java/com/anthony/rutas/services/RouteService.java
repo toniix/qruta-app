@@ -272,6 +272,9 @@ public class RouteService {
                 .transportLine(transportLine)
                 .code(request.getCode())
                 .name(request.getName())
+                .category(request.getCategory() != null && !request.getCategory().isBlank()
+                        ? request.getCategory().trim().toUpperCase()
+                        : "MICRO")
                 .color(request.getColor())
                 .description(request.getDescription())
                 .fare(request.getFare())
@@ -338,6 +341,8 @@ public class RouteService {
             route.setCode(request.getCode());
         if (request.getName() != null)
             route.setName(request.getName());
+        if (request.getCategory() != null && !request.getCategory().isBlank())
+            route.setCategory(request.getCategory().trim().toUpperCase());
         if (request.getColor() != null)
             route.setColor(request.getColor());
         if (request.getDescription() != null)

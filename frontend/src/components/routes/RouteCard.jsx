@@ -23,7 +23,9 @@ export function RouteCard({
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const isSelected = selectedRoute?.id === route.id;
-  console.log(route);
+
+  const categoryLabel =
+    (route?.category || "MICRO").toUpperCase() === "COMBI" ? "Combi" : "Micro";
 
   const keyStops = route.keyStops || [];
   const stops = keyStops.length > 0 ? keyStops : route.stops || [];
@@ -51,10 +53,6 @@ export function RouteCard({
   const code = route.code || "Ruta";
   const color = route.color || "var(--color-brand-primary)";
   const name = (route.name || "").replace(/^Ruta \w+:\s*/i, "");
-  const transportLine =
-    route.transportLineName ||
-    route.transportLine?.name ||
-    "Línea de transporte";
   // Stop count doubles as the footer meta chip (next to the CTA).
   const stopCount =
     (Array.isArray(route.stops) ? route.stops.length : 0) ||
@@ -92,8 +90,8 @@ export function RouteCard({
           <h3 className="font-bold text-slate-900 text-sm leading-tight truncate">
             {name}
           </h3>
-          <p className="text-xs font-medium text-slate-500 mt-0.5 truncate">
-            {transportLine}
+          <p className="text-xs font-semibold text-slate-500 mt-0.5 truncate">
+            {categoryLabel}
           </p>
           {showCity && route.cityName && (
             <span className="mt-1 inline-flex items-center gap-1 text-xs font-bold text-brand-primary bg-blue-50 border border-blue-200/60 px-2 py-0.5 rounded-full">

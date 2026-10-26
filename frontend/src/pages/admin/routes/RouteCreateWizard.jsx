@@ -61,6 +61,7 @@ function initialBasics(linesList, citiesList) {
     transportLineId: firstLine?.id || '',
     code: '',
     name: '',
+    category: 'MICRO',
     color: BRAND_PRIMARY,
     fare: '',
     schedule: '',
@@ -244,6 +245,7 @@ export function RouteCreateWizard({ open, onClose, lines = [], cities = [], onCr
     transportLineId: basics.transportLineId,
     code: basics.code,
     name: basics.name,
+    category: basics.category || 'MICRO',
     color: basics.color,
     fare: basics.fare,
     schedule: basics.schedule,
@@ -438,7 +440,7 @@ export function RouteCreateWizard({ open, onClose, lines = [], cities = [], onCr
                 )}
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                     Código de Ruta <span className="text-rose-500">*</span>
@@ -452,6 +454,20 @@ export function RouteCreateWizard({ open, onClose, lines = [], cities = [], onCr
                     className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                   />
                   <FieldError message={errors.code} />
+                </div>
+                <div>
+                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                    Categoría <span className="text-rose-500">*</span>
+                  </label>
+                  <select
+                    value={basics.category || 'MICRO'}
+                    onChange={(e) => updateBasics({ category: e.target.value }, 'category')}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  >
+                    <option value="MICRO">Micro</option>
+                    <option value="COMBI">Combi</option>
+                  </select>
+                  <FieldError message={errors.category} />
                 </div>
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
