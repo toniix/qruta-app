@@ -14,78 +14,15 @@ import { geocodingService } from "../services/geocodingService";
 import { cityService } from "../services/cityService";
 import { useGeolocation } from "../hooks/useGeolocation";
 import { calculateDistanceKm, detectCityFromCoords } from "../utils/geoUtils";
-
-const CITIES_CACHE_KEY = "rutasya_cities_cache";
-const CACHED_CITY_KEY = "rutasya_cached_city";
-const SELECTED_CITY_KEY = "rutasya_selected_city_id";
-const CITIES_CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24 hours
-
-function readCachedCities() {
-  try {
-    const raw = localStorage.getItem(CITIES_CACHE_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw);
-    if (!parsed || !Array.isArray(parsed.cities) || parsed.cities.length === 0) {
-      return null;
-    }
-    if (
-      typeof parsed.timestamp !== "number" ||
-      Date.now() - parsed.timestamp > CITIES_CACHE_TTL_MS
-    ) {
-      return null;
-    }
-    return parsed.cities;
-  } catch {
-    return null;
-  }
-}
-
-function saveCachedCities(citiesList) {
-  try {
-    if (!Array.isArray(citiesList) || citiesList.length === 0) return;
-    localStorage.setItem(
-      CITIES_CACHE_KEY,
-      JSON.stringify({ timestamp: Date.now(), cities: citiesList }),
-    );
-  } catch {
-    // ignore
-  }
-}
-
-function readInitialCity(cachedCities) {
-  try {
-    const savedCityId = localStorage.getItem(SELECTED_CITY_KEY);
-    if (savedCityId && cachedCities?.length) {
-      const matched = cachedCities.find((c) => c.id === savedCityId);
-      if (matched) return { city: matched, isManual: true };
-    }
-    const rawCachedCity = localStorage.getItem(CACHED_CITY_KEY);
-    if (rawCachedCity) {
-      const parsed = JSON.parse(rawCachedCity);
-      if (parsed?.id) return { city: parsed, isManual: Boolean(savedCityId) };
-    }
-    if (cachedCities?.length) {
-      const fallback =
-        cachedCities.find((c) => c.name === "Ica") || cachedCities[0];
-      if (fallback) return { city: fallback, isManual: false };
-    }
-  } catch {
-    // ignore
-  }
-  return { city: null, isManual: false };
-}
-
-function scheduleNonCriticalTask(callback) {
-  if (
-    typeof window !== "undefined" &&
-    typeof window.requestIdleCallback === "function"
-  ) {
-    const handle = window.requestIdleCallback(callback, { timeout: 1500 });
-    return () => window.cancelIdleCallback(handle);
-  }
-  const timer = setTimeout(callback, 0);
-  return () => clearTimeout(timer);
-}
+import {
+  readCachedCities,
+  saveCachedCities,
+  readInitialCity,
+  getSelectedCityId,
+  persistSelectedCity,
+  clearSelectedCityId,
+} from "../utils/cityCache";
+import { scheduleNonCriticalTask } from "../utils/scheduler";
 
 const RouteContext = createContext(null);
 
@@ -249,7 +186,7 @@ export function RouteProvider({ children }) {
         setCities(fetchedCities);
         saveCachedCities(fetchedCities);
 
-        const savedCityId = localStorage.getItem(SELECTED_CITY_KEY);
+        const savedCityId = getSelectedCityId();
         const resolvedCity = savedCityId
           ? fetchedCities.find((c) => c.id === savedCityId)
           : fetchedCities.find((c) => c.name === "Ica") ||
@@ -265,11 +202,7 @@ export function RouteProvider({ children }) {
             return resolvedCity;
           });
           setIsManualCity(Boolean(savedCityId));
-          try {
-            localStorage.setItem(CACHED_CITY_KEY, JSON.stringify(resolvedCity));
-          } catch {
-            // ignore
-          }
+          persistSelectedCity(resolvedCity, Boolean(savedCityId));
         }
       } catch (err) {
         console.error("Error al cargar ciudades:", err);
@@ -309,12 +242,7 @@ export function RouteProvider({ children }) {
 
     if (result.city && result.city.id !== currentCity?.id) {
       setCurrentCity(result.city);
-      localStorage.removeItem(SELECTED_CITY_KEY);
-      try {
-        localStorage.setItem(CACHED_CITY_KEY, JSON.stringify(result.city));
-      } catch {
-        // ignore
-      }
+      persistSelectedCity(result.city, false);
     }
   }, [gpsReady, userLocation, cities, isManualCity, currentCity?.id]);
 
@@ -593,21 +521,12 @@ export function RouteProvider({ children }) {
     setCurrentCity(city);
     setIsManualCity(isManual);
     setOutsideCoverage(false);
-    if (isManual) {
-      localStorage.setItem(SELECTED_CITY_KEY, city.id);
-    } else {
-      localStorage.removeItem(SELECTED_CITY_KEY);
-    }
-    try {
-      localStorage.setItem(CACHED_CITY_KEY, JSON.stringify(city));
-    } catch {
-      // ignore
-    }
+    persistSelectedCity(city, isManual);
   }, []);
 
   const resetToGpsDetection = useCallback(() => {
     setIsManualCity(false);
-    localStorage.removeItem(SELECTED_CITY_KEY);
+    clearSelectedCityId();
   }, []);
 
   // Stabilize context value reference to prevent redundant re-renders across all child components
