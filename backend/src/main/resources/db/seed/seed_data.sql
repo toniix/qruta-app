@@ -8,8 +8,10 @@
 --
 -- NO se ejecuta automáticamente al arrancar el backend.
 --
--- NOTA: la tabla `administrators` se limpia A PROPÓSITO. Al reiniciar la app,
--- el DataInitializer recrea el admin por defecto (admin@rutasya.pe / admin123).
+-- NOTA: la tabla `administrators` se limpia A PROPÓSITO. Después hay que crear
+-- un admin a mano: el DataInitializer solo lo hace si `app.seed.enabled=true`
+-- y `ADMIN_SEED_PASSWORD` tiene valor. El perfil `prod` desactiva el seed, y ya
+-- no existe ninguna contraseña por defecto.
 -- =============================================================================
 
 BEGIN;
