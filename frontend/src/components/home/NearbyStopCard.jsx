@@ -1,9 +1,12 @@
-import { useState } from "react";
+import { useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Navigation } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
 import { formatDistance } from "../../utils/geoUtils";
-import { StopRoutesModal } from "./StopRoutesModal";
+
+const StopRoutesModal = lazy(() =>
+  import("./StopRoutesModal").then((m) => ({ default: m.StopRoutesModal }))
+);
 
 /** A single nearby stop card — compact summary; the full route list lives in StopRoutesModal */
 export function NearbyStopCard({ stop, routes, distanceKm }) {
@@ -87,11 +90,13 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
 
       {/* Render StopRoutesModal when stop is clicked */}
       {activeModalStop && (
-        <StopRoutesModal
-          key={activeModalStop.id}
-          stop={activeModalStop}
-          onClose={() => setActiveModalStop(null)}
-        />
+        <Suspense fallback={null}>
+          <StopRoutesModal
+            key={activeModalStop.id}
+            stop={activeModalStop}
+            onClose={() => setActiveModalStop(null)}
+          />
+        </Suspense>
       )}
     </>
   );

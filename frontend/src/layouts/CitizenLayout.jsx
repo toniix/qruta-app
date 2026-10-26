@@ -1,7 +1,13 @@
+import { lazy, Suspense } from 'react';
 import { Header } from '../components/common/Header';
 import { BottomNav } from '../components/common/BottomNav';
-import { GpsPermissionModal } from '../components/common/GpsPermissionModal';
 import { Outlet } from 'react-router-dom';
+
+const GpsPermissionModal = lazy(() =>
+  import('../components/common/GpsPermissionModal').then((m) => ({
+    default: m.GpsPermissionModal,
+  }))
+);
 
 export function CitizenLayout() {
   return (
@@ -11,8 +17,10 @@ export function CitizenLayout() {
         <Outlet />
       </main>
       <BottomNav />
-      {/* GPS permission modal — shown once per session if needed */}
-      <GpsPermissionModal />
+      {/* GPS permission modal — deferred so it doesn't block critical bundle */}
+      <Suspense fallback={null}>
+        <GpsPermissionModal />
+      </Suspense>
     </div>
   );
 }
