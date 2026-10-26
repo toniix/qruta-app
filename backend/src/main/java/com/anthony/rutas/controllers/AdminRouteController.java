@@ -18,7 +18,7 @@ public class AdminRouteController {
 
     private final RouteService routeService;
 
-    @GetMapping("/")
+    @GetMapping
     public ResponseEntity<List<AdminRouteSummaryResponse>> getAllRoutes() {
         return ResponseEntity.ok(routeService.findAll());
     }
@@ -28,7 +28,7 @@ public class AdminRouteController {
         return ResponseEntity.ok(routeService.findById(id));
     }
 
-    @PostMapping("/")
+    @PostMapping
     public ResponseEntity<RouteDetailResponse> createRoute(@Valid @RequestBody CreateRouteRequest request) {
         return ResponseEntity.ok(routeService.create(request));
     }
