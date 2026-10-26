@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
+import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { MapPin, X, Check, Search, Loader2 } from 'lucide-react';

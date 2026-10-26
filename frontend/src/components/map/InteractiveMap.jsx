@@ -1,4 +1,5 @@
 import { useEffect, useState, useMemo, useRef, memo } from "react";
+import "leaflet/dist/leaflet.css";
 import {
   MapContainer,
   TileLayer,
