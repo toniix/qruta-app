@@ -3,10 +3,14 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { CitizenLayout } from '../layouts/CitizenLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { HomePage } from '../pages/citizen/HomePage';
-import { HomeMapPage } from '../pages/citizen/HomeMapPage';
 import { authService } from '../services/authService';
 
 // Lazy-loaded Citizen pages for mobile bundle optimization
+const HomeMapPage = lazy(() =>
+  import('../pages/citizen/HomeMapPage').then((m) => ({
+    default: m.HomeMapPage,
+  }))
+);
 const RoutesListPage = lazy(() =>
   import('../pages/citizen/RoutesListPage').then((m) => ({
     default: m.RoutesListPage,
