@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Home, Map, Route, MessageSquare, MapPin } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 import { useRoutes } from '../../contexts/RouteContext';
+import { prefetchRoute, scheduleIdlePrefetch } from '../../utils/routePrefetch';
 
 const NAV_ITEMS = [
   { label: 'Inicio', icon: Home, path: '/' },
@@ -15,10 +17,22 @@ export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
   const { selectedRoute } = useRoutes();
+  const [optimisticNav, setOptimisticNav] = useState(null);
+
+  // Silently preload core routes during idle time after mount
+  useEffect(() => {
+    return scheduleIdlePrefetch(['/rutas', '/mapa']);
+  }, []);
+
+  // While a transition is pending, highlight the target tab; resets automatically once committed
+  const currentPath =
+    optimisticNav && optimisticNav.from === location.pathname
+      ? optimisticNav.target
+      : location.pathname;
 
   const isActive = (path) => {
-    if (path === '/') return location.pathname === '/';
-    return location.pathname.startsWith(path);
+    if (path === '/') return currentPath === '/';
+    return currentPath.startsWith(path);
   };
 
   const handleNav = (path) => {
@@ -29,6 +43,10 @@ export function BottomNav() {
     }
 
     if (location.pathname === targetPath) return;
+
+    // Immediate tactile feedback: highlight the pressed tab on frame 0
+    setOptimisticNav({ from: location.pathname, target: targetPath });
+    prefetchRoute(path);
     navigate(targetPath);
   };
 
@@ -46,6 +64,8 @@ export function BottomNav() {
               key={path}
               type="button"
               onClick={() => handleNav(path)}
+              onMouseEnter={() => prefetchRoute(path)}
+              onTouchStart={() => prefetchRoute(path)}
               aria-current={active ? 'page' : undefined}
               className={`group relative flex flex-col items-center justify-center flex-1 h-full py-1 gap-1 transition-all duration-200 cursor-pointer active:scale-95 ${
                 active

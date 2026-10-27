@@ -17,6 +17,7 @@ import { useRoutes } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 import { streetLine } from "../../services/geocodingService";
 import { getGreeting } from "../../utils/dateUtils";
+import { prefetchRoute } from "../../utils/routePrefetch";
 import { NearbyStopCard, StopSkeleton } from "../../components/home";
 import { QrutaSymbol } from "../../components/common/QrutaSymbol";
 
@@ -524,6 +525,8 @@ export function HomePage() {
             <button
               type="button"
               onClick={() => navigate("/rutas")}
+              onMouseEnter={() => prefetchRoute('/rutas')}
+              onTouchStart={() => prefetchRoute('/rutas')}
               className="text-xs text-brand-navy bg-slate-100 hover:bg-slate-200 font-extrabold px-3 py-1.5 rounded-full transition-colors flex items-center gap-0.5"
             >
               <span>Ver todas</span>
@@ -548,6 +551,8 @@ export function HomePage() {
               <button
                 type="button"
                 onClick={() => navigate("/rutas")}
+                onMouseEnter={() => prefetchRoute('/rutas')}
+                onTouchStart={() => prefetchRoute('/rutas')}
                 className="text-xs font-black text-brand-navy bg-brand-lime hover:bg-brand-lime-hover px-4 py-2 rounded-xl transition-colors min-h-11 shadow-2xs"
               >
                 Ver todo el catálogo
