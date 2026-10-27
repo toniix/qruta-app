@@ -48,7 +48,7 @@ describe('BottomNav component', () => {
       </MemoryRouter>
     );
 
-    expect(spySchedule).toHaveBeenCalledWith(['/rutas', '/mapa']);
+    expect(spySchedule).toHaveBeenCalledWith(['/rutas', '/mapa', '/comunidad']);
   });
 
   it('triggers prefetch on touch and hover', () => {

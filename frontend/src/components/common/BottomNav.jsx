@@ -21,7 +21,7 @@ export function BottomNav() {
 
   // Silently preload core routes during idle time after mount
   useEffect(() => {
-    return scheduleIdlePrefetch(['/rutas', '/mapa']);
+    return scheduleIdlePrefetch(['/rutas', '/mapa', '/comunidad']);
   }, []);
 
   // While a transition is pending, highlight the target tab; resets automatically once committed
