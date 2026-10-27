@@ -1,0 +1,19 @@
+# Keep the build context clean and secret-free.
+#
+# `.env` holds the real database password and API keys. It is never copied into
+# the image, but excluding it from the context means it is not even sent to the
+# builder or cached in a layer.
+.env
+.env.*
+src/main/resources/application-local.properties
+application-local.properties
+
+# Build output is produced inside the image, never reused from the host.
+target/
+
+# Repository metadata and docs are not needed to compile.
+.git/
+.gitignore
+*.md
+Dockerfile
+.dockerignore

@@ -170,6 +170,49 @@ La contraseña se guarda hasheada con BCrypt, así que la variable solo se usa e
 
 Alternativa sin habilitar el seed: insertar el admin por SQL con un hash BCrypt generado aparte.
 
+## Deploy en GCP (Cloud Run)
+
+El backend se empaqueta como una sola imagen (`backend/Dockerfile`): build multi-stage con Maven y JDK 21, y ejecución sobre JRE 21 con un usuario sin privilegios. El `.env` **no** entra en la imagen — `backend/.dockerignore` lo excluye del contexto — así que toda la configuración llega por variables de entorno. La imagen define `SPRING_PROFILES_ACTIVE=prod` por defecto: si la variable falta en el deploy, el perfil seguro es `prod` (`validate` + Flyway), nunca `local` con `ddl-auto=update`.
+
+```bash
+# 1. Construir y subir la imagen (contexto = backend/)
+gcloud builds submit backend \
+  --tag us-central1-docker.pkg.dev/PROYECTO/rutasya/api:latest
+
+# 2. Desplegar
+gcloud run deploy rutasya-api \
+  --image us-central1-docker.pkg.dev/PROYECTO/rutasya/api:latest \
+  --region us-central1 \
+  --memory 1Gi \
+  --cpu 1 \
+  --port 8080 \
+  --min-instances 0 \
+  --max-instances 4 \
+  --allow-unauthenticated \
+  --set-env-vars SPRING_PROFILES_ACTIVE=prod,DB_URL='jdbc:postgresql://HOST:5432/postgres?sslmode=require',DB_USERNAME=postgres,CORS_ALLOWED_ORIGINS=https://tu-frontend
+```
+
+Variables **obligatorias** (sin valor por defecto, el arranque falla si faltan): `DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`. Recomendadas: `CORS_ALLOWED_ORIGINS`, `GOOGLE_MAPS_API_KEY`, `SUPABASE_URL`, `SUPABASE_SERVICE_KEY`.
+
+Los secretos van por Secret Manager, no en `--set-env-vars` (quedan visibles en la configuración del servicio):
+
+```bash
+--set-secrets DB_PASSWORD=db-password:latest,JWT_SECRET=jwt-secret:latest
+```
+
+**Health checks.** La imagen expone Actuator solo con `health`, sin detalles. Cloud Run usa por defecto un probe TCP; para aprovechar los endpoints HTTP:
+
+```bash
+--startup-probe httpGet.path=/actuator/health/readiness,initialDelaySeconds=10,periodSeconds=5,timeoutSeconds=3,failureThreshold=30 \
+--liveness-probe httpGet.path=/actuator/health/liveness,periodSeconds=30,timeoutSeconds=3,failureThreshold=3
+```
+
+El primer arranque incluye las migraciones de Flyway y la validación de Hibernate, por eso el probe de arranque tolera hasta ~150 s. `/actuator/health` es público a propósito: un probe no puede autenticarse.
+
+Para el admin inicial, seguí "Primer deploy" agregando `APP_SEED_ENABLED`, `ADMIN_SEED_EMAIL` y `ADMIN_SEED_PASSWORD` en ese primer arranque.
+
+Notas de operación: la imagen no corre tests (`-Dmaven.test.skip=true`) porque la suite necesita PostgreSQL con PostGIS; conviene ejecutarlos en CI antes de construir. Con `--min-instances 0` el primer request paga el arranque en frío de la JVM (~10–20 s); si la latencia importa, usar `--min-instances 1` o `--cpu-boost`.
+
 ## API
 
 Todas las lecturas públicas son `GET` sin autenticación. Las escrituras administrativas requieren `Authorization: Bearer <token>` con rol `ADMIN`.
