@@ -77,7 +77,7 @@ const CommunityModerationPage = lazy(() =>
 function PageLoading() {
   return (
     <div className="flex-1 flex items-center justify-center min-h-[50vh]">
-      <div className="w-8 h-8 rounded-full border-3 border-blue-600/30 border-t-blue-600 animate-spin" />
+      <div className="w-8 h-8 rounded-full border-3 border-slate-200 border-t-brand-primary animate-spin" />
     </div>
   );
 }
