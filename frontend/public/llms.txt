@@ -1,0 +1,28 @@
+# QRuta
+
+> QRuta es una plataforma web ciudadana para la consulta de rutas, líneas, paraderos, horarios y tarifas del transporte público urbano en ciudades del Perú (Ica, Lima, Huánuco, Chincha, Huancayo).
+
+## Descripción general
+QRuta permite a los ciudadanos planificar y consultar sus viajes en transporte público urbano sin necesidad de registrarse. Ofrece información geoespacial detallada de recorridos en modos microbús y combi, cálculo de paraderos cercanos por GPS y reportes colaborativos de incidentes de tránsito en tiempo real.
+
+## Capacidades y funcionalidades principales
+- **Directorio de Rutas:** Consulta de códigos, empresas de transporte concesionarias, tarifas y frecuencias de servicio.
+- **Trazado en Mapa:** Visualización interactiva con Leaflet de sentidos de ida (OUTBOUND) y vuelta (INBOUND), con polilíneas ajustadas a calles y paraderos ordenados.
+- **Buscador de Rutas y Paraderos:** Búsqueda textual y por proximidad geográfica de avenidas, códigos y destinos.
+- **Geolocalización GPS:** Detección de paraderos y rutas operativas a menos de 1.5–2 km de la ubicación del usuario.
+- **Comunidad y Alertas Viales:** Espacio cívico para reportar desvíos, tráfico lento, accidentes u obras en vía pública.
+
+## Estructura de navegación pública
+- `/`: Inicio ciudadano con accesos rápidos, rutas populares y paraderos próximos.
+- `/rutas`: Catálogo completo de rutas y líneas de transporte público.
+- `/buscar`: Buscador global por palabras clave, paradas o empresas.
+- `/cercanas`: Mapa y listado de rutas accesibles a pie según ubicación actual.
+- `/mapa`: Mapa interactivo libre con exploración de la red vial y paraderos.
+- `/mapa/ruta/:id`: Vista detallada de recorrido, paraderos y tiempos de una ruta específica.
+- `/comunidad`: Muro de avisos e incidencias viales de la comunidad.
+- `/lugares`: Marcadores y paraderos guardados por el usuario.
+
+## Stack tecnológico
+- **Frontend:** React 19, Vite, Tailwind CSS, React Router, Leaflet / react-leaflet.
+- **Backend:** Java 21, Spring Boot 3, Spring Data JPA, Spring Security.
+- **Base de datos:** PostgreSQL con extensión PostGIS para consultas y cálculos espaciales.
