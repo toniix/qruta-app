@@ -174,7 +174,7 @@ export function RoutesListPage() {
             </h3>
             <p className="text-xs text-slate-500">
               {activeCategory !== "all" && searchQuery.trim() === ""
-                ? `No hay rutas de tipo “${CATEGORIES.find((c) => c.id === activeCategory)?.label}” registradas en ${cityName || "el sistema"} todavía.`
+                ? `No hay rutas de tipo “${SEARCH_CATEGORIES.find((c) => c.id === activeCategory)?.label}” registradas en ${cityName || "el sistema"} todavía.`
                 : searchQuery.trim() !== ""
                   ? "Prueba con otro término de búsqueda o revisa las paradas cercanas en el mapa."
                   : cityName

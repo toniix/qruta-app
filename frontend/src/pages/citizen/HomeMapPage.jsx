@@ -80,7 +80,6 @@ export function HomeMapPage() {
     }
   }
 
-  const selectedRouteId = selectedRoute?.id;
   const hasSelectedStop = Boolean(selectedStop);
 
   const isClosingRef = useRef(false);

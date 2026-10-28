@@ -18,11 +18,20 @@ export function BottomNav() {
   const navigate = useNavigate();
   const { selectedRoute } = useRoutes();
   const [optimisticNav, setOptimisticNav] = useState(null);
+  const [prevPath, setPrevPath] = useState(location.pathname);
 
   // Silently preload core routes during idle time after mount
   useEffect(() => {
     return scheduleIdlePrefetch(['/rutas', '/mapa', '/comunidad']);
   }, []);
+
+  // Discard optimistic tactile feedback when the actual route location changes
+  if (prevPath !== location.pathname) {
+    setPrevPath(location.pathname);
+    if (optimisticNav) {
+      setOptimisticNav(null);
+    }
+  }
 
   // While a transition is pending, highlight the target tab; resets automatically once committed
   const currentPath =

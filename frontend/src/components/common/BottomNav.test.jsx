@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { render, screen, fireEvent, act } from '@testing-library/react';
+import { MemoryRouter, useNavigate } from 'react-router-dom';
 import { BottomNav } from './BottomNav';
 import * as routePrefetch from '../../utils/routePrefetch';
 
@@ -10,7 +10,17 @@ vi.mock('react-router-dom', async () => {
   const actual = await vi.importActual('react-router-dom');
   return {
     ...actual,
-    useNavigate: () => mockNavigate,
+    useNavigate: () => {
+      try {
+        const real = actual.useNavigate();
+        return (...args) => {
+          mockNavigate(...args);
+          real(...args);
+        };
+      } catch {
+        return mockNavigate;
+      }
+    },
   };
 });
 
@@ -83,5 +93,72 @@ describe('BottomNav component', () => {
 
     expect(spyPrefetch).toHaveBeenCalledWith('/rutas');
     expect(mockNavigate).toHaveBeenCalledWith('/rutas');
+  });
+
+  it('highlights Mapa tab when on /mapa or /mapa/ruta/:id', () => {
+    const { unmount } = render(
+      <MemoryRouter initialEntries={['/mapa']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: /mapa/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /inicio/i })).not.toHaveAttribute('aria-current');
+
+    unmount();
+
+    render(
+      <MemoryRouter initialEntries={['/mapa/ruta/ICA-05']}>
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: /mapa/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /inicio/i })).not.toHaveAttribute('aria-current');
+  });
+
+  it('resets optimistic navigation when location changes without lingering ghost highlight', () => {
+    let navigateFn;
+    function RouteController() {
+      const nav = useNavigate();
+      navigateFn = nav;
+      return null;
+    }
+
+    render(
+      <MemoryRouter initialEntries={['/mapa']}>
+        <RouteController />
+        <BottomNav />
+      </MemoryRouter>
+    );
+
+    // Initial state on /mapa
+    expect(screen.getByRole('button', { name: /mapa/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /inicio/i })).not.toHaveAttribute('aria-current');
+
+    // 1. User clicks Inicio tab -> triggers optimistic transition and navigates to /
+    const inicioBtn = screen.getByRole('button', { name: /inicio/i });
+    fireEvent.click(inicioBtn);
+    expect(mockNavigate).toHaveBeenCalledWith('/');
+
+    // Verify router is now at / and Inicio is active
+    expect(screen.getByRole('button', { name: /inicio/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /mapa/i })).not.toHaveAttribute('aria-current');
+
+    // 2. User navigates to a route detail (e.g. from Inicio popular routes)
+    act(() => {
+      navigateFn('/mapa/ruta/ICA-05');
+    });
+    expect(screen.getByRole('button', { name: /mapa/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /inicio/i })).not.toHaveAttribute('aria-current');
+
+    // 3. User closes the route detail view -> returns to /mapa
+    act(() => {
+      navigateFn('/mapa');
+    });
+
+    // Mapa MUST remain highlighted, NOT ghost Inicio!
+    expect(screen.getByRole('button', { name: /mapa/i })).toHaveAttribute('aria-current', 'page');
+    expect(screen.getByRole('button', { name: /inicio/i })).not.toHaveAttribute('aria-current');
   });
 });
