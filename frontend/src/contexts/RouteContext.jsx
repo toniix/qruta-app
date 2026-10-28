@@ -456,18 +456,32 @@ export function RouteProvider({ children }) {
   const selectRoute = useCallback(async (routeOrId, preserveStop = false) => {
     if (!routeOrId) return;
 
-    const routeId = typeof routeOrId === "object" ? routeOrId.id : routeOrId;
+    const identifier =
+      typeof routeOrId === "object"
+        ? routeOrId.code || routeOrId.id
+        : routeOrId;
     const initialRoute =
-      typeof routeOrId === "object" ? routeOrId : { id: routeId };
+      typeof routeOrId === "object"
+        ? routeOrId
+        : { id: identifier, code: identifier };
 
     const hasDirections =
       Array.isArray(initialRoute.directions) &&
       initialRoute.directions.length > 0;
 
+    const matchesRoute = (r, target) => {
+      if (!r || !target) return false;
+      const targetStr = String(target).toLowerCase();
+      return (
+        String(r.id || "").toLowerCase() === targetStr ||
+        String(r.code || "").toLowerCase() === targetStr
+      );
+    };
+
     setSelectedRoute((current) => {
       if (
         current &&
-        String(current.id) === String(routeId) &&
+        matchesRoute(current, identifier) &&
         current.directions?.length > 0
       ) {
         return current;
@@ -481,16 +495,16 @@ export function RouteProvider({ children }) {
     }
     setActiveDirection("OUTBOUND");
 
-    if (hasDirections || !routeId) {
+    if (hasDirections || !identifier) {
       setLoadingRouteDetail(false);
       return;
     }
 
     setLoadingRouteDetail(true);
     try {
-      const detail = await routeService.getRouteDetail(routeId);
+      const detail = await routeService.getRouteDetail(identifier);
       setSelectedRoute((current) => {
-        if (current && String(current.id) === String(routeId)) {
+        if (current && matchesRoute(current, identifier)) {
           return detail;
         }
         return current;

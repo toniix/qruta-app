@@ -32,11 +32,13 @@ export const routeService = {
 
   /**
    * Obtiene el detalle completo de una ruta con paraderos y direcciones
-   * GET /api/routes/{id}
+   * GET /api/routes/{identifier} (acepta UUID o código de ruta)
    */
-  async getRouteDetail(routeId) {
-    if (!routeId) throw new Error("ID de ruta no especificado");
-    const response = await apiClient.get(`/routes/${routeId}`);
+  async getRouteDetail(routeIdentifier) {
+    if (!routeIdentifier) throw new Error("Identificador de ruta no especificado");
+    const response = await apiClient.get(
+      `/routes/${encodeURIComponent(routeIdentifier)}`,
+    );
     return normalizeRoute(response.data);
   },
 

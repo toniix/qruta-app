@@ -90,12 +90,22 @@ export function HomeMapPage() {
   useEffect(() => {
     if (id) {
       if (isClosingRef.current) return;
-      if (String(selectedRouteId) !== String(id)) {
-        const found = routes?.find((r) => String(r.id) === String(id));
-        selectRoute(found || { id }, hasSelectedStop);
+      const target = String(id).toLowerCase();
+      const isCurrent =
+        selectedRoute &&
+        (String(selectedRoute.id || "").toLowerCase() === target ||
+          String(selectedRoute.code || "").toLowerCase() === target);
+
+      if (!isCurrent) {
+        const found = routes?.find(
+          (r) =>
+            String(r.id || "").toLowerCase() === target ||
+            String(r.code || "").toLowerCase() === target,
+        );
+        selectRoute(found || { id, code: id }, hasSelectedStop);
       }
     }
-  }, [id, routes, selectRoute, selectedRouteId, hasSelectedStop]);
+  }, [id, routes, selectRoute, selectedRoute, hasSelectedStop]);
 
   // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {
@@ -112,8 +122,9 @@ export function HomeMapPage() {
         if (stop) {
           selectStop(stop);
         }
-        if (route.id) {
-          navigate(`/mapa/ruta/${route.id}`, {
+        const identifier = route.code || route.id;
+        if (identifier) {
+          navigate(`/mapa/ruta/${encodeURIComponent(identifier)}`, {
             state: { from: "/mapa" },
           });
         }
