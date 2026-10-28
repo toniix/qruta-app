@@ -263,6 +263,51 @@ class RouteServiceTest {
         }
     }
 
+    // ==================== FIND BY IDENTIFIER ====================
+
+    @Nested
+    @DisplayName("findByIdentifier")
+    class FindByIdentifier {
+
+        @Test
+        @DisplayName("Should resolve route by UUID string")
+        void shouldResolveByUuid() {
+            when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
+
+            RouteDetailResponse result = routeService.findByIdentifier(routeId.toString());
+
+            assertNotNull(result);
+            assertEquals("R1", result.getCode());
+        }
+
+        @Test
+        @DisplayName("Should resolve route by route code")
+        void shouldResolveByCode() {
+            when(routeRepository.findByCodeIgnoreCase("R1")).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
+
+            RouteDetailResponse result = routeService.findByIdentifier("R1");
+
+            assertNotNull(result);
+            assertEquals("R1", result.getCode());
+        }
+
+        @Test
+        @DisplayName("Should throw ResourceNotFoundException when identifier not found")
+        void shouldThrowWhenIdentifierNotFound() {
+            when(routeRepository.findByCodeIgnoreCase("NONEXISTENT")).thenReturn(Optional.empty());
+
+            assertThrows(ResourceNotFoundException.class, () -> routeService.findByIdentifier("NONEXISTENT"));
+        }
+
+        @Test
+        @DisplayName("Should throw ResourceNotFoundException when identifier is blank")
+        void shouldThrowWhenIdentifierIsBlank() {
+            assertThrows(ResourceNotFoundException.class, () -> routeService.findByIdentifier("   "));
+        }
+    }
+
     // ==================== SEARCH ====================
 
     @Nested

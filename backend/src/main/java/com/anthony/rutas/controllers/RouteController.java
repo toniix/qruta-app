@@ -31,9 +31,9 @@ public class RouteController {
         return ResponseEntity.ok(cityId != null ? routeService.findPopularRoutes(cityId) : routeService.findPopularRoutes());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<RouteDetailResponse> getRouteById(@PathVariable UUID id) {
-        return ResponseEntity.ok(routeService.findById(id));
+    @GetMapping("/{identifier}")
+    public ResponseEntity<RouteDetailResponse> getRouteByIdOrCode(@PathVariable String identifier) {
+        return ResponseEntity.ok(routeService.findByIdentifier(identifier));
     }
 
     @GetMapping("/search")

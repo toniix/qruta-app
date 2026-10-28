@@ -8,9 +8,12 @@ import org.springframework.data.repository.query.Param;
 
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface RouteRepository extends JpaRepository<Route, UUID> {
+
+    Optional<Route> findByCodeIgnoreCase(String code);
 
     List<Route> findByNameContainingIgnoreCase(String name);
 

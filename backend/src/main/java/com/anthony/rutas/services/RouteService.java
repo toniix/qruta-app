@@ -159,6 +159,28 @@ public class RouteService {
     }
 
     @Transactional(readOnly = true)
+    public RouteDetailResponse findByIdentifier(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new ResourceNotFoundException("Route identifier cannot be blank");
+        }
+        Route route = null;
+        try {
+            UUID id = UUID.fromString(identifier.trim());
+            route = routeRepository.findById(id).orElse(null);
+        } catch (IllegalArgumentException ignored) {
+            // Not a valid UUID, look up by code
+        }
+
+        if (route == null) {
+            route = routeRepository.findByCodeIgnoreCase(identifier.trim())
+                    .orElseThrow(() -> new ResourceNotFoundException("Route not found with identifier: " + identifier));
+        }
+
+        List<RouteDirection> directions = routeDirectionRepository.findByRouteIdWithStops(route.getId());
+        return DtoMapper.toRouteDetailResponse(route, directions);
+    }
+
+    @Transactional(readOnly = true)
     public List<RouteSummaryResponse> search(String query) {
         return search(query, DEFAULT_SEARCH_SIZE);
     }
