@@ -178,7 +178,7 @@ export function RouteDrawer() {
 
   // Directions come from the route detail (already normalized in routeService)
   const directions = selectedRoute.directions || [];
-  const loading = loadingRouteDetail || directions.length === 0;
+  const loading = Boolean(loadingRouteDetail);
 
   const outbound =
     directions.find((d) => d.direction === "OUTBOUND") || directions[0];
@@ -486,6 +486,10 @@ export function RouteDrawer() {
                 <div className="h-3.5 bg-slate-200 rounded w-10 shrink-0" />
               </div>
             ))}
+          </div>
+        ) : stops.length === 0 ? (
+          <div className="py-4 text-center text-slate-400 text-xs font-medium">
+            No hay paraderos registrados para este recorrido.
           </div>
         ) : (
           <div className="relative pl-6 space-y-4 before:absolute before:left-2 before:top-2.5 before:bottom-2.5 before:w-0.5 before:bg-slate-200">

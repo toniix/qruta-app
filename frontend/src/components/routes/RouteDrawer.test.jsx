@@ -93,5 +93,31 @@ describe('RouteDrawer Share Feature', () => {
       expect(screen.getByText('Compartir ruta')).toBeInTheDocument();
     });
   });
+
+  it('does not get stuck in loading state when route has no directions', () => {
+    mockUseRoutes.mockReturnValue({
+      selectedRoute: {
+        id: 'route-empty',
+        code: 'R0',
+        name: 'Ruta Vacía',
+        directions: [],
+      },
+      focusedStop: null,
+      selectStop: vi.fn(),
+      focusStop: vi.fn(),
+      activeDirection: 'OUTBOUND',
+      setActiveDirection: vi.fn(),
+      loadingRouteDetail: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <RouteDrawer />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: 'Ida' })).toBeInTheDocument();
+    expect(screen.getByText('No hay paraderos registrados para este recorrido.')).toBeInTheDocument();
+  });
 });
 

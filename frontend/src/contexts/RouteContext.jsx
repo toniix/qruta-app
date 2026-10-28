@@ -203,6 +203,17 @@ export function RouteProvider({ children }) {
           });
           setIsManualCity(Boolean(savedCityId));
           persistSelectedCity(resolvedCity, Boolean(savedCityId));
+        } else {
+          setCurrentCity(null);
+          setIsManualCity(false);
+          clearSelectedCityId();
+          try {
+            localStorage.removeItem("rutasya_cached_city");
+            localStorage.removeItem("rutasya_cities_cache");
+          } catch {
+            // ignore
+          }
+          loadData(null);
         }
       } catch (err) {
         console.error("Error al cargar ciudades:", err);
@@ -218,12 +229,13 @@ export function RouteProvider({ children }) {
           setCities([fallback]);
           return fallback;
         });
+        loadData(null);
       }
     })();
     return () => {
       isMounted = false;
     };
-  }, []);
+  }, [loadData]);
 
   // Auto-detect city from GPS when available (unless user manually selected a different city)
   useEffect(() => {

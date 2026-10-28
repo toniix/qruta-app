@@ -546,7 +546,9 @@ export function HomePage() {
           ) : displayedPopularRoutes.length === 0 ? (
             <div className="bg-white rounded-2xl p-6 text-center border border-slate-200/90 shadow-card space-y-2">
               <p className="text-xs text-slate-500 font-medium">
-                No hay rutas populares a menos de 2 km de tu ubicación actual.
+                {gpsReady
+                  ? "No hay rutas populares a menos de 2 km de tu ubicación actual."
+                  : "No hay rutas populares registradas por el momento."}
               </p>
               <button
                 type="button"

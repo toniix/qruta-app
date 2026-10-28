@@ -37,7 +37,7 @@ export function StopDetailDrawer({ stop, context = "map" }) {
   const isRouteContext = context === "route";
 
   const [stopRoutes, setStopRoutes] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(() => Boolean(stop?.id && !isRouteContext));
   const [error, setError] = useState(null);
   const [isCollapsed, setIsCollapsed] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);

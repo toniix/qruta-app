@@ -590,7 +590,7 @@ function InteractiveMapComponent({
   // Check if all directions for the selected route are already snapped in snappedDirectionMap
   const hasAllSnappedDirections = useMemo(() => {
     const dirs = selectedRoute?.directions;
-    if (!dirs || dirs.length === 0) return false;
+    if (!dirs || dirs.length === 0) return true;
     return dirs.every((dir) => {
       if (!dir.routePoints || dir.routePoints.length < 2) return true;
       const key = `${selectedRoute.id}:${dir.direction || dir.id}`;

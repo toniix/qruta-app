@@ -14,7 +14,7 @@ export function RoutesListPage() {
     error,
     loadData,
   } = useRoutes();
-  const cityName = currentCity?.name || "Ica";
+  const cityName = currentCity?.name;
   const navigate = useNavigate();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -61,7 +61,9 @@ export function RoutesListPage() {
                 alt="QRuta"
                 className="w-10 h-10 shrink-0"
               />
-              <span className="truncate">Rutas en {cityName}</span>
+              <span className="truncate">
+                {cityName ? `Rutas en ${cityName}` : "Rutas del sistema"}
+              </span>
             </h1>
             <p className="text-[11px] sm:text-xs text-slate-500 font-medium truncate mt-0.5">
               Líneas y recorridos de transporte público
@@ -168,8 +170,12 @@ export function RoutesListPage() {
             </h3>
             <p className="text-xs text-slate-500">
               {activeCategory !== "all" && searchQuery.trim() === ""
-                ? `No hay rutas de tipo “${CATEGORIES.find((c) => c.id === activeCategory)?.label}” registradas en ${cityName} todavía.`
-                : "Prueba con otro término de búsqueda o revisa las paradas cercanas en el mapa."}
+                ? `No hay rutas de tipo “${CATEGORIES.find((c) => c.id === activeCategory)?.label}” registradas en ${cityName || "el sistema"} todavía.`
+                : searchQuery.trim() !== ""
+                  ? "Prueba con otro término de búsqueda o revisa las paradas cercanas en el mapa."
+                  : cityName
+                    ? `No hay rutas registradas en ${cityName} todavía.`
+                    : "No hay rutas registradas en el sistema todavía."}
             </p>
             <button
               onClick={() => {

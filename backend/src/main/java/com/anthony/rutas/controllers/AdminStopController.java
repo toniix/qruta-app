@@ -18,41 +18,41 @@ import java.util.Map;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/admin/stops")
 @RequiredArgsConstructor
 public class AdminStopController {
 
     private final StopService stopService;
 
-    @GetMapping("/stops")
+    @GetMapping
     public ResponseEntity<List<StopResponse>> getAllStops() {
         return ResponseEntity.ok(stopService.findAll());
     }
 
-    @PostMapping("/stops")
+    @PostMapping
     public ResponseEntity<StopResponse> createStop(@Valid @RequestBody CreateStopRequest request) {
         return ResponseEntity.ok(stopService.create(request));
     }
 
-    @PutMapping("/stops/{id}")
+    @PutMapping("/{id}")
     public ResponseEntity<StopResponse> updateStop(@PathVariable UUID id,
             @Valid @RequestBody UpdateStopRequest request) {
         return ResponseEntity.ok(stopService.update(id, request));
     }
 
-    @DeleteMapping("/stops/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteStop(@PathVariable UUID id) {
         stopService.delete(id);
         return ResponseEntity.noContent().build();
     }
 
-    @PostMapping(value = "/stops/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PostMapping(value = "/{id}/image", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<StopResponse> uploadStopImage(@PathVariable UUID id,
             @RequestParam("file") MultipartFile file) {
         return ResponseEntity.ok(stopService.updateImage(id, file));
     }
 
-    @DeleteMapping("/stops/{id}/image")
+    @DeleteMapping("/{id}/image")
     public ResponseEntity<StopResponse> removeStopImage(@PathVariable UUID id) {
         return ResponseEntity.ok(stopService.removeImage(id));
     }

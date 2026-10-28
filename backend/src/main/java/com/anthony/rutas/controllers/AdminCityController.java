@@ -12,28 +12,29 @@ import java.util.List;
 import java.util.UUID;
 
 @RestController
-@RequestMapping("/api/admin")
+@RequestMapping("/api/admin/cities")
 @RequiredArgsConstructor
 public class AdminCityController {
 
     private final CityService cityService;
 
-    @GetMapping("/cities")
+    @GetMapping
     public ResponseEntity<List<CityResponse>> getAllCities() {
         return ResponseEntity.ok(cityService.findAll());
     }
 
-    @PostMapping("/cities")
+    @PostMapping
     public ResponseEntity<CityResponse> createCity(@Valid @RequestBody CreateCityRequest request) {
         return ResponseEntity.ok(cityService.create(request));
     }
 
-    @PutMapping("/cities/{id}")
-    public ResponseEntity<CityResponse> updateCity(@PathVariable UUID id, @Valid @RequestBody CreateCityRequest request) {
+    @PutMapping("/{id}")
+    public ResponseEntity<CityResponse> updateCity(@PathVariable UUID id,
+            @Valid @RequestBody CreateCityRequest request) {
         return ResponseEntity.ok(cityService.update(id, request));
     }
 
-    @DeleteMapping("/cities/{id}")
+    @DeleteMapping("/{id}")
     public ResponseEntity<Void> deleteCity(@PathVariable UUID id) {
         cityService.delete(id);
         return ResponseEntity.noContent().build();

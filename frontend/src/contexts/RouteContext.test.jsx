@@ -173,4 +173,54 @@ describe("RouteContext city caching and waterfall optimization", () => {
       expect(parsed.cities[0].name).toBe("Lima");
     });
   });
+
+  it("terminates loading state when database is empty (no cities and no routes)", async () => {
+    localStorage.clear();
+    cityService.getAllCities.mockResolvedValueOnce([]);
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    // Initial boot state is loading: true
+    expect(latestContext.loading).toBe(true);
+
+    // Once empty cities catalog resolves, loading must transition to false
+    await waitFor(() => {
+      expect(latestContext.loading).toBe(false);
+      expect(latestContext.loadingPopular).toBe(false);
+      expect(latestContext.routes).toEqual([]);
+      expect(latestContext.currentCity).toBeNull();
+    });
+  });
+
+  it("terminates loading state when cityService.getAllCities fails", async () => {
+    localStorage.clear();
+    cityService.getAllCities.mockRejectedValueOnce(new Error("Network Error"));
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    await waitFor(() => {
+      expect(latestContext.loading).toBe(false);
+      expect(latestContext.loadingPopular).toBe(false);
+    });
+  });
 });

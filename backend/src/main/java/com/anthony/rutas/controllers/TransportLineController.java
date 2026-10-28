@@ -16,7 +16,7 @@ public class TransportLineController {
 
     private final TransportLineService transportLineService;
 
-    @GetMapping("/")
+    @GetMapping
     public ResponseEntity<List<TransportLineResponse>> getAllLines() {
         return ResponseEntity.ok(transportLineService.findAll());
     }
