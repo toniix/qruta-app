@@ -116,3 +116,4 @@ describe('HomeMapPage contextual GPS guidance pill', () => {
     ).toBeNull();
   });
 });
+
