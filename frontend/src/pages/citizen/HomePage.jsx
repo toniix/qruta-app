@@ -122,8 +122,12 @@ export function HomePage() {
         color: item.color,
       });
     }
-    const targetId = matchedRoute?.id || item.id;
-    navigate(`/mapa/ruta/${targetId}`, { state: { from: "/" } });
+    const target =
+      matchedRoute?.code ||
+      item.code ||
+      matchedRoute?.id ||
+      item.id;
+    navigate(`/mapa/ruta/${encodeURIComponent(target)}`, { state: { from: "/" } });
   };
 
   const scrollNearbyStops = (direction) => {

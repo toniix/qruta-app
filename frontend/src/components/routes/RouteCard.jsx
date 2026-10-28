@@ -39,8 +39,12 @@ export function RouteCard({
       return;
     }
     selectRoute(route);
-    if (route?.id) {
-      navigate(`/mapa/ruta/${route.id}`);
+    const target =
+      route?.code && route.code.toLowerCase() !== "ruta"
+        ? route.code
+        : route?.id;
+    if (target) {
+      navigate(`/mapa/ruta/${encodeURIComponent(target)}`);
     }
   };
 

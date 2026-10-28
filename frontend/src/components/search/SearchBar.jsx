@@ -115,7 +115,11 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
     // Select the route only: pre-selecting a stop would open the stop
     // drawer on the map instead of the route detail.
     selectRoute(route);
-    navigate(`/mapa/ruta/${route.id}`, {
+    const identifier =
+      route.code && route.code.toLowerCase() !== "ruta"
+        ? route.code
+        : route.id;
+    navigate(`/mapa/ruta/${encodeURIComponent(identifier)}`, {
       state: {
         from: "/mapa",
         searchState: {

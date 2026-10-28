@@ -38,8 +38,14 @@ export function BottomNav() {
   const handleNav = (path) => {
     // If clicking on Mapa and user was viewing a route, restore that route's URL
     let targetPath = path;
-    if (path === '/mapa' && selectedRoute?.id) {
-      targetPath = `/mapa/ruta/${selectedRoute.id}`;
+    if (path === '/mapa' && selectedRoute) {
+      const identifier =
+        selectedRoute.code && selectedRoute.code.toLowerCase() !== 'ruta'
+          ? selectedRoute.code
+          : selectedRoute.id;
+      if (identifier) {
+        targetPath = `/mapa/ruta/${encodeURIComponent(identifier)}`;
+      }
     }
 
     if (location.pathname === targetPath) return;

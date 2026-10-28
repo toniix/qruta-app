@@ -31,7 +31,13 @@ export function buildRouteShareData(route) {
     typeof window !== "undefined" && window.location
       ? window.location.origin
       : "";
-  const url = route.id ? `${origin}/mapa/ruta/${route.id}` : origin;
+  const routeParam =
+    rawCode && rawCode.toLowerCase() !== "ruta"
+      ? rawCode
+      : route.id;
+  const url = routeParam
+    ? `${origin}/mapa/ruta/${encodeURIComponent(routeParam)}`
+    : origin;
 
   const title = `Recorrido de la ruta ${routeIdentifier} | QRuta`;
   const text = `Mira el recorrido de la ruta ${routeIdentifier} en QRuta`;

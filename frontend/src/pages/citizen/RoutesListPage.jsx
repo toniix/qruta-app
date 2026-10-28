@@ -45,7 +45,11 @@ export function RoutesListPage() {
   const handleSelectRoute = (route, stop = null) => {
     selectRoute(route);
     if (stop) selectStop(stop);
-    navigate(`/mapa/ruta/${route.id}`, { state: { from: "/rutas" } });
+    const identifier =
+      route.code && route.code.toLowerCase() !== "ruta"
+        ? route.code
+        : route.id;
+    navigate(`/mapa/ruta/${encodeURIComponent(identifier)}`, { state: { from: "/rutas" } });
   };
 
   return (

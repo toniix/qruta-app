@@ -40,7 +40,7 @@ describe('shareUtils', () => {
       const data = buildRouteShareData(mockRoute);
       expect(data.title).toBe('Recorrido de la ruta R101 | QRuta');
       expect(data.text).toBe('Mira el recorrido de la ruta R101 en QRuta');
-      expect(data.url).toContain('/mapa/ruta/route-123');
+      expect(data.url).toContain('/mapa/ruta/R101');
     });
 
     it('falls back to route name when code is generic or missing', () => {
