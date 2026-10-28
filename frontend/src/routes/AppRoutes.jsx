@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
-import { Routes, Route, Navigate } from 'react-router-dom';
+import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { CitizenLayout } from '../layouts/CitizenLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { HomePage } from '../pages/citizen/HomePage';
@@ -123,6 +123,11 @@ function AdminLoginRoute({ children }) {
   return children;
 }
 
+function RouteAliasRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/mapa/ruta/${id}`} replace />;
+}
+
 export function AppRoutes() {
   return (
     <Suspense fallback={<PageLoading />}>
@@ -134,6 +139,7 @@ export function AppRoutes() {
           <Route path="/cercanas" element={<NearbyRoutesPage />} />
           <Route path="/mapa" element={<HomeMapPage />} />
           <Route path="/mapa/ruta/:id" element={<HomeMapPage />} />
+          <Route path="/ruta/:id" element={<RouteAliasRedirect />} />
           <Route path="/rutas" element={<RoutesListPage />} />
           <Route path="/comunidad" element={<CommunityPage />} />
           <Route
