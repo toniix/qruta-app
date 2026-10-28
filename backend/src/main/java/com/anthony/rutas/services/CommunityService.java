@@ -53,6 +53,32 @@ public class CommunityService {
 
     private static final Pattern WORD_SPLIT = Pattern.compile("[^a-z0-9]+");
 
+    private UUID resolveRouteId(String routeIdentifier) {
+        if (routeIdentifier == null || routeIdentifier.isBlank()) {
+            return null;
+        }
+        try {
+            return UUID.fromString(routeIdentifier.trim());
+        } catch (IllegalArgumentException ignored) {
+            return routeRepository.findByCodeIgnoreCase(routeIdentifier.trim())
+                    .map(Route::getId)
+                    .orElse(null);
+        }
+    }
+
+    @Transactional(readOnly = true)
+    public List<CommunityPostResponse> getPostsByIdentifier(
+            PostCategory category,
+            String routeIdentifier,
+            UUID cityId,
+            Integer limit,
+            Integer page,
+            String sort,
+            String deviceId) {
+        UUID routeId = resolveRouteId(routeIdentifier);
+        return getPosts(category, routeId, cityId, limit, page, sort, deviceId);
+    }
+
     @Transactional(readOnly = true)
     public List<CommunityPostResponse> getPosts(
             PostCategory category,
@@ -91,6 +117,15 @@ public class CommunityService {
             Integer limit,
             String deviceId) {
         return getPosts(category, routeId, cityId, limit, 0, "recent", deviceId);
+    }
+
+    @Transactional(readOnly = true)
+    public RouteCommunitySummaryResponse getRouteSummary(String routeIdentifier, String deviceId) {
+        UUID routeId = resolveRouteId(routeIdentifier);
+        if (routeId == null) {
+            throw new ResourceNotFoundException("Route not found with identifier: " + routeIdentifier);
+        }
+        return getRouteSummary(routeId, deviceId);
     }
 
     @Transactional(readOnly = true)

@@ -460,10 +460,17 @@ export function RouteProvider({ children }) {
       typeof routeOrId === "object"
         ? routeOrId.code || routeOrId.id
         : routeOrId;
+    const isUUID =
+      typeof identifier === "string" &&
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        identifier,
+      );
     const initialRoute =
       typeof routeOrId === "object"
         ? routeOrId
-        : { id: identifier, code: identifier };
+        : isUUID
+        ? { id: identifier, code: identifier }
+        : { code: identifier };
 
     const hasDirections =
       Array.isArray(initialRoute.directions) &&

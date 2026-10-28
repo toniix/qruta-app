@@ -157,11 +157,12 @@ export function RouteDrawer() {
 
   useEffect(() => {
     let isMounted = true;
-    if (!selectedRoute?.id) {
+    const identifier = selectedRoute?.id || selectedRoute?.code;
+    if (!identifier) {
       return;
     }
     communityService
-      .getRouteSummary(selectedRoute.id)
+      .getRouteSummary(identifier)
       .then((data) => {
         if (isMounted) setCommunitySummary(data);
       })
@@ -172,7 +173,7 @@ export function RouteDrawer() {
     return () => {
       isMounted = false;
     };
-  }, [selectedRoute?.id]);
+  }, [selectedRoute?.id, selectedRoute?.code]);
 
   if (!selectedRoute) return null;
 

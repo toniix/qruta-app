@@ -102,7 +102,13 @@ export function HomeMapPage() {
             String(r.id || "").toLowerCase() === target ||
             String(r.code || "").toLowerCase() === target,
         );
-        selectRoute(found || { id, code: id }, hasSelectedStop);
+        const isUUID =
+          typeof id === "string" &&
+          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+            id,
+          );
+        const fallbackStub = isUUID ? { id } : { code: id };
+        selectRoute(found || fallbackStub, hasSelectedStop);
       }
     }
   }, [id, routes, selectRoute, selectedRoute, hasSelectedStop]);
