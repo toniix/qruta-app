@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
+import { Navigation } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
 import { routeService } from "../../services/routeService";
 import { geocodingService, streetLine } from "../../services/geocodingService";
@@ -695,6 +696,26 @@ export function HomeMapPage() {
         onCloseDestination={handleCloseDestination}
         onSearchActiveChange={setIsSearchActive}
       />
+
+      {/* ── Contextual GPS Pill (Shown when viewing a route without active GPS) ── */}
+      {selectedRoute && !gpsReady && (
+        <div className="absolute top-18 sm:top-20 left-0 right-0 z-20 flex justify-center px-4 pointer-events-none animate-slide-in-top">
+          <button
+            type="button"
+            onClick={triggerGpsRequest}
+            disabled={isLocating}
+            className="pointer-events-auto bg-white/95 hover:bg-white text-slate-800 backdrop-blur-md px-3.5 py-1.5 rounded-full border border-slate-200/90 shadow-md flex items-center gap-2 text-xs font-semibold transition-all active:scale-95 group min-h-8"
+          >
+            <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+            <span className="text-slate-700">
+              {isLocating
+                ? "Obteniendo ubicación..."
+                : "Activa tu ubicación para ver tu distancia"}
+            </span>
+            <Navigation className="w-3.5 h-3.5 text-brand-primary shrink-0 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+      )}
 
       {/* ── Bottom Floating Area (Carousel OR Route Drawer OR Stop Info) ───── */}
       <div className="mt-auto relative z-20 pointer-events-none w-full max-w-lg mx-auto">
