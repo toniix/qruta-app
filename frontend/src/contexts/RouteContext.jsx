@@ -101,26 +101,18 @@ export function RouteProvider({ children }) {
   }, [gpsPermissionState, requestLocation]);
 
   // When GPS becomes ready after user requested nearby routes (e.g. granted via modal), activate onlyNearby
-  useEffect(() => {
-    if (gpsReady && pendingNearbyAfterGps) {
-      setOnlyNearby(true);
-      setPendingNearbyAfterGps(false);
-    }
-  }, [gpsReady, pendingNearbyAfterGps]);
+  if (gpsReady && pendingNearbyAfterGps) {
+    setOnlyNearby(true);
+    setPendingNearbyAfterGps(false);
+  } else if (!showGpsModal && !gpsReady && pendingNearbyAfterGps) {
+    // If the GPS permission modal is closed without granting GPS, cancel pending nearby request
+    setPendingNearbyAfterGps(false);
+  }
 
   // If GPS is lost/disabled while onlyNearby is active, safely revert to all routes
-  useEffect(() => {
-    if (onlyNearby && !gpsReady) {
-      setOnlyNearby(false);
-    }
-  }, [onlyNearby, gpsReady]);
-
-  // If the GPS permission modal is closed without granting GPS, cancel pending nearby request
-  useEffect(() => {
-    if (!showGpsModal && !gpsReady && pendingNearbyAfterGps) {
-      setPendingNearbyAfterGps(false);
-    }
-  }, [showGpsModal, gpsReady, pendingNearbyAfterGps]);
+  if (onlyNearby && !gpsReady) {
+    setOnlyNearby(false);
+  }
 
   // Filter popular routes within 2 km if GPS is active (optimized O(1) Map lookup)
   const displayedPopularRoutes = useMemo(() => {
