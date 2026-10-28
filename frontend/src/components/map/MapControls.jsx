@@ -66,17 +66,6 @@ export function MapControls({
             }`}
           />
         )}
-
-        {/* Status indicator dot */}
-        <span
-          className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full transition-colors ${
-            gpsReady
-              ? "bg-brand-lime shadow-[0_0_6px_rgba(183,243,74,0.9)] animate-pulse"
-              : isLocating
-              ? "bg-amber-400 animate-ping"
-              : "bg-slate-500"
-          }`}
-        />
       </button>
     </div>
   );
