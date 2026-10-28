@@ -49,6 +49,7 @@ export function RouteProvider({ children }) {
   const [loadingPopular, setLoadingPopular] = useState(false);
   const [loadingRouteDetail, setLoadingRouteDetail] = useState(false);
   const [showGpsModal, setShowGpsModal] = useState(false);
+  const [pendingNearbyAfterGps, setPendingNearbyAfterGps] = useState(false);
   const [userAddress, setUserAddress] = useState(null);
   const [rawAddressStatus, setRawAddressStatus] = useState("idle");
 
@@ -86,27 +87,40 @@ export function RouteProvider({ children }) {
     // If browser permission is explicitly denied, immediately show the helper modal
     if (gpsPermissionState === "denied") {
       setShowGpsModal(true);
-      return;
+      return false;
     }
 
     try {
-      await requestLocation();
+      const coords = await requestLocation();
+      return Boolean(coords);
     } catch {
       // If user dismissed browser dialog or denied, open modal to offer manual guidance
       setShowGpsModal(true);
+      return false;
     }
   }, [gpsPermissionState, requestLocation]);
 
-  // Check once on mount: if session hasn't dismissed yet and GPS isn't granted, show polite modal
+  // When GPS becomes ready after user requested nearby routes (e.g. granted via modal), activate onlyNearby
   useEffect(() => {
-    const hasDismissed = sessionStorage.getItem("rutasya_gps_modal_dismissed");
-    if (!hasDismissed && gpsPermissionState === "prompt") {
-      const timer = setTimeout(() => {
-        setShowGpsModal(true);
-      }, 1200);
-      return () => clearTimeout(timer);
+    if (gpsReady && pendingNearbyAfterGps) {
+      setOnlyNearby(true);
+      setPendingNearbyAfterGps(false);
     }
-  }, [gpsPermissionState]);
+  }, [gpsReady, pendingNearbyAfterGps]);
+
+  // If GPS is lost/disabled while onlyNearby is active, safely revert to all routes
+  useEffect(() => {
+    if (onlyNearby && !gpsReady) {
+      setOnlyNearby(false);
+    }
+  }, [onlyNearby, gpsReady]);
+
+  // If the GPS permission modal is closed without granting GPS, cancel pending nearby request
+  useEffect(() => {
+    if (!showGpsModal && !gpsReady && pendingNearbyAfterGps) {
+      setPendingNearbyAfterGps(false);
+    }
+  }, [showGpsModal, gpsReady, pendingNearbyAfterGps]);
 
   // Filter popular routes within 2 km if GPS is active (optimized O(1) Map lookup)
   const displayedPopularRoutes = useMemo(() => {
@@ -506,6 +520,7 @@ export function RouteProvider({ children }) {
     setActiveDirection("OUTBOUND");
     setSearchedLocation(null);
     setNearestMatchInfo(null);
+    setPendingNearbyAfterGps(false);
     setOnlyNearby(false);
     setLoadingRouteDetail(false);
   }, []);
@@ -518,14 +533,22 @@ export function RouteProvider({ children }) {
   }, []);
 
   const locateNearestRoute = useCallback(async () => {
-    if (!gpsReady) {
-      try {
-        await triggerGpsRequest();
-      } catch (err) {
-        console.warn("No se pudo obtener ubicación GPS:", err);
-      }
+    if (gpsReady) {
+      setOnlyNearby(true);
+      return;
     }
-    setOnlyNearby(true);
+    setPendingNearbyAfterGps(true);
+    try {
+      const success = await triggerGpsRequest();
+      if (success) {
+        setOnlyNearby(true);
+        setPendingNearbyAfterGps(false);
+      }
+    } catch (err) {
+      console.warn("No se pudo obtener ubicación GPS:", err);
+      setPendingNearbyAfterGps(false);
+      setOnlyNearby(false);
+    }
   }, [gpsReady, triggerGpsRequest]);
 
   const setCity = useCallback((city, isManual = true) => {

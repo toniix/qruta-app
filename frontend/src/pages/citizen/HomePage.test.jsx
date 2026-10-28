@@ -84,4 +84,17 @@ describe('HomePage location pill', () => {
     expect(screen.getByText('Av. Test 123')).toBeInTheDocument();
     expect(screen.queryByText(/Sin ubicación activa/)).toBeNull();
   });
+
+  it('triggers setShowGpsModal after polite delay when permission is prompt and not dismissed', async () => {
+    sessionStorage.clear();
+    const setShowGpsModal = vi.fn();
+    renderHome({
+      gpsPermissionState: 'prompt',
+      setShowGpsModal,
+    });
+
+    expect(setShowGpsModal).not.toHaveBeenCalled();
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    expect(setShowGpsModal).toHaveBeenCalledWith(true);
+  });
 });

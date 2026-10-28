@@ -224,3 +224,122 @@ describe("RouteContext city caching and waterfall optimization", () => {
     });
   });
 });
+
+describe("RouteContext GPS modal & onlyNearby flow", () => {
+  it("does not automatically trigger showGpsModal on mount even if permission is prompt", async () => {
+    sessionStorage.clear();
+    geoState.gpsPermissionState = "prompt";
+    geoState.gpsReady = false;
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    // Initial state
+    expect(latestContext.showGpsModal).toBe(false);
+
+    // Wait past the old 1200ms timer
+    await new Promise((resolve) => setTimeout(resolve, 1300));
+    expect(latestContext.showGpsModal).toBe(false);
+  });
+
+  it("locateNearestRoute does not set onlyNearby to true if GPS request fails or is dismissed", async () => {
+    geoState.gpsReady = false;
+    geoState.location = null;
+    geoState.requestLocation.mockRejectedValueOnce(new Error("User dismissed"));
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    expect(latestContext.onlyNearby).toBe(false);
+
+    await act(async () => {
+      await latestContext.locateNearestRoute();
+    });
+
+    expect(latestContext.onlyNearby).toBe(false);
+  });
+
+  it("locateNearestRoute sets onlyNearby to true when GPS is successfully acquired", async () => {
+    geoState.gpsReady = false;
+    geoState.location = null;
+    geoState.requestLocation.mockImplementationOnce(async () => {
+      setGeo({ location: COORDS_A, gpsStatus: "ready" });
+      return COORDS_A;
+    });
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    expect(latestContext.onlyNearby).toBe(false);
+
+    await act(async () => {
+      await latestContext.locateNearestRoute();
+    });
+
+    await waitFor(() => {
+      expect(latestContext.onlyNearby).toBe(true);
+    });
+  });
+
+  it("reverts onlyNearby to false if gpsReady flips back to false", async () => {
+    setGeo({ location: COORDS_A, gpsStatus: "ready" });
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    const { rerender } = render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    await act(async () => {
+      await latestContext.locateNearestRoute();
+    });
+    expect(latestContext.onlyNearby).toBe(true);
+
+    // Simulate GPS lost or disabled
+    await act(async () => {
+      setGeo({ location: null, gpsStatus: "idle" });
+      rerender(
+        <RouteProvider>
+          <Probe />
+        </RouteProvider>,
+      );
+    });
+
+    await waitFor(() => {
+      expect(latestContext.onlyNearby).toBe(false);
+    });
+  });
+});

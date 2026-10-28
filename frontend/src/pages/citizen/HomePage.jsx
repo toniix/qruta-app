@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Search,
@@ -79,7 +79,29 @@ export function HomePage() {
     setCity,
     resetToGpsDetection,
     addressStatus,
+    gpsPermissionState,
+    setShowGpsModal,
   } = useRoutes();
+
+  // Show polite GPS modal only on HomePage arrival if never dismissed in this session
+  useEffect(() => {
+    let timer;
+    try {
+      const hasDismissed = sessionStorage.getItem("rutasya_gps_modal_dismissed");
+      if (!hasDismissed && gpsPermissionState === "prompt") {
+        timer = setTimeout(() => {
+          if (typeof setShowGpsModal === "function") {
+            setShowGpsModal(true);
+          }
+        }, 1200);
+      }
+    } catch {
+      // ignore storage access errors
+    }
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
+  }, [gpsPermissionState, setShowGpsModal]);
 
   const nearbyStopsRef = useRef(null);
   const { favorites } = useFavorites();
