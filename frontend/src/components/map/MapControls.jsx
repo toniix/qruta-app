@@ -1,10 +1,11 @@
-import { Plus, Minus, Target } from "lucide-react";
+import { Plus, Minus, Target, Loader2 } from "lucide-react";
 
 export function MapControls({
   onZoomIn,
   onZoomOut,
   onRecenterGPS,
   isLocating = false,
+  gpsReady = false,
 }) {
   return (
     <div className="absolute -top-36 right-4 sm:right-2 z-40 pointer-events-auto flex flex-col items-center gap-2">
@@ -28,19 +29,52 @@ export function MapControls({
         </button>
       </div>
 
-      {/* GPS Recenter Button */}
+      {/* GPS Recenter / Activate Button */}
       <button
         onClick={onRecenterGPS}
         disabled={isLocating}
-        className="w-12 h-12 rounded-full bg-white text-slate-800 shadow-raised border border-slate-200/90 flex items-center justify-center hover:bg-slate-50 transition-all active:scale-90 group"
-        title="Centrar en mi ubicación GPS"
-        aria-label="Centrar en mi ubicación GPS"
+        className={`relative w-12 h-12 rounded-full shadow-raised flex items-center justify-center transition-all active:scale-90 ${
+          gpsReady
+            ? "bg-brand-navy text-brand-lime border-2 border-brand-lime shadow-[0_0_12px_rgba(183,243,74,0.35)]"
+            : isLocating
+            ? "bg-brand-navy text-brand-lime border border-brand-lime/50 animate-pulse"
+            : "bg-brand-navy/90 text-slate-400 hover:text-white border border-slate-700/80 hover:bg-brand-navy"
+        }`}
+        title={
+          gpsReady
+            ? "Centrar en mi ubicación GPS"
+            : isLocating
+            ? "Obteniendo ubicación GPS..."
+            : "Activar mi ubicación GPS"
+        }
+        aria-label={
+          gpsReady
+            ? "Centrar en mi ubicación GPS"
+            : isLocating
+            ? "Obteniendo ubicación GPS..."
+            : "Activar mi ubicación GPS"
+        }
       >
-        <Target
-          className={`w-5 h-5 ${
-            isLocating
-              ? "animate-spin text-brand-primary-green"
-              : "text-slate-800 group-hover:text-brand-primary-green hover:scale-110 transition-transform"
+        {isLocating ? (
+          <Loader2 className="w-5 h-5 animate-spin text-brand-lime" />
+        ) : (
+          <Target
+            className={`w-5 h-5 transition-transform ${
+              gpsReady
+                ? "text-brand-lime scale-105"
+                : "text-slate-400 hover:scale-110"
+            }`}
+          />
+        )}
+
+        {/* Status indicator dot */}
+        <span
+          className={`absolute top-1.5 right-1.5 w-2 h-2 rounded-full transition-colors ${
+            gpsReady
+              ? "bg-brand-lime shadow-[0_0_6px_rgba(183,243,74,0.9)] animate-pulse"
+              : isLocating
+              ? "bg-amber-400 animate-ping"
+              : "bg-slate-500"
           }`}
         />
       </button>

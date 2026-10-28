@@ -25,7 +25,13 @@ vi.mock('../../components/map/MapTopHeader', () => ({
   MapTopHeader: () => <div data-testid="map-top-header" />,
 }));
 vi.mock('../../components/map/MapControls', () => ({
-  MapControls: () => <div data-testid="map-controls" />,
+  MapControls: ({ onRecenterGPS, gpsReady, isLocating }) => (
+    <div data-testid="map-controls">
+      <button data-testid="mock-gps-btn" onClick={onRecenterGPS}>
+        {gpsReady ? 'GPS Ready' : isLocating ? 'Locating' : 'GPS Off'}
+      </button>
+    </div>
+  ),
 }));
 vi.mock('../../components/routes/RouteDrawer', () => ({
   RouteDrawer: () => <div data-testid="route-drawer" />,
@@ -75,45 +81,31 @@ function renderPage(overrides = {}) {
   return render(<HomeMapPage />);
 }
 
-describe('HomeMapPage contextual GPS guidance pill', () => {
+describe('HomeMapPage map controls & unobstructed route view', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
-  it('shows contextual GPS pill when viewing a selected route and gpsReady is false', () => {
+  it('keeps the route view clean without intrusive top pills', () => {
     renderPage({ gpsReady: false });
 
     expect(
-      screen.getByText('Activa tu ubicación para ver tu distancia'),
-    ).toBeInTheDocument();
+      screen.queryByText('Activa tu ubicación para ver tu distancia'),
+    ).toBeNull();
   });
 
-  it('clicking the contextual GPS pill triggers triggerGpsRequest', () => {
+  it('passes gpsReady state to MapControls', () => {
+    renderPage({ gpsReady: true });
+
+    expect(screen.getByTestId('mock-gps-btn').textContent).toBe('GPS Ready');
+  });
+
+  it('clicking map GPS button triggers triggerGpsRequest when gpsReady is false', () => {
     const triggerGpsRequest = vi.fn();
     renderPage({ gpsReady: false, triggerGpsRequest });
 
-    const button = screen.getByRole('button', {
-      name: /Activa tu ubicación para ver tu distancia/i,
-    });
-    fireEvent.click(button);
-
+    fireEvent.click(screen.getByTestId('mock-gps-btn'));
     expect(triggerGpsRequest).toHaveBeenCalledTimes(1);
-  });
-
-  it('does not show the GPS pill when gpsReady is true', () => {
-    renderPage({ gpsReady: true });
-
-    expect(
-      screen.queryByText('Activa tu ubicación para ver tu distancia'),
-    ).toBeNull();
-  });
-
-  it('does not show the GPS pill when no route is selected', () => {
-    renderPage({ selectedRoute: null, gpsReady: false });
-
-    expect(
-      screen.queryByText('Activa tu ubicación para ver tu distancia'),
-    ).toBeNull();
   });
 });
 
