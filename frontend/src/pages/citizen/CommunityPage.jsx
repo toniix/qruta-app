@@ -28,6 +28,7 @@ import {
   updateFeedCachePost,
   updateFeedCacheCommentsCount,
 } from "../../services/communityFeedCache";
+import { trackEvent } from "../../services/analyticsClient";
 import { ConfirmDialog } from "../../components/admin/common/ConfirmDialog";
 import { MemoPostCard } from "../../components/community/PostCard";
 import {
@@ -410,6 +411,7 @@ export function CommunityPage() {
       // Nuevo post primero; si hay paginación activa, igual aparece arriba sin recargar
       setPosts((prev) => [created, ...prev]);
       invalidateFeedCache();
+      void trackEvent("community_post", { routeId: formRouteId || undefined });
       setMineOnly(false);
       setFormContent("");
       setCooldownUntil(Date.now() + PUBLISH_COOLDOWN_MS);

@@ -4,6 +4,7 @@ import { CitizenLayout } from '../layouts/CitizenLayout';
 import { AdminLayout } from '../layouts/AdminLayout';
 import { HomePage } from '../pages/citizen/HomePage';
 import { authService } from '../services/authService';
+import { operatorAuthService } from '../services/operatorAuthService';
 
 // Lazy-loaded Citizen pages for mobile bundle optimization
 const HomeMapPage = lazy(() =>
@@ -74,6 +75,52 @@ const CommunityModerationPage = lazy(() =>
   }))
 );
 
+const OperatorLoginPage = lazy(() =>
+  import('../pages/operator/OperatorLoginPage').then((m) => ({
+    default: m.OperatorLoginPage,
+  }))
+);
+const OperatorLayout = lazy(() =>
+  import('../layouts/OperatorLayout').then((m) => ({
+    default: m.OperatorLayout,
+  }))
+);
+const OperatorOverviewPage = lazy(() =>
+  import('../pages/operator/OperatorOverviewPage').then((m) => ({
+    default: m.OperatorOverviewPage,
+  }))
+);
+const OperatorLinesPage = lazy(() =>
+  import('../pages/operator/OperatorLinesPage').then((m) => ({
+    default: m.OperatorLinesPage,
+  }))
+);
+const OperatorRoutesPage = lazy(() =>
+  import('../pages/operator/OperatorRoutesPage').then((m) => ({
+    default: m.OperatorRoutesPage,
+  }))
+);
+const OperatorStopsPage = lazy(() =>
+  import('../pages/operator/OperatorStopsPage').then((m) => ({
+    default: m.OperatorStopsPage,
+  }))
+);
+const OperatorDisruptionsPage = lazy(() =>
+  import('../pages/operator/OperatorDisruptionsPage').then((m) => ({
+    default: m.OperatorDisruptionsPage,
+  }))
+);
+const OperatorAnalyticsPage = lazy(() =>
+  import('../pages/operator/OperatorAnalyticsPage').then((m) => ({
+    default: m.OperatorAnalyticsPage,
+  }))
+);
+const OperatorSubscriptionPage = lazy(() =>
+  import('../pages/operator/OperatorSubscriptionPage').then((m) => ({
+    default: m.OperatorSubscriptionPage,
+  }))
+);
+
 function PageLoading() {
   return (
     <div className="flex-1 flex items-center justify-center min-h-[50vh]">
@@ -119,6 +166,45 @@ function AdminLoginRoute({ children }) {
   // Authenticated admins never see the login form again.
   if (authService.isAuthenticated()) {
     return <Navigate to="/admin/overview" replace />;
+  }
+  return children;
+}
+
+function ProtectedOperatorRoute({ children }) {
+  const [state, setState] = useState(() =>
+    operatorAuthService.getToken()
+      ? { checking: true, allowed: false }
+      : { checking: false, allowed: false }
+  );
+
+  useEffect(() => {
+    if (!state.checking) return;
+    let cancelled = false;
+    operatorAuthService
+      .me()
+      .then(() => {
+        if (!cancelled) setState({ checking: false, allowed: true });
+      })
+      .catch(() => {
+        if (!cancelled) setState({ checking: false, allowed: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [state.checking]);
+
+  if (state.checking) {
+    return <PageLoading />;
+  }
+  if (!state.allowed) {
+    return <Navigate to="/operador/login" replace />;
+  }
+  return children;
+}
+
+function OperatorLoginRoute({ children }) {
+  if (operatorAuthService.isAuthenticated()) {
+    return <Navigate to="/operador/overview" replace />;
   }
   return children;
 }
@@ -176,6 +262,33 @@ export function AppRoutes() {
           <Route path="paraderos" element={<StopListPage />} />
           <Route path="ciudades" element={<CityListPage />} />
           <Route path="comunidad" element={<CommunityModerationPage />} />
+        </Route>
+
+        <Route
+          path="/operador/login"
+          element={
+            <OperatorLoginRoute>
+              <OperatorLoginPage />
+            </OperatorLoginRoute>
+          }
+        />
+
+        <Route
+          path="/operador"
+          element={
+            <ProtectedOperatorRoute>
+              <OperatorLayout />
+            </ProtectedOperatorRoute>
+          }
+        >
+          <Route index element={<Navigate to="/operador/overview" replace />} />
+          <Route path="overview" element={<OperatorOverviewPage />} />
+          <Route path="lineas" element={<OperatorLinesPage />} />
+          <Route path="rutas" element={<OperatorRoutesPage />} />
+          <Route path="paraderos" element={<OperatorStopsPage />} />
+          <Route path="desvios" element={<OperatorDisruptionsPage />} />
+          <Route path="analitica" element={<OperatorAnalyticsPage />} />
+          <Route path="suscripcion" element={<OperatorSubscriptionPage />} />
         </Route>
 
         {/* ── Catch-All Fallback ────────────────────────────────────────────── */}

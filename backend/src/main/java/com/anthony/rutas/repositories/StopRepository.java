@@ -6,11 +6,18 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface StopRepository extends JpaRepository<Stop, UUID> {
 
     List<Stop> findByNameContainingIgnoreCase(String name);
+
+    @Query("SELECT s FROM Stop s WHERE s.city.id = :cityId ORDER BY s.name ASC")
+    List<Stop> findByCityId(@Param("cityId") UUID cityId);
+
+    @Query("SELECT s FROM Stop s WHERE s.id = :id AND s.city.id = :cityId")
+    Optional<Stop> findByIdAndCityId(@Param("id") UUID id, @Param("cityId") UUID cityId);
 
     @Query("SELECT s FROM Stop s LEFT JOIN FETCH s.city ORDER BY s.name ASC")
     List<Stop> findAllWithCity();

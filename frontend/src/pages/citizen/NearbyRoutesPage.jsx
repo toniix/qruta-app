@@ -15,6 +15,7 @@ import { stopService } from '../../services/stopService';
 import { InteractiveMap } from '../../components/map/InteractiveMap';
 import { StopRoutesModal } from '../../components/home/StopRoutesModal';
 import { calculateDistanceKm } from '../../utils/geoUtils';
+import { trackEvent } from '../../services/analyticsClient';
 
 
 export function NearbyRoutesPage() {
@@ -62,6 +63,7 @@ export function NearbyRoutesPage() {
         ]);
 
         if (cancelled) return;
+        void trackEvent('nearby_query', {});
         setNearbyStopsList(stops);
         setNearbyRoutesList(nearbyRoutes || []);
       } catch {

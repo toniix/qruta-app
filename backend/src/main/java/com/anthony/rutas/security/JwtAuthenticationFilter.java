@@ -1,5 +1,6 @@
 package com.anthony.rutas.security;
 
+import com.anthony.rutas.services.OperatorUserService;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -19,6 +20,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
     private final CustomUserDetailsService userDetailsService;
+    private final OperatorUserService operatorUserService;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
@@ -35,7 +37,10 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         if (jwtUtil.validateToken(token)) {
             try {
                 String username = jwtUtil.extractUsername(token);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+                String role = jwtUtil.extractRole(token);
+                UserDetails userDetails = "ROLE_OPERATOR".equals(role)
+                        ? operatorUserService.loadUserDetails(username)
+                        : userDetailsService.loadUserByUsername(username);
 
                 UsernamePasswordAuthenticationToken authToken = new UsernamePasswordAuthenticationToken(userDetails, null,
                         userDetails.getAuthorities());

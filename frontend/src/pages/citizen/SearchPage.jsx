@@ -23,6 +23,7 @@ import {
   matchesCategory,
 } from '../../components/search/categoryFilter';
 import { searchQuerySchema } from '../../schemas';
+import { trackEvent } from '../../services/analyticsClient';
 
 const RECENT_KEY = 'rutasya_recent_searches';
 const SEARCH_STORAGE_KEY = 'rutasya_search_session_state';
@@ -178,6 +179,7 @@ export function SearchPage() {
         );
         // A newer search started while this one was in flight: drop it
         if (searchSeqRef.current !== seq) return;
+        void trackEvent('route_search', {});
         setSearchResults(Array.isArray(routesResult) ? routesResult : []);
         try {
           const stored = JSON.parse(localStorage.getItem(RECENT_KEY) || '[]');

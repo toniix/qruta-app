@@ -23,7 +23,16 @@ import { useAdminToast } from '../../../hooks/useAdminToast';
 
 const DEFAULT_CENTER = [-14.0678, -75.7286]; // Ica
 
-function createNumberedStopIcon(order, name) {
+export const escapeHtml = (value) =>
+  String(value ?? '')
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+
+export function createNumberedStopIcon(order, name) {
+  const safeName = escapeHtml(name);
   return L.divIcon({
     className: '!bg-transparent !border-none',
     html: `
@@ -32,7 +41,7 @@ function createNumberedStopIcon(order, name) {
           ${order}
         </div>
         <div class="mt-0.5 max-w-[100px] truncate rounded bg-slate-900/80 px-1 py-0.2 text-[9px] font-semibold text-white shadow-xs">
-          ${name || ''}
+          ${safeName}
         </div>
       </div>
     `,
@@ -61,6 +70,9 @@ export function RouteDirectionEditorModal({
   cities = [],
   cityId = '',
   onSaved,
+  routeService = adminRouteService,
+  stopService = adminStopService,
+  allowQuickCreate = true,
 }) {
   const toast = useAdminToast();
   const [loading, setLoading] = useState(false);
@@ -86,8 +98,8 @@ export function RouteDirectionEditorModal({
       setLoading(true);
       try {
         const [routeDetail, stopsList] = await Promise.all([
-          adminRouteService.getRouteById(route.id),
-          adminStopService.getAllStops(),
+          routeService.getRouteById(route.id),
+          stopService.getAllStops(),
         ]);
 
         if (!isMounted) return;
@@ -153,7 +165,7 @@ export function RouteDirectionEditorModal({
     return () => {
       isMounted = false;
     };
-  }, [open, route?.id, toast]);
+  }, [open, route?.id, routeService, stopService, toast]);
 
   const activeDirection = directions[activeDirIndex] || null;
 
@@ -301,7 +313,7 @@ export function RouteDirectionEditorModal({
         })),
       };
 
-      await adminRouteService.updateRouteDirections(route.id, payload);
+      await routeService.updateRouteDirections(route.id, payload);
       toast.success('Sentidos y paraderos de la ruta guardados con éxito.');
       onSaved?.();
       onClose();
@@ -553,24 +565,26 @@ export function RouteDirectionEditorModal({
                     </button>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => setQuickCreateOpen(true)}
-                    disabled={!cityId}
-                    title={
-                      cityId
-                        ? 'Crear un paradero nuevo en esta ciudad sin salir del editor'
-                        : 'La ciudad de la ruta no está disponible'
-                    }
-                    className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-500 hover:text-blue-600 disabled:opacity-40"
-                  >
-                    <Plus className="h-3.5 w-3.5" />
-                    <span>
-                      {cityStops.length === 0
-                        ? 'Crear el primer paradero de esta ciudad'
-                        : 'Nuevo paradero en esta ciudad'}
-                    </span>
-                  </button>
+                  {allowQuickCreate && (
+                    <button
+                      type="button"
+                      onClick={() => setQuickCreateOpen(true)}
+                      disabled={!cityId}
+                      title={
+                        cityId
+                          ? 'Crear un paradero nuevo en esta ciudad sin salir del editor'
+                          : 'La ciudad de la ruta no está disponible'
+                      }
+                      className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-500 hover:text-blue-600 disabled:opacity-40"
+                    >
+                      <Plus className="h-3.5 w-3.5" />
+                      <span>
+                        {cityStops.length === 0
+                          ? 'Crear el primer paradero de esta ciudad'
+                          : 'Nuevo paradero en esta ciudad'}
+                      </span>
+                    </button>
+                  )}
                 </div>
 
                 {/* Stops Sequencer List */}
@@ -738,13 +752,15 @@ export function RouteDirectionEditorModal({
         </div>
       </div>
       {/* Quick-create stop overlay (above the directions modal) */}
-      <StopQuickCreateModal
-        open={quickCreateOpen}
-        onClose={() => setQuickCreateOpen(false)}
-        cityId={cityId}
-        city={routeCity}
-        onCreated={handleQuickStopCreated}
-      />
+      {allowQuickCreate && (
+        <StopQuickCreateModal
+          open={quickCreateOpen}
+          onClose={() => setQuickCreateOpen(false)}
+          cityId={cityId}
+          city={routeCity}
+          onCreated={handleQuickStopCreated}
+        />
+      )}
     </div>,
     document.body
   );

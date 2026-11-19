@@ -24,6 +24,7 @@ import { formatDistance } from "../../utils/geoUtils";
 import { formatRelativeTime } from "../../utils/dateUtils";
 import { RouteShareModal } from "./RouteShareModal";
 import { shareRoute } from "../../utils/shareUtils";
+import { trackEvent } from "../../services/analyticsClient";
 
 export function RouteDrawerSkeleton({ route }) {
   const code = route?.code || "Ruta";
@@ -174,6 +175,20 @@ export function RouteDrawer() {
       isMounted = false;
     };
   }, [selectedRoute?.id, selectedRoute?.code]);
+
+  // Usage analytics: one route_view per opened route, plus qr_scan when the visit comes
+  // from a physical QR code (?qr=campaign in the URL).
+  useEffect(() => {
+    if (!selectedRoute?.id) return;
+    void trackEvent("route_view", {
+      routeId: selectedRoute.id,
+      transportLineId: selectedRoute.transportLineId,
+    });
+    const campaign = new URLSearchParams(window.location.search).get("qr");
+    if (campaign) {
+      void trackEvent("qr_scan", { routeId: selectedRoute.id, campaign });
+    }
+  }, [selectedRoute?.id, selectedRoute?.transportLineId]);
 
   if (!selectedRoute) return null;
 

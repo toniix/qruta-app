@@ -97,6 +97,15 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "WHERE c.id = :cityId")
     List<Route> findAllByCityIdWithTransportLine(@Param("cityId") UUID cityId);
 
+    @Query("SELECT DISTINCT r FROM Route r " +
+           "JOIN FETCH r.transportLine tl " +
+           "JOIN FETCH tl.city " +
+           "WHERE tl.operator.id = :operatorId")
+    List<Route> findByOperatorId(@Param("operatorId") UUID operatorId);
+
+    @Query("SELECT r FROM Route r WHERE r.id = :id AND r.transportLine.operator.id = :operatorId")
+    Optional<Route> findByIdAndOperatorId(@Param("id") UUID id, @Param("operatorId") UUID operatorId);
+
     /**
      * Fetch the most popular active routes, ordered by popularity score
      * descending. Routes without a score (null) are treated as 0 and sorted last.

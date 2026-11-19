@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 public interface TransportLineRepository extends JpaRepository<TransportLine, UUID> {
@@ -20,4 +21,10 @@ public interface TransportLineRepository extends JpaRepository<TransportLine, UU
 
     @Query("SELECT DISTINCT l FROM TransportLine l JOIN FETCH l.city WHERE l.city.id = :cityId")
     List<TransportLine> findByCityIdWithCity(@Param("cityId") UUID cityId);
+
+    @Query("SELECT DISTINCT l FROM TransportLine l JOIN FETCH l.city WHERE l.operator.id = :operatorId")
+    List<TransportLine> findByOperatorId(@Param("operatorId") UUID operatorId);
+
+    @Query("SELECT l FROM TransportLine l WHERE l.id = :id AND l.operator.id = :operatorId")
+    Optional<TransportLine> findByIdAndOperatorId(@Param("id") UUID id, @Param("operatorId") UUID operatorId);
 }

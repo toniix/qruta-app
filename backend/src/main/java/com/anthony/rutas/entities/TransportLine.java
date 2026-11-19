@@ -25,6 +25,10 @@ public class TransportLine {
     @JoinColumn(name = "city_id", nullable = false)
     private City city;
 
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "operator_id")
+    private Operator operator;
+
     @Column(nullable = false)
     private String name;
 

@@ -1,14 +1,24 @@
 package com.anthony.rutas.security;
 
+import com.anthony.rutas.billing.BillingMonthlyCloseService;
+import com.anthony.rutas.billing.BillingService;
+import com.anthony.rutas.billing.BillingWebhookService;
 import com.anthony.rutas.config.SecurityConfig;
+import com.anthony.rutas.controllers.AdminBillingController;
 import com.anthony.rutas.controllers.AdminRouteController;
+import com.anthony.rutas.controllers.BillingController;
 import com.anthony.rutas.controllers.RouteController;
+import com.anthony.rutas.dtos.response.BillingCheckoutResponse;
+import com.anthony.rutas.dtos.response.BillingMonthlyCloseResponse;
+import com.anthony.rutas.dtos.response.BillingWebhookResponse;
+import com.anthony.rutas.services.OperatorUserService;
 import com.anthony.rutas.services.RouteService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -18,8 +28,11 @@ import org.springframework.test.web.servlet.MockMvc;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -30,7 +43,12 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * declared before the `/api/admin/**` hasRole("ADMIN") matcher, leaving admin
  * read endpoints reachable without a token.
  */
-@WebMvcTest(controllers = {AdminRouteController.class, RouteController.class})
+@WebMvcTest(controllers = {
+        AdminBillingController.class,
+        AdminRouteController.class,
+        BillingController.class,
+        RouteController.class
+})
 @Import(SecurityConfig.class)
 @ActiveProfiles("test")
 class EndpointAuthorizationTest {
@@ -46,6 +64,18 @@ class EndpointAuthorizationTest {
 
     @MockBean
     private CustomUserDetailsService userDetailsService;
+
+    @MockBean
+    private OperatorUserService operatorUserService;
+
+    @MockBean
+    private BillingService billingService;
+
+    @MockBean
+    private BillingWebhookService billingWebhookService;
+
+    @MockBean
+    private BillingMonthlyCloseService billingMonthlyCloseService;
 
     @Test
     void adminRouteListIsRejectedWithoutAuthentication() throws Exception {
@@ -86,6 +116,73 @@ class EndpointAuthorizationTest {
 
         mockMvc.perform(get("/api/routes/cards"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void checkoutIsRejectedWithoutAuthentication() throws Exception {
+        int status = mockMvc.perform(post("/api/billing/checkout")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isIn(401, 403);
+    }
+
+    @Test
+    void checkoutIsReachableForOperator() throws Exception {
+        stubOperatorToken();
+        when(billingService.createCheckout(any())).thenReturn(BillingCheckoutResponse.builder().build());
+
+        mockMvc.perform(post("/api/billing/checkout")
+                        .header("Authorization", "Bearer operator-token")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void billingWebhookRemainsPublic() throws Exception {
+        when(billingWebhookService.handle(eq("{}"), eq("test-signature")))
+                .thenReturn(new BillingWebhookResponse(true, "ACTIVE"));
+
+        mockMvc.perform(post("/api/billing/webhook")
+                        .header("X-Signature", "test-signature")
+                        .contentType(MediaType.TEXT_PLAIN)
+                        .content("{}"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void monthlyCloseIsRejectedWithoutAuthentication() throws Exception {
+        int status = mockMvc.perform(post("/api/admin/billing/monthly-close"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status).isIn(401, 403);
+    }
+
+    @Test
+    void monthlyCloseIsReachableForAdmin() throws Exception {
+        stubAdminToken();
+        when(billingMonthlyCloseService.run()).thenReturn(new BillingMonthlyCloseResponse(0, 0, 0));
+
+        mockMvc.perform(post("/api/admin/billing/monthly-close")
+                        .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+    }
+
+    private void stubOperatorToken() {
+        UserDetails operator = new User(
+                "operator@rutasya.pe",
+                "irrelevant",
+                List.of(new SimpleGrantedAuthority("ROLE_OPERATOR")));
+
+        when(jwtUtil.validateToken("operator-token")).thenReturn(true);
+        when(jwtUtil.extractUsername("operator-token")).thenReturn("operator@rutasya.pe");
+        when(userDetailsService.loadUserByUsername("operator@rutasya.pe")).thenReturn(operator);
     }
 
     private void stubAdminToken() {

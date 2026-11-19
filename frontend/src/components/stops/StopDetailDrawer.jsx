@@ -18,6 +18,7 @@ import { stopService } from "../../services/stopService";
 import { useRoutes } from "../../contexts/RouteContext";
 import { calculateDistanceKm } from "../../utils/geoUtils";
 import { formatDistanceBand } from "../../utils/distanceBands";
+import { trackEvent } from "../../services/analyticsClient";
 
 // Mode of the drawer: "map" (standalone stop flow on the map) or "route"
 // (opened from inside a selected route detail). In both modes, stop dismissal
@@ -49,6 +50,8 @@ export function StopDetailDrawer({ stop, context = "map" }) {
   useEffect(() => {
     if (!stop?.id || isRouteContext) return;
     let isMounted = true;
+
+    void trackEvent("stop_view", { stopId: stop.id });
 
     async function fetchRoutes() {
       setLoading(true);
