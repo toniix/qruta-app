@@ -10,7 +10,7 @@ import java.util.Optional;
 import java.util.UUID;
 
 public interface TransportLineRepository extends JpaRepository<TransportLine, UUID> {
-    List<TransportLine> findByNameContainingIgnoreCase(String name);
+    List<TransportLine> findByCompanyContainingIgnoreCase(String company);
 
     /**
      * Fetch all transport lines with their city and optional operator in a single

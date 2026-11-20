@@ -94,7 +94,7 @@ class DtoMapperTest {
                 .build();
         com.anthony.rutas.entities.TransportLine testLine = com.anthony.rutas.entities.TransportLine.builder()
                 .id(UUID.randomUUID())
-                .name("Linea 1")
+                .company("Linea 1")
                 .city(testCity)
                 .build();
 

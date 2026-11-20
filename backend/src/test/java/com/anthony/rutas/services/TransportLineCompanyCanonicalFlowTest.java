@@ -135,9 +135,6 @@ class TransportLineCompanyCanonicalFlowTest {
             if (line.getId() == null) {
                 line.setId(UUID.randomUUID());
             }
-            if (line.getCompany() != null && line.getName() == null) {
-                line.setName(line.getCompany());
-            }
             lineStore.put(line.getId(), line);
             return line;
         });
@@ -268,7 +265,6 @@ class TransportLineCompanyCanonicalFlowTest {
         assertThat(createdLine.getCompany()).isEqualTo("Empresa Santa Rosa S.A.");
         TransportLine storedLine = lineStore.get(createdLine.getId());
         assertThat(storedLine.getCompany()).isEqualTo("Empresa Santa Rosa S.A.");
-        assertThat(storedLine.getName()).isEqualTo("Empresa Santa Rosa S.A."); // Private entity compatibility
         assertThat(storedLine.getOperator()).isNull();
 
         // Step 2: Create an operator from that line
@@ -328,7 +324,6 @@ class TransportLineCompanyCanonicalFlowTest {
 
         assertThat(updatedLine.getCompany()).isEqualTo("Empresa Santa Rosa Express S.A.C.");
         assertThat(storedLine.getCompany()).isEqualTo("Empresa Santa Rosa Express S.A.C.");
-        assertThat(storedLine.getName()).isEqualTo("Empresa Santa Rosa Express S.A.C.");
         assertThat(storedOp.getName()).isEqualTo("Empresa Santa Rosa Express S.A.C."); // Operator followed
 
         // Step 5: Duplicate company in the same city is rejected

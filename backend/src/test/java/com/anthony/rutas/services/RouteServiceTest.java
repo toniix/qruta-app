@@ -72,8 +72,6 @@ class RouteServiceTest {
                 .id(transportLineId)
                 .city(city)
                 .company("Linea 1")
-                .name("Linea 1")
-                .code("L1")
                 .build();
 
         route = Route.builder()
@@ -385,8 +383,6 @@ class RouteServiceTest {
                     .id(UUID.randomUUID())
                     .city(lima)
                     .company("Linea Lima")
-                    .name("Linea Lima")
-                    .code("LL")
                     .build();
             Route limaRoute = Route.builder()
                     .id(UUID.randomUUID())

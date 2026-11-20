@@ -119,7 +119,7 @@ class DataLicensingServiceTest {
         TransportLine line = TransportLine.builder()
                 .id(UUID.randomUUID())
                 .city(city)
-                .code("101")
+                .company("Consorcio 101")
                 .status("ACTIVE")
                 .build();
         route = Route.builder()

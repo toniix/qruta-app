@@ -179,14 +179,14 @@ public class GtfsService {
                 List<RouteDirection> directions = catalog.directionsByRoute().getOrDefault(route.getId(), List.of());
                 if (directions.isEmpty()) {
                     String routeId = id(route.getId());
-                    routeRows.add(routeRow(routeId, line.getCode(), route.getName(), route.getColor()));
+                    routeRows.add(routeRow(routeId, route.getCode(), route.getName(), route.getColor()));
                     trips.add(new TripInfo(routeId, routeId, route.getName(), null, null, List.of()));
                     continue;
                 }
                 for (RouteDirection direction : directions) {
                     String routeId = id(direction.getId());
                     String headsign = valueOrDefault(direction.getDestinationName(), route.getName());
-                    routeRows.add(routeRow(routeId, line.getCode(), route.getName() + " - " + headsign, route.getColor()));
+                    routeRows.add(routeRow(routeId, route.getCode(), route.getName() + " - " + headsign, route.getColor()));
                     List<RouteStop> routeStops = catalog.stopsByDirection().getOrDefault(direction.getId(), List.of());
                     trips.add(new TripInfo(id(direction.getId()), routeId, headsign, direction.getId(),
                             direction.getEstimatedMinutes(), routeStops));

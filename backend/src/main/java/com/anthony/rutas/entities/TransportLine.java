@@ -30,14 +30,9 @@ public class TransportLine {
     private Operator operator;
 
     @Column(nullable = false)
-    private String name;
-
-    @Column(length = 20)
-    private String code;
+    private String company;
 
     private String color;
-
-    private String company;
 
     private String contact;
 
@@ -53,40 +48,15 @@ public class TransportLine {
     @Column(name = "updated_at")
     private LocalDateTime updatedAt;
 
-    public void setCompany(String company) {
-        this.company = company;
-        if (company != null) {
-            this.name = company;
-        }
-    }
-
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
-        syncLegacyName();
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
-        syncLegacyName();
-    }
-
-    private void syncLegacyName() {
-        if (this.name == null && this.company != null) {
-            this.name = this.company;
-        }
-    }
-
-    public static class TransportLineBuilder {
-        public TransportLineBuilder company(String company) {
-            this.company = company;
-            if (company != null && this.name == null) {
-                this.name = company;
-            }
-            return this;
-        }
     }
 
     @OneToMany(mappedBy = "transportLine", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -81,8 +81,7 @@ class GtfsServiceTest {
         TransportLine line = TransportLine.builder()
                 .id(UUID.randomUUID())
                 .city(city)
-                .code("101")
-                .name("Linea 101")
+                .company("Linea 101")
                 .status("ACTIVE")
                 .build();
         route = Route.builder()

@@ -46,7 +46,7 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "LEFT JOIN rs.stop s " +
            "WHERE cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') " +
            "   OR cast(function('unaccent', LOWER(r.code)) as string) LIKE CONCAT('%', :query, '%') " +
-           "   OR cast(function('unaccent', LOWER(COALESCE(tl.company, tl.name))) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(tl.company)) as string) LIKE CONCAT('%', :query, '%') " +
            "   OR cast(function('unaccent', LOWER(s.name)) as string) LIKE CONCAT('%', :query, '%') " +
            "   OR cast(function('unaccent', LOWER(s.reference)) as string) LIKE CONCAT('%', :query, '%') " +
            "GROUP BY r.id " +
@@ -55,7 +55,7 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "   WHEN cast(function('unaccent', LOWER(r.name)) as string) = :query THEN 90 " +
            "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT(:query, '%') THEN 70 " +
            "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') THEN 50 " +
-           "   WHEN cast(function('unaccent', LOWER(COALESCE(tl.company, tl.name))) as string) LIKE CONCAT('%', :query, '%') THEN 30 " +
+           "   WHEN cast(function('unaccent', LOWER(tl.company)) as string) LIKE CONCAT('%', :query, '%') THEN 30 " +
            "   ELSE 20 END) DESC, " +
            "MAX(COALESCE(r.popularityScore, 0)) DESC")
     List<UUID> searchRankedRouteIds(@Param("query") String query, Pageable pageable);
@@ -136,7 +136,7 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "WHERE c.id = :cityId AND (" +
            "   cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') " +
            "   OR cast(function('unaccent', LOWER(r.code)) as string) LIKE CONCAT('%', :query, '%') " +
-           "   OR cast(function('unaccent', LOWER(COALESCE(tl.company, tl.name))) as string) LIKE CONCAT('%', :query, '%') " +
+           "   OR cast(function('unaccent', LOWER(tl.company)) as string) LIKE CONCAT('%', :query, '%') " +
            "   OR cast(function('unaccent', LOWER(s.name)) as string) LIKE CONCAT('%', :query, '%') " +
            "   OR cast(function('unaccent', LOWER(s.reference)) as string) LIKE CONCAT('%', :query, '%')" +
            ") " +
@@ -146,7 +146,7 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
            "   WHEN cast(function('unaccent', LOWER(r.name)) as string) = :query THEN 90 " +
            "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT(:query, '%') THEN 70 " +
            "   WHEN cast(function('unaccent', LOWER(r.name)) as string) LIKE CONCAT('%', :query, '%') THEN 50 " +
-           "   WHEN cast(function('unaccent', LOWER(COALESCE(tl.company, tl.name))) as string) LIKE CONCAT('%', :query, '%') THEN 30 " +
+           "   WHEN cast(function('unaccent', LOWER(tl.company)) as string) LIKE CONCAT('%', :query, '%') THEN 30 " +
            "   ELSE 20 END) DESC, " +
            "MAX(COALESCE(r.popularityScore, 0)) DESC")
     List<UUID> searchRankedRouteIdsByCityId(@Param("query") String query, @Param("cityId") UUID cityId,
