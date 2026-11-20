@@ -25,10 +25,8 @@ public class DtoMapper {
                 return TransportLineResponse.builder()
                                 .id(line.getId())
                                 .cityId(line.getCity().getId())
-                                .name(line.getName())
-                                .code(line.getCode())
-                                .color(line.getColor())
                                 .company(line.getCompany())
+                                .color(line.getColor())
                                 .contact(line.getContact())
                                 .description(line.getDescription())
                                 .status(line.getStatus())
@@ -80,7 +78,7 @@ public class DtoMapper {
                                 .description(route.getDescription())
                                 .status(route.getStatus())
                                 .transportLineId(line != null ? line.getId() : null)
-                                .transportLineName(line != null ? line.getName() : null)
+                                .transportLineName(line != null ? line.getCompany() : null)
                                 .build();
         }
 
@@ -99,7 +97,7 @@ public class DtoMapper {
                                 .color(route.getColor())
                                 .fare(route.getFare())
                                 .frequency(route.getFrequency())
-                                .transportLineName(route.getTransportLine() != null ? route.getTransportLine().getName() : null)
+                                .transportLineName(route.getTransportLine() != null ? route.getTransportLine().getCompany() : null)
                                 .cityId(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getId() : null)
                                 .cityName(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getName() : null)
                                 .keyStops(keyStops != null ? keyStops : List.of())
@@ -127,7 +125,7 @@ public class DtoMapper {
 
                 RouteDetailResponse.TransportLineInfo transportLine = RouteDetailResponse.TransportLineInfo.builder()
                                 .id(route.getTransportLine().getId())
-                                .name(route.getTransportLine().getName())
+                                .name(route.getTransportLine().getCompany())
                                 .build();
 
                 RouteDetailResponse.ScheduleInfo schedule = RouteDetailResponse.ScheduleInfo.builder()

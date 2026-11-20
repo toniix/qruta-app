@@ -109,6 +109,44 @@ class CommunityServiceTest {
             verify(postRepository).findFilteredPostsByLikes(isNull(), isNull(), isNull(), any(PageRequest.class));
             verify(postRepository, never()).findFilteredPosts(any(), any(), any(), any());
         }
+
+        @Test
+        @DisplayName("Maps lineName from line company and confirms absence of lineCode")
+        void getPostsDerivesLineNameFromCompany() {
+            City city = City.builder().id(UUID.randomUUID()).name("Ica").build();
+            TransportLine line = TransportLine.builder()
+                    .id(UUID.randomUUID())
+                    .company("Empresa San Martín")
+                    .city(city)
+                    .build();
+            Route route = Route.builder()
+                    .id(UUID.randomUUID())
+                    .code("R1")
+                    .name("Ruta 1")
+                    .transportLine(line)
+                    .build();
+            CommunityPost postWithRoute = CommunityPost.builder()
+                    .id(UUID.randomUUID())
+                    .authorAlias("Maria")
+                    .authorDeviceId(deviceA)
+                    .category(PostCategory.ALERTA)
+                    .content("Demora en el servicio")
+                    .route(route)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            when(postRepository.findFilteredPosts(any(), any(), any(), any(PageRequest.class)))
+                    .thenReturn(List.of(postWithRoute));
+
+            List<CommunityPostResponse> result = communityService.getPosts(
+                    null, null, null, 10, 0, "recent", deviceA);
+
+            assertEquals(1, result.size());
+            assertEquals("Empresa San Martín", result.get(0).getLineName());
+
+            assertThrows(NoSuchFieldException.class, () ->
+                    CommunityPostResponse.class.getDeclaredField("lineCode"));
+        }
     }
 
     @Nested

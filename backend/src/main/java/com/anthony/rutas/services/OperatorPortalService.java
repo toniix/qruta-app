@@ -120,10 +120,7 @@ public class OperatorPortalService {
         TransportLine line = transportLineRepository.findByIdAndOperatorId(id, operatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transport line not found: " + id));
 
-        updateField("TRANSPORT_LINE", id, "name", line.getName(), request.getName(), line::setName);
-        updateField("TRANSPORT_LINE", id, "code", line.getCode(), request.getCode(), line::setCode);
         updateField("TRANSPORT_LINE", id, "color", line.getColor(), request.getColor(), line::setColor);
-        updateField("TRANSPORT_LINE", id, "company", line.getCompany(), request.getCompany(), line::setCompany);
         updateField("TRANSPORT_LINE", id, "contact", line.getContact(), request.getContact(), line::setContact);
         updateField("TRANSPORT_LINE", id, "description", line.getDescription(), request.getDescription(), line::setDescription);
         updateField("TRANSPORT_LINE", id, "status", line.getStatus(), request.getStatus(), line::setStatus);
@@ -186,7 +183,7 @@ public class OperatorPortalService {
         List<OperatorAnalyticsSummaryResponse.LineUsage> lineUsage = new ArrayList<>();
         for (TransportLine line : lines) {
             UsageTotals totals = lineTotals.get(line.getId());
-            lineUsage.add(totals.toLineUsage(line.getId(), line.getName()));
+            lineUsage.add(totals.toLineUsage(line.getId(), line.getCompany()));
         }
 
         List<OperatorAnalyticsSummaryResponse.DailyUsage> dailyUsage = dayTotals.entrySet().stream()

@@ -2,9 +2,11 @@ package com.anthony.rutas.services;
 
 import com.anthony.rutas.billing.BillingService;
 import com.anthony.rutas.billing.SubscriptionAccessService;
+import com.anthony.rutas.dtos.request.UpdateOperatorLineRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.request.UpdateStopRequest;
 import com.anthony.rutas.dtos.response.OperatorAnalyticsSummaryResponse;
+import com.anthony.rutas.dtos.response.OperatorLineResponse;
 import com.anthony.rutas.dtos.response.OperatorStopResponse;
 import com.anthony.rutas.dtos.response.RouteAnalyticsSeriesResponse;
 import com.anthony.rutas.dtos.response.RouteDetailResponse;
@@ -241,6 +243,40 @@ class OperatorPortalServiceTest {
     }
 
     @Test
+    void updateLineUpdatesOperationalFieldsAndLeavesCompanyUnchanged() {
+        TransportLine line = TransportLine.builder()
+                .id(LINE_ID)
+                .operator(Operator.builder().id(OPERATOR_ID).build())
+                .company("Empresa Original")
+                .color("#000000")
+                .status("ACTIVE")
+                .build();
+
+        when(transportLineRepository.findByIdAndOperatorId(LINE_ID, OPERATOR_ID))
+                .thenReturn(Optional.of(line));
+        when(transportLineRepository.save(any(TransportLine.class)))
+                .thenAnswer(inv -> inv.getArgument(0));
+        when(routeRepository.findByTransportLineIdWithLine(LINE_ID))
+                .thenReturn(List.of());
+
+        UpdateOperatorLineRequest request = UpdateOperatorLineRequest.builder()
+                .color("#FF5500")
+                .contact("999888777")
+                .description("Operada por Consorcio")
+                .status("INACTIVE")
+                .build();
+
+        OperatorLineResponse response = service.updateLine(LINE_ID, request);
+
+        assertEquals("Empresa Original", line.getCompany());
+        assertEquals("#FF5500", line.getColor());
+        assertEquals("999888777", line.getContact());
+        assertEquals("Operada por Consorcio", line.getDescription());
+        assertEquals("INACTIVE", line.getStatus());
+        assertEquals("Empresa Original", response.getCompany());
+    }
+
+    @Test
     void analyticsSummaryOnlyIncludesOwnedLinesAndCampaignScans() {
         LocalDate from = LocalDate.of(2026, 11, 1);
         LocalDate to = LocalDate.of(2026, 11, 7);
@@ -248,7 +284,7 @@ class OperatorPortalServiceTest {
         LocalDate day = LocalDate.of(2026, 11, 3);
 
         when(transportLineRepository.findByOperatorId(OPERATOR_ID))
-                .thenReturn(List.of(TransportLine.builder().id(LINE_ID).name("Línea 1").build()));
+                .thenReturn(List.of(TransportLine.builder().id(LINE_ID).company("Línea 1").build()));
         when(routeDailyStatRepository.findByTransportLineIdInAndDateBetweenOrderByDateAsc(
                 Set.of(LINE_ID), from, to))
                 .thenReturn(List.of(

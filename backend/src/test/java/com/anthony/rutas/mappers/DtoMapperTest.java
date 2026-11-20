@@ -140,4 +140,44 @@ class DtoMapperTest {
         var popular2 = DtoMapper.toPopularRouteResponse(routeWithNullCategory, 5);
         assertEquals("MICRO", popular2.getCategory());
     }
+
+    @Test
+    @DisplayName("DtoMapper derives exposed transport line names from line.getCompany()")
+    void shouldDeriveLineNamesFromCompany() {
+        com.anthony.rutas.entities.City city = com.anthony.rutas.entities.City.builder()
+                .id(UUID.randomUUID())
+                .name("Ica")
+                .build();
+
+        com.anthony.rutas.entities.TransportLine line = com.anthony.rutas.entities.TransportLine.builder()
+                .id(UUID.randomUUID())
+                .company("Empresa Santa Rosa S.A.")
+                .city(city)
+                .build();
+
+        com.anthony.rutas.entities.Route route = com.anthony.rutas.entities.Route.builder()
+                .id(UUID.randomUUID())
+                .code("SR-1")
+                .name("Ruta 1")
+                .transportLine(line)
+                .directions(java.util.List.of())
+                .build();
+
+        // 1. AdminRouteSummaryResponse
+        var admin = DtoMapper.toAdminRouteSummaryResponse(route);
+        assertEquals("Empresa Santa Rosa S.A.", admin.getTransportLineName());
+
+        // 2. RouteSummaryResponse
+        var summary = DtoMapper.toRouteSummaryResponse(route, java.util.List.of());
+        assertEquals("Empresa Santa Rosa S.A.", summary.getTransportLineName());
+
+        // 3. RouteDetailResponse
+        var detail = DtoMapper.toRouteDetailResponse(route, java.util.List.of());
+        assertNotNull(detail.getTransportLine());
+        assertEquals("Empresa Santa Rosa S.A.", detail.getTransportLine().getName());
+
+        // 4. TransportLineResponse
+        var lineResp = DtoMapper.toTransportLineResponse(line);
+        assertEquals("Empresa Santa Rosa S.A.", lineResp.getCompany());
+    }
 }

@@ -21,8 +21,7 @@ public final class OperatorDtoMapper {
     public static OperatorLineResponse toLineResponse(TransportLine line, long routeCount) {
         return OperatorLineResponse.builder()
                 .id(line.getId())
-                .name(line.getName())
-                .code(line.getCode())
+                .company(line.getCompany())
                 .color(line.getColor())
                 .company(line.getCompany())
                 .contact(line.getContact())
@@ -46,7 +45,7 @@ public final class OperatorDtoMapper {
                 .color(route.getColor())
                 .status(route.getStatus())
                 .transportLineId(line != null ? line.getId() : null)
-                .transportLineName(line != null ? line.getName() : null)
+                .transportLineName(line != null ? line.getCompany() : null)
                 .updatedAt(route.getUpdatedAt())
                 .build();
     }

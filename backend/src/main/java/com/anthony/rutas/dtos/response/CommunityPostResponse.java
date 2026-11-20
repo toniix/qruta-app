@@ -34,7 +34,6 @@ public class CommunityPostResponse {
     // Optional line context
     private UUID lineId;
     private String lineName;
-    private String lineCode;
 
     // Optional city context
     private UUID cityId;

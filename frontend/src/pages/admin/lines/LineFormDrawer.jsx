@@ -29,10 +29,8 @@ function LineFormDrawerContent({
 
   const [form, setForm] = useState(() => ({
     cityId: initialData?.cityId || (cities[0]?.id || ''),
-    name: initialData?.name || '',
-    code: initialData?.code || '',
-    color: initialData?.color || BRAND_PRIMARY,
     company: initialData?.company || '',
+    color: initialData?.color || BRAND_PRIMARY,
     contact: initialData?.contact || '',
     description: initialData?.description || '',
     status: initialData?.status || 'ACTIVE',
@@ -69,7 +67,7 @@ function LineFormDrawerContent({
       open={true}
       onClose={onClose}
       title={isEdit ? 'Editar Línea de Transporte' : 'Nueva Línea de Transporte'}
-      subtitle={isEdit ? `Modificando ${initialData.name}` : 'Registra una empresa o consorcio concesionario'}
+      subtitle={isEdit ? `Modificando ${initialData.company || ''}` : 'Registra una empresa o consorcio concesionario'}
       icon={Bus}
       onSubmit={handleSubmit}
       submitLabel={isEdit ? 'Actualizar Línea' : 'Crear Línea'}
@@ -102,37 +100,20 @@ function LineFormDrawerContent({
         )}
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        {/* Código */}
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-            Código
-          </label>
-          <input
-            type="text"
-            value={form.code}
-            onChange={(e) => update({ code: e.target.value }, 'code')}
-            placeholder="Ej: L01"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
-          <FieldError message={errors.code} />
-        </div>
-
-        {/* Nombre */}
-        <div className="sm:col-span-2">
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-            Nombre de Línea <span className="text-rose-500">*</span>
-          </label>
-          <input
-            type="text"
-            required
-            value={form.name}
-            onChange={(e) => update({ name: e.target.value }, 'name')}
-            placeholder="Ej: Línea 1 - Los Rápidos"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
-          <FieldError message={errors.name} />
-        </div>
+      {/* Empresa */}
+      <div>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+          Empresa / Razón Social <span className="text-rose-500">*</span>
+        </label>
+        <input
+          type="text"
+          required
+          value={form.company}
+          onChange={(e) => update({ company: e.target.value }, 'company')}
+          placeholder="Ej: Empresa de Transportes Ica S.A."
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        />
+        <FieldError message={errors.company} />
       </div>
 
       {/* Color Preset Palette */}
@@ -162,36 +143,19 @@ function LineFormDrawerContent({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {/* Empresa */}
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-            Empresa / Razón Social
-          </label>
-          <input
-            type="text"
-            value={form.company}
-            onChange={(e) => update({ company: e.target.value }, 'company')}
-            placeholder="Ej: Empresa de Transportes Ica S.A."
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
-          <FieldError message={errors.company} />
-        </div>
-
-        {/* Contacto */}
-        <div>
-          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-            Teléfono o Contacto
-          </label>
-          <input
-            type="text"
-            value={form.contact}
-            onChange={(e) => update({ contact: e.target.value }, 'contact')}
-            placeholder="Ej: +51 956 000 000"
-            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
-          />
-          <FieldError message={errors.contact} />
-        </div>
+      {/* Contacto */}
+      <div>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+          Teléfono o Contacto
+        </label>
+        <input
+          type="text"
+          value={form.contact}
+          onChange={(e) => update({ contact: e.target.value }, 'contact')}
+          placeholder="Ej: +51 956 000 000"
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+        />
+        <FieldError message={errors.contact} />
       </div>
 
       {/* Operador asignado */}

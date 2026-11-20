@@ -403,8 +403,7 @@ public class CommunityService {
                 .routeName(route != null ? route.getName() : null)
                 .routeColor(route != null ? route.getColor() : null)
                 .lineId(line != null ? line.getId() : null)
-                .lineCode(line != null ? line.getCode() : null)
-                .lineName(line != null ? line.getName() : null)
+                .lineName(line != null ? line.getCompany() : null)
                 .cityId(city != null ? city.getId() : null)
                 .cityName(city != null ? city.getName() : null)
                 .build();

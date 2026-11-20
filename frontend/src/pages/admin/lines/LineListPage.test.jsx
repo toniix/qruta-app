@@ -45,8 +45,7 @@ describe('LineListPage operator column', () => {
     adminLineService.getAllLines.mockResolvedValue([
       {
         id: 'line-1',
-        name: 'Ica Centro',
-        code: 'L01',
+        company: 'Expreso Ica S.A.',
         cityId: CITY.id,
         operatorId: OPERATOR.id,
         status: 'ACTIVE',
@@ -54,10 +53,11 @@ describe('LineListPage operator column', () => {
     ]);
   });
 
-  it('resolves the operator name for assigned lines', async () => {
+  it('resolves the operator name for assigned lines and displays company', async () => {
     renderPage();
 
     expect(await screen.findByText('Expreso Ica')).toBeTruthy();
+    expect(await screen.findByText('Expreso Ica S.A.')).toBeTruthy();
     expect(adminOperatorService.getAllOperators).toHaveBeenCalledTimes(1);
   });
 });

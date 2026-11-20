@@ -17,7 +17,7 @@ describe('OperatorAnalyticsPage', () => {
       lines: [
         {
           lineId: 'line-1',
-          lineName: 'Línea 1',
+          lineName: 'Empresa San Jerónimo',
           views: 30,
           searches: 15,
           qrScans: 5,

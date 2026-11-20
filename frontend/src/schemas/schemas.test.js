@@ -76,10 +76,8 @@ describe('citySchema', () => {
 describe('lineSchema', () => {
   const base = {
     cityId: UUID,
-    name: 'Línea 1',
-    code: 'L01',
+    company: 'Empresa de Transportes Ica',
     color: '#2563eb',
-    company: '',
     contact: '',
     description: '',
     status: 'ACTIVE',
@@ -89,11 +87,17 @@ describe('lineSchema', () => {
     expect(validateWith(lineSchema, base).ok).toBe(true);
   });
 
-  it('rejects missing city and name', () => {
-    const result = validateWith(lineSchema, { ...base, cityId: '', name: '' });
+  it('rejects missing city and company', () => {
+    const result = validateWith(lineSchema, { ...base, cityId: '', company: '' });
     expect(result.ok).toBe(false);
     expect(result.fieldErrors.cityId).toBeTruthy();
-    expect(result.fieldErrors.name).toBeTruthy();
+    expect(result.fieldErrors.company).toBeTruthy();
+  });
+
+  it('rejects company longer than 120 characters', () => {
+    const result = validateWith(lineSchema, { ...base, company: 'a'.repeat(121) });
+    expect(result.ok).toBe(false);
+    expect(result.fieldErrors.company).toBeTruthy();
   });
 
   it('rejects malformed color and status', () => {
@@ -101,6 +105,13 @@ describe('lineSchema', () => {
     expect(result.ok).toBe(false);
     expect(result.fieldErrors.color).toBeTruthy();
     expect(result.fieldErrors.status).toBeTruthy();
+  });
+
+  it('does not require or accept name and code as schema fields', () => {
+    const parsed = validateWith(lineSchema, base);
+    expect(parsed.ok).toBe(true);
+    expect(parsed.data.name).toBeUndefined();
+    expect(parsed.data.code).toBeUndefined();
   });
 });
 

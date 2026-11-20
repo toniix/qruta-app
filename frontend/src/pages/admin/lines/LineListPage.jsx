@@ -107,8 +107,6 @@ export function LineListPage() {
     return lines.filter((line) => {
       const matchesSearch =
         !searchQuery ||
-        line.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        line.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
         line.company?.toLowerCase().includes(searchQuery.toLowerCase());
 
       const matchesCity = !filterCityId || String(line.cityId) === String(filterCityId);
@@ -122,10 +120,10 @@ export function LineListPage() {
     try {
       if (editingLine) {
         await adminLineService.updateLine(editingLine.id, formData);
-        toast.success(`Línea "${formData.name}" actualizada con éxito.`);
+        toast.success(`Línea "${formData.company}" actualizada con éxito.`);
       } else {
         await adminLineService.createLine(formData);
-        toast.success(`Línea "${formData.name}" creada con éxito.`);
+        toast.success(`Línea "${formData.company}" creada con éxito.`);
       }
       setDrawerOpen(false);
       setEditingLine(null);
@@ -143,7 +141,7 @@ export function LineListPage() {
     setDeleting(true);
     try {
       await adminLineService.deleteLine(deleteConfirm.id);
-      toast.success(`Línea "${deleteConfirm.name}" eliminada.`);
+      toast.success(`Línea "${deleteConfirm.company}" eliminada.`);
       setDeleteConfirm(null);
       await loadData();
     } catch (err) {
@@ -156,36 +154,21 @@ export function LineListPage() {
 
   const columns = [
     {
-      key: 'code',
-      label: 'Línea',
-      width: '130px',
+      key: 'company',
+      label: 'Línea / Empresa',
       render: (line) => (
         <div className="flex items-center gap-2">
           <span
             className="h-3.5 w-3.5 rounded-full shrink-0 shadow-xs"
             style={{ backgroundColor: line.color || '#2563eb' }}
           />
-          <span className="font-bold text-slate-900">{line.code || '—'}</span>
+          <div>
+            <span className="font-bold text-slate-800 block">{line.company}</span>
+            {line.description && (
+              <span className="text-[11px] text-slate-400 line-clamp-1">{line.description}</span>
+            )}
+          </div>
         </div>
-      ),
-    },
-    {
-      key: 'name',
-      label: 'Nombre de Línea',
-      render: (line) => (
-        <div>
-          <span className="font-bold text-slate-800 block">{line.name}</span>
-          {line.description && (
-            <span className="text-[11px] text-slate-400 line-clamp-1">{line.description}</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'company',
-      label: 'Empresa / Consorcio',
-      render: (line) => (
-        <span className="text-slate-600 font-medium">{line.company || '—'}</span>
       ),
     },
     {
@@ -355,7 +338,7 @@ export function LineListPage() {
       <ConfirmDialog
         open={Boolean(deleteConfirm)}
         title="Eliminar Línea"
-        description={`¿Estás seguro de eliminar la línea "${deleteConfirm?.name}"? Esta acción borrará la línea y afectará a las rutas asociadas.`}
+        description={`¿Estás seguro de eliminar la línea "${deleteConfirm?.company}"? Esta acción borrará la línea y afectará a las rutas asociadas.`}
         confirmLabel="Eliminar Línea"
         tone="danger"
         loading={deleting}

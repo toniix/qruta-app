@@ -8,10 +8,7 @@ import { useAdminToast } from '../../hooks/useAdminToast';
 import { operatorPortalService } from '../../services/operatorPortalService';
 
 const emptyForm = {
-  name: '',
-  code: '',
   color: '#3B82F6',
-  company: '',
   contact: '',
   description: '',
   status: 'ACTIVE',
@@ -47,19 +44,14 @@ export function OperatorLinesPage() {
     const term = search.trim().toLowerCase();
     if (!term) return lines;
     return lines.filter((line) =>
-      [line.name, line.code, line.company].some((value) =>
-        String(value || '').toLowerCase().includes(term)
-      )
+      String(line.company || '').toLowerCase().includes(term)
     );
   }, [lines, search]);
 
   const handleOpen = (line) => {
     setSelected(line);
     setForm({
-      name: line.name || '',
-      code: line.code || '',
       color: line.color || '#3B82F6',
-      company: line.company || '',
       contact: line.contact || '',
       description: line.description || '',
       status: line.status || 'ACTIVE',
@@ -116,7 +108,6 @@ export function OperatorLinesPage() {
             <thead className="bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500">
               <tr>
                 <th className="px-4 py-3">Línea</th>
-                <th className="px-4 py-3">Empresa</th>
                 <th className="px-4 py-3">Rutas</th>
                 <th className="px-4 py-3">Estado</th>
                 <th className="px-4 py-3 text-right">Acciones</th>
@@ -131,13 +122,9 @@ export function OperatorLinesPage() {
                         className="h-3 w-3 rounded-full"
                         style={{ backgroundColor: line.color || '#3B82F6' }}
                       />
-                      <div>
-                        <p className="font-bold text-slate-800">{line.name}</p>
-                        <p className="text-[10px] text-slate-400">{line.code || 'Sin código'}</p>
-                      </div>
+                      <p className="font-bold text-slate-800">{line.company}</p>
                     </div>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{line.company || '—'}</td>
                   <td className="px-4 py-3 text-slate-600">{line.routeCount ?? 0}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={line.status} />
@@ -146,7 +133,7 @@ export function OperatorLinesPage() {
                     <button
                       type="button"
                       onClick={() => handleOpen(line)}
-                      aria-label={`Editar ${line.name}`}
+                      aria-label={`Editar ${line.company}`}
                       className="rounded-lg p-2 text-slate-500 transition hover:bg-blue-50 hover:text-blue-600"
                     >
                       <Pencil className="h-4 w-4" />
@@ -163,26 +150,28 @@ export function OperatorLinesPage() {
         open={Boolean(selected)}
         onClose={() => setSelected(null)}
         title="Editar línea"
-        subtitle={selected?.code || ''}
+        subtitle={selected?.company || ''}
         icon={Bus}
         onSubmit={handleSave}
         loading={saving}
       >
-        {[
-          ['name', 'Nombre'],
-          ['code', 'Código'],
-          ['company', 'Empresa'],
-          ['contact', 'Contacto'],
-        ].map(([key, label]) => (
-          <div key={key}>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">{label}</label>
-            <input
-              value={form[key] || ''}
-              onChange={(event) => setForm((prev) => ({ ...prev, [key]: event.target.value }))}
-              className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-            />
-          </div>
-        ))}
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-700">Empresa</label>
+          <input
+            value={selected?.company || ''}
+            readOnly
+            disabled
+            className="w-full rounded-xl border border-slate-200 bg-slate-100 px-3 py-2.5 text-sm text-slate-500 cursor-not-allowed"
+          />
+        </div>
+        <div>
+          <label className="mb-1 block text-xs font-semibold text-slate-700">Contacto</label>
+          <input
+            value={form.contact || ''}
+            onChange={(event) => setForm((prev) => ({ ...prev, contact: event.target.value }))}
+            className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
+          />
+        </div>
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-700">Color</label>
           <input

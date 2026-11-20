@@ -11,8 +11,8 @@ import lombok.*;
 @Builder
 public class CreateOperatorRequest {
 
-    @NotBlank(message = "Name is required")
-    private String name;
+    @NotBlank(message = "Transport line ID is required")
+    private String transportLineId;
 
     @NotBlank(message = "RUC is required")
     @Pattern(regexp = "\\d{11}", message = "RUC must be 11 digits")

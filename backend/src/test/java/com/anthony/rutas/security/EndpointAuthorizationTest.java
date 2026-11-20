@@ -5,16 +5,20 @@ import com.anthony.rutas.billing.BillingService;
 import com.anthony.rutas.billing.BillingWebhookService;
 import com.anthony.rutas.config.SecurityConfig;
 import com.anthony.rutas.controllers.AdminBillingController;
+import com.anthony.rutas.controllers.AdminLineController;
 import com.anthony.rutas.controllers.AdminOperatorController;
 import com.anthony.rutas.controllers.AdminRouteController;
 import com.anthony.rutas.controllers.BillingController;
+import com.anthony.rutas.controllers.OperatorPortalController;
 import com.anthony.rutas.controllers.RouteController;
 import com.anthony.rutas.dtos.response.BillingCheckoutResponse;
 import com.anthony.rutas.dtos.response.BillingMonthlyCloseResponse;
 import com.anthony.rutas.dtos.response.BillingWebhookResponse;
 import com.anthony.rutas.services.AdminOperatorService;
+import com.anthony.rutas.services.OperatorPortalService;
 import com.anthony.rutas.services.OperatorUserService;
 import com.anthony.rutas.services.RouteService;
+import com.anthony.rutas.services.TransportLineService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
@@ -47,9 +51,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {
         AdminBillingController.class,
+        AdminLineController.class,
         AdminOperatorController.class,
         AdminRouteController.class,
         BillingController.class,
+        OperatorPortalController.class,
         RouteController.class
 })
 @Import(SecurityConfig.class)
@@ -61,6 +67,12 @@ class EndpointAuthorizationTest {
 
     @MockBean
     private RouteService routeService;
+
+    @MockBean
+    private TransportLineService transportLineService;
+
+    @MockBean
+    private OperatorPortalService operatorPortalService;
 
     @MockBean
     private JwtUtil jwtUtil;
@@ -198,6 +210,48 @@ class EndpointAuthorizationTest {
         when(adminOperatorService.findAll()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/admin/operators").header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminLineManagementIsRejectedWithoutAuthentication() throws Exception {
+        int status = mockMvc.perform(get("/api/admin/lines"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status)
+                .as("GET /api/admin/lines must require the ADMIN role")
+                .isIn(401, 403);
+    }
+
+    @Test
+    void adminLineManagementIsReachableForAdmin() throws Exception {
+        stubAdminToken();
+        when(transportLineService.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/admin/lines").header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void operatorLinesAreRejectedWithoutAuthentication() throws Exception {
+        int status = mockMvc.perform(get("/api/operator/lines"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status)
+                .as("GET /api/operator/lines must require the OPERATOR role")
+                .isIn(401, 403);
+    }
+
+    @Test
+    void operatorLinesAreReachableForOperator() throws Exception {
+        stubOperatorToken();
+        when(operatorPortalService.getLines()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/operator/lines").header("Authorization", "Bearer operator-token"))
                 .andExpect(status().isOk());
     }
 

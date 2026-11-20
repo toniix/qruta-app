@@ -72,10 +72,13 @@ export const citySchema = z.object({
 // ── Transport lines ───────────────────────────────────────────────────────
 export const lineSchema = z.object({
   cityId: uuidField("Seleccioná una ciudad."),
-  name: requiredText(1, 120, "El nombre de la línea es obligatorio."),
-  code: optionalText(20, "Código demasiado largo (máx. 20)."),
+  company: requiredText(
+    1,
+    120,
+    "El nombre de la empresa es obligatorio.",
+    "Empresa demasiado larga (máx. 120)."
+  ),
   color: colorField(),
-  company: optionalText(120, "Empresa demasiado larga (máx. 120)."),
   contact: optionalText(120, "Contacto demasiado largo (máx. 120)."),
   description: optionalText(500, "Descripción demasiado larga (máx. 500)."),
   status: statusField(),

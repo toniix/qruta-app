@@ -10,12 +10,14 @@ import com.anthony.rutas.dtos.response.OperatorUserResponse;
 import com.anthony.rutas.entities.City;
 import com.anthony.rutas.entities.Operator;
 import com.anthony.rutas.entities.OperatorUser;
+import com.anthony.rutas.entities.TransportLine;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.OperatorUserRepository;
+import com.anthony.rutas.repositories.TransportLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -43,6 +45,7 @@ public class AdminOperatorService {
     private final OperatorRepository operatorRepository;
     private final OperatorUserRepository operatorUserRepository;
     private final CityRepository cityRepository;
+    private final TransportLineRepository transportLineRepository;
     private final PasswordEncoder passwordEncoder;
 
     // ── Operators ────────────────────────────────────────────────────────────
@@ -65,6 +68,20 @@ public class AdminOperatorService {
             throw new BadRequestException("Ya existe un operador con el RUC " + request.getRuc());
         }
 
+        UUID lineId;
+        try {
+            lineId = UUID.fromString(request.getTransportLineId());
+        } catch (IllegalArgumentException e) {
+            throw new BadRequestException("Invalid transport line ID: " + request.getTransportLineId());
+        }
+
+        TransportLine line = transportLineRepository.findById(lineId)
+                .orElseThrow(() -> new ResourceNotFoundException("Transport line not found with id: " + request.getTransportLineId()));
+
+        if (line.getOperator() != null) {
+            throw new BadRequestException("Transport line is already linked to an operator");
+        }
+
         City city = cityRepository.findById(UUID.fromString(request.getCityId()))
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
@@ -74,7 +91,7 @@ public class AdminOperatorService {
         }
 
         Operator operator = Operator.builder()
-                .name(request.getName())
+                .name(line.getCompany())
                 .ruc(request.getRuc())
                 .contactName(request.getContactName())
                 .contactEmail(request.getContactEmail())
@@ -84,7 +101,11 @@ public class AdminOperatorService {
                 .active(true)
                 .build();
 
-        return DtoMapper.toOperatorResponse(operatorRepository.save(operator));
+        Operator savedOperator = operatorRepository.save(operator);
+        line.setOperator(savedOperator);
+        transportLineRepository.save(line);
+
+        return DtoMapper.toOperatorResponse(savedOperator);
     }
 
     @Transactional

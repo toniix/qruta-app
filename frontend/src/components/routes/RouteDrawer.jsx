@@ -229,7 +229,7 @@ export function RouteDrawer() {
   const code = selectedRoute.code || "Ruta";
   const color = selectedRoute.color || "var(--color-brand-primary)";
   const transportLine =
-    selectedRoute.transportLine?.name || selectedRoute.transportLineName || "";
+    selectedRoute.transportLine?.company || selectedRoute.transportLineName || "";
   const scheduleHours =
     selectedRoute.schedule?.hours || selectedRoute.schedule || "";
   const frequency =

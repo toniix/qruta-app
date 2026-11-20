@@ -8,10 +8,7 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 public class UpdateOperatorLineRequest {
-    private String name;
-    private String code;
     private String color;
-    private String company;
     private String contact;
     private String description;
     private String status;

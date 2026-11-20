@@ -119,7 +119,7 @@ export function OperatorRoutesPage() {
               <option value="">Todas las líneas</option>
               {lines.map((line) => (
                 <option key={line.id} value={line.id}>
-                  {line.code} · {line.name}
+                  {line.company}
                 </option>
               ))}
             </select>

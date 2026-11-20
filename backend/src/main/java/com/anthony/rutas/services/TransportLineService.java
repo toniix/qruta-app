@@ -46,15 +46,15 @@ public class TransportLineService {
         City city = cityRepository.findById(UUID.fromString(request.getCityId()))
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
+        validateUniqueCompany(city.getId(), request.getCompany(), null);
+
         Operator operator = resolveOperatorForAssignment(request.getOperatorId(), null, null);
 
         TransportLine line = TransportLine.builder()
                 .city(city)
                 .operator(operator)
-                .name(request.getName())
-                .code(request.getCode())
-                .color(request.getColor())
                 .company(request.getCompany())
+                .color(request.getColor())
                 .contact(request.getContact())
                 .description(request.getDescription())
                 .status(request.getStatus() != null ? request.getStatus() : "ACTIVE")
@@ -68,19 +68,42 @@ public class TransportLineService {
         TransportLine line = transportLineRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Transport line not found with id: " + id));
 
-        if (request.getName() != null) line.setName(request.getName());
-        if (request.getCode() != null) line.setCode(request.getCode());
+        if (request.getCompany() != null) {
+            validateUniqueCompany(line.getCity().getId(), request.getCompany(), line.getId());
+            line.setCompany(request.getCompany());
+        }
         if (request.getColor() != null) line.setColor(request.getColor());
-        if (request.getCompany() != null) line.setCompany(request.getCompany());
         if (request.getContact() != null) line.setContact(request.getContact());
         if (request.getDescription() != null) line.setDescription(request.getDescription());
         if (request.getStatus() != null) line.setStatus(request.getStatus());
 
         UUID currentOperatorId = line.getOperator() != null ? line.getOperator().getId() : null;
         Operator currentOperator = line.getOperator();
-        line.setOperator(resolveOperatorForAssignment(request.getOperatorId(), currentOperator, currentOperatorId));
+        if (request.getOperatorId() != null) {
+            line.setOperator(resolveOperatorForAssignment(request.getOperatorId(), currentOperator, currentOperatorId));
+        }
+
+        if (line.getOperator() != null && request.getCompany() != null) {
+            line.getOperator().setName(line.getCompany());
+            operatorRepository.save(line.getOperator());
+        }
 
         return DtoMapper.toTransportLineResponse(transportLineRepository.save(line));
+    }
+
+    private void validateUniqueCompany(UUID cityId, String company, UUID currentLineId) {
+        if (!StringUtils.hasText(company)) {
+            throw new BadRequestException("Company is required");
+        }
+        String normalized = company.trim().toLowerCase();
+        List<TransportLine> existingLines = transportLineRepository.findByCityIdWithCity(cityId);
+        boolean duplicate = existingLines.stream()
+                .anyMatch(line -> (currentLineId == null || !line.getId().equals(currentLineId))
+                        && line.getCompany() != null
+                        && line.getCompany().trim().toLowerCase().equals(normalized));
+        if (duplicate) {
+            throw new BadRequestException("A transport line already exists for company '" + company.trim() + "' in this city");
+        }
     }
 
     /**

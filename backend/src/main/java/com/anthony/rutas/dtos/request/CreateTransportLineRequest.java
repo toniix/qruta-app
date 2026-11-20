@@ -12,12 +12,10 @@ public class CreateTransportLineRequest {
     @NotBlank(message = "City ID is required")
     private String cityId;
 
-    @NotBlank(message = "Name is required")
-    private String name;
-
-    private String code;
-    private String color;
+    @NotBlank(message = "Company is required")
     private String company;
+
+    private String color;
     private String contact;
     private String description;
     private String status;

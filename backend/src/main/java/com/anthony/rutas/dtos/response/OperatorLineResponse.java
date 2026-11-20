@@ -11,10 +11,8 @@ import java.util.UUID;
 @Builder
 public class OperatorLineResponse {
     private UUID id;
-    private String name;
-    private String code;
-    private String color;
     private String company;
+    private String color;
     private String contact;
     private String description;
     private String status;

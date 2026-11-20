@@ -71,6 +71,7 @@ class RouteServiceTest {
         transportLine = TransportLine.builder()
                 .id(transportLineId)
                 .city(city)
+                .company("Linea 1")
                 .name("Linea 1")
                 .code("L1")
                 .build();
@@ -383,6 +384,7 @@ class RouteServiceTest {
             TransportLine limaLine = TransportLine.builder()
                     .id(UUID.randomUUID())
                     .city(lima)
+                    .company("Linea Lima")
                     .name("Linea Lima")
                     .code("LL")
                     .build();

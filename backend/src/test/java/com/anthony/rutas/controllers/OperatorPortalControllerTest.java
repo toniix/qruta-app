@@ -139,13 +139,13 @@ class OperatorPortalControllerTest {
     @Test
     void updatesLineWithPut() throws Exception {
         when(operatorPortalService.updateLine(eq(LINE_ID), any(UpdateOperatorLineRequest.class)))
-                .thenReturn(OperatorLineResponse.builder().id(LINE_ID).name("Línea 1").build());
+                .thenReturn(OperatorLineResponse.builder().id(LINE_ID).company("Línea 1").build());
 
         mockMvc.perform(put("/api/operator/lines/{id}", LINE_ID)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Línea 1\",\"code\":\"L1\",\"status\":\"ACTIVE\"}"))
+                        .content("{\"color\":\"#FF0000\",\"status\":\"ACTIVE\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.name").value("Línea 1"));
+                .andExpect(jsonPath("$.company").value("Línea 1"));
 
         verify(operatorPortalService).updateLine(eq(LINE_ID), any(UpdateOperatorLineRequest.class));
     }

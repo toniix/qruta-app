@@ -42,13 +42,13 @@ describe('LineFormDrawer operator assignment', () => {
     const user = userEvent.setup();
     const { onSubmit } = renderDrawer();
 
-    await user.type(screen.getByPlaceholderText(/ej: l01/i), 'L01');
-    await user.type(screen.getByPlaceholderText(/línea 1 - los rápidos/i), 'Ica Centro');
+    await user.type(screen.getByPlaceholderText(/empresa de transportes ica s\.a\./i), 'Expreso Ica');
     await user.selectOptions(getOperatorSelect(), OPERATOR.id);
     await user.click(screen.getByRole('button', { name: /crear línea/i }));
 
     await vi.waitFor(() => expect(onSubmit).toHaveBeenCalledTimes(1));
     expect(onSubmit.mock.calls[0][0].operatorId).toBe(OPERATOR.id);
+    expect(onSubmit.mock.calls[0][0].company).toBe('Expreso Ica');
   });
 
   it('sends an empty operator id when the line is returned to platform ownership', async () => {
@@ -57,8 +57,7 @@ describe('LineFormDrawer operator assignment', () => {
       initialData: {
         id: 'line-1',
         cityId: CITY.id,
-        name: 'Ica Centro',
-        code: 'L01',
+        company: 'Expreso Ica',
         color: '#B7F34A',
         status: 'ACTIVE',
         operatorId: OPERATOR.id,

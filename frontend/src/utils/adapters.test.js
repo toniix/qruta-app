@@ -51,4 +51,27 @@ describe('normalizeRoute category', () => {
     expect(normalizeRoute(null)).toBeNull();
     expect(normalizeRoute(undefined)).toBeNull();
   });
+
+  it('populates transportLineName from transportLine.company fallback', () => {
+    const route = normalizeRoute({
+      id: 'route-3',
+      code: 'R103',
+      name: 'Ruta 103',
+      transportLine: { company: 'Empresa San Jerónimo' },
+    });
+
+    expect(route.transportLineName).toBe('Empresa San Jerónimo');
+  });
+
+  it('prefers raw transportLineName over transportLine.company', () => {
+    const route = normalizeRoute({
+      id: 'route-4',
+      code: 'R104',
+      name: 'Ruta 104',
+      transportLineName: 'Empresa Principal',
+      transportLine: { company: 'Empresa Secundaria' },
+    });
+
+    expect(route.transportLineName).toBe('Empresa Principal');
+  });
 });

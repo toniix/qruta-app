@@ -7,11 +7,13 @@ import com.anthony.rutas.dtos.request.UpdateOperatorRequest;
 import com.anthony.rutas.entities.City;
 import com.anthony.rutas.entities.Operator;
 import com.anthony.rutas.entities.OperatorUser;
+import com.anthony.rutas.entities.TransportLine;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.CityRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.OperatorUserRepository;
+import com.anthony.rutas.repositories.TransportLineRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -39,6 +41,7 @@ class AdminOperatorServiceTest {
 
     private static final UUID OPERATOR_ID = UUID.randomUUID();
     private static final UUID CITY_ID = UUID.randomUUID();
+    private static final UUID LINE_ID = UUID.randomUUID();
 
     @Mock
     private OperatorRepository operatorRepository;
@@ -47,17 +50,28 @@ class AdminOperatorServiceTest {
     @Mock
     private CityRepository cityRepository;
     @Mock
+    private TransportLineRepository transportLineRepository;
+    @Mock
     private PasswordEncoder passwordEncoder;
 
     private AdminOperatorService service;
 
     @BeforeEach
     void setUp() {
-        service = new AdminOperatorService(operatorRepository, operatorUserRepository, cityRepository, passwordEncoder);
+        service = new AdminOperatorService(operatorRepository, operatorUserRepository, cityRepository, transportLineRepository, passwordEncoder);
     }
 
     private City city() {
         return City.builder().id(CITY_ID).name("Ica").build();
+    }
+
+    private TransportLine unlinkedLine() {
+        return TransportLine.builder()
+                .id(LINE_ID)
+                .city(city())
+                .company("Expreso Ica")
+                .status("ACTIVE")
+                .build();
     }
 
     private Operator operator() {
@@ -72,19 +86,21 @@ class AdminOperatorServiceTest {
     }
 
     @Test
-    @DisplayName("create persists an active operator with the requested plan and resolves its city")
+    @DisplayName("create persists an active operator deriving name from transport line company and links the line")
     void createsOperator() {
         when(operatorRepository.existsByRucIgnoreCase(anyString())).thenReturn(false);
+        when(transportLineRepository.findById(LINE_ID)).thenReturn(Optional.of(unlinkedLine()));
         when(cityRepository.findById(CITY_ID)).thenReturn(Optional.of(city()));
         when(operatorRepository.save(any(Operator.class))).thenAnswer(inv -> inv.getArgument(0));
 
         var response = service.create(CreateOperatorRequest.builder()
-                .name("Expreso Ica")
+                .transportLineId(LINE_ID.toString())
                 .ruc("20512345678")
                 .cityId(CITY_ID.toString())
                 .plan("ENTERPRISE")
                 .build());
 
+        assertThat(response.getName()).isEqualTo("Expreso Ica");
         assertThat(response.isActive()).isTrue();
         assertThat(response.getPlan()).isEqualTo("ENTERPRISE");
         assertThat(response.getCityName()).isEqualTo("Ica");
@@ -92,6 +108,11 @@ class AdminOperatorServiceTest {
         ArgumentCaptor<Operator> saved = ArgumentCaptor.forClass(Operator.class);
         verify(operatorRepository).save(saved.capture());
         assertThat(saved.getValue().isActive()).isTrue();
+        assertThat(saved.getValue().getName()).isEqualTo("Expreso Ica");
+
+        ArgumentCaptor<TransportLine> savedLine = ArgumentCaptor.forClass(TransportLine.class);
+        verify(transportLineRepository).save(savedLine.capture());
+        assertThat(savedLine.getValue().getOperator()).isEqualTo(saved.getValue());
     }
 
     @Test
@@ -100,12 +121,49 @@ class AdminOperatorServiceTest {
         when(operatorRepository.existsByRucIgnoreCase("20512345678")).thenReturn(true);
 
         assertThatThrownBy(() -> service.create(CreateOperatorRequest.builder()
-                .name("Expreso Ica")
+                .transportLineId(LINE_ID.toString())
                 .ruc("20512345678")
                 .cityId(CITY_ID.toString())
                 .build()))
                 .isInstanceOf(BadRequestException.class)
                 .hasMessageContaining("RUC");
+
+        verify(operatorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("create rejects an unknown transport line id")
+    void rejectsUnknownTransportLineId() {
+        when(operatorRepository.existsByRucIgnoreCase(anyString())).thenReturn(false);
+        when(transportLineRepository.findById(LINE_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.create(CreateOperatorRequest.builder()
+                .transportLineId(LINE_ID.toString())
+                .ruc("20512345678")
+                .cityId(CITY_ID.toString())
+                .build()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Transport line");
+
+        verify(operatorRepository, never()).save(any());
+    }
+
+    @Test
+    @DisplayName("create rejects an already linked transport line")
+    void rejectsAlreadyLinkedTransportLine() {
+        TransportLine line = unlinkedLine();
+        line.setOperator(operator());
+
+        when(operatorRepository.existsByRucIgnoreCase(anyString())).thenReturn(false);
+        when(transportLineRepository.findById(LINE_ID)).thenReturn(Optional.of(line));
+
+        assertThatThrownBy(() -> service.create(CreateOperatorRequest.builder()
+                .transportLineId(LINE_ID.toString())
+                .ruc("20512345678")
+                .cityId(CITY_ID.toString())
+                .build()))
+                .isInstanceOf(BadRequestException.class)
+                .hasMessageContaining("already linked");
 
         verify(operatorRepository, never()).save(any());
     }

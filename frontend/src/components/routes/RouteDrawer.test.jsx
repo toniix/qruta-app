@@ -31,7 +31,7 @@ describe('RouteDrawer Share Feature', () => {
     code: 'R55',
     name: 'Ruta 55: Miraflores - San Isidro',
     color: '#10b981',
-    transportLine: { name: 'Empresa San Jerónimo' },
+    transportLine: { company: 'Empresa San Jerónimo' },
     directions: [
       {
         direction: 'OUTBOUND',
