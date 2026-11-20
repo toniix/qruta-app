@@ -38,6 +38,10 @@ public class SecurityConfig {
                 // `GET /api/**` exposes every admin read endpoint to anonymous
                 // callers (see EndpointAuthorizationTest).
                 .requestMatchers("/api/admin/**").hasRole("ADMIN")
+                // Public machine-to-machine ingestion: validation/signature checks
+                // happen in the service layer, so these must bypass JWT auth.
+                .requestMatchers(HttpMethod.POST, "/api/analytics/events").permitAll()
+                .requestMatchers(HttpMethod.POST, "/api/billing/webhook").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api/**").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/stops/nearby").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api/routes/nearby").permitAll()
