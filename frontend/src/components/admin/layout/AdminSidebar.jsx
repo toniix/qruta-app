@@ -6,6 +6,7 @@ import {
   MapPin,
   Building2,
   Users,
+  QrCode,
   MessageSquare,
   Compass,
   LogOut,
@@ -20,6 +21,7 @@ const NAV_ITEMS = [
   { to: '/admin/paraderos', label: 'Paraderos', icon: MapPin },
   { to: '/admin/ciudades', label: 'Ciudades', icon: Building2 },
   { to: '/admin/operadores', label: 'Operadores', icon: Users },
+  { to: '/admin/qr-codes', label: 'Códigos QR', icon: QrCode },
   { to: '/admin/comunidad', label: 'Comunidad', icon: MessageSquare },
 ];
 

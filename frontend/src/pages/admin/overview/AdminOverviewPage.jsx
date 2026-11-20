@@ -5,6 +5,7 @@ import {
   MapPin,
   Building2,
   MessageSquare,
+  QrCode,
   ArrowRight,
   ShieldCheck,
   CheckCircle2,
@@ -18,6 +19,7 @@ import { adminLineService } from '../../../services/adminLineService';
 import { adminStopService } from '../../../services/adminStopService';
 import { cityService } from '../../../services/cityService';
 import { communityService } from '../../../services/communityService';
+import { adminQrCodeService } from '../../../services/qrCodeService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
 export function AdminOverviewPage() {
@@ -30,17 +32,19 @@ export function AdminOverviewPage() {
     stops: [],
     cities: [],
     community: [],
+    qrCodes: [],
   });
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [routes, lines, stops, cities, community] = await Promise.all([
+      const [routes, lines, stops, cities, community, qrCodes] = await Promise.all([
         adminRouteService.getAllRoutes().catch(() => []),
         adminLineService.getAllLines().catch(() => []),
         adminStopService.getAllStops().catch(() => []),
         cityService.getAdminCities().catch(() => []),
         communityService.getAdminPosts().catch(() => []),
+        adminQrCodeService.getAll().catch(() => []),
       ]);
 
       setData({
@@ -49,6 +53,7 @@ export function AdminOverviewPage() {
         stops: Array.isArray(stops) ? stops : [],
         cities: Array.isArray(cities) ? cities : [],
         community: Array.isArray(community) ? community : [],
+        qrCodes: Array.isArray(qrCodes) ? qrCodes : [],
       });
     } catch (err) {
       console.error('Error cargando métricas:', err);
@@ -62,12 +67,13 @@ export function AdminOverviewPage() {
     let isMounted = true;
     (async () => {
       try {
-        const [routes, lines, stops, cities, community] = await Promise.all([
+        const [routes, lines, stops, cities, community, qrCodes] = await Promise.all([
           adminRouteService.getAllRoutes().catch(() => []),
           adminLineService.getAllLines().catch(() => []),
           adminStopService.getAllStops().catch(() => []),
           cityService.getAdminCities().catch(() => []),
           communityService.getAdminPosts().catch(() => []),
+          adminQrCodeService.getAll().catch(() => []),
         ]);
 
         if (isMounted) {
@@ -77,6 +83,7 @@ export function AdminOverviewPage() {
             stops: Array.isArray(stops) ? stops : [],
             cities: Array.isArray(cities) ? cities : [],
             community: Array.isArray(community) ? community : [],
+            qrCodes: Array.isArray(qrCodes) ? qrCodes : [],
           });
           setLoading(false);
         }
@@ -128,7 +135,7 @@ export function AdminOverviewPage() {
       </div>
 
       {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         <MetricCard
           title="Rutas Activas"
           value={loading ? '...' : data.routes.length}
@@ -172,6 +179,15 @@ export function AdminOverviewPage() {
           icon={MessageSquare}
           colorScheme="rose"
           to="/admin/comunidad"
+        />
+
+        <MetricCard
+          title="Códigos QR"
+          value={loading ? '...' : (data.qrCodes?.length || 0)}
+          subtitle="Smart QR físicos"
+          icon={QrCode}
+          colorScheme="blue"
+          to="/admin/qr-codes"
         />
       </div>
 

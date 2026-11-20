@@ -79,6 +79,16 @@ const OperatorListPage = lazy(() =>
     default: m.OperatorListPage,
   }))
 );
+const AdminQrListPage = lazy(() =>
+  import('../pages/admin/qr/AdminQrListPage').then((m) => ({
+    default: m.AdminQrListPage,
+  }))
+);
+const AdminQrDetailPage = lazy(() =>
+  import('../pages/admin/qr/AdminQrDetailPage').then((m) => ({
+    default: m.AdminQrDetailPage,
+  }))
+);
 
 const OperatorLoginPage = lazy(() =>
   import('../pages/operator/OperatorLoginPage').then((m) => ({
@@ -123,6 +133,16 @@ const OperatorAnalyticsPage = lazy(() =>
 const OperatorSubscriptionPage = lazy(() =>
   import('../pages/operator/OperatorSubscriptionPage').then((m) => ({
     default: m.OperatorSubscriptionPage,
+  }))
+);
+const OperatorQrListPage = lazy(() =>
+  import('../pages/operator/OperatorQrListPage').then((m) => ({
+    default: m.OperatorQrListPage,
+  }))
+);
+const OperatorQrDetailPage = lazy(() =>
+  import('../pages/operator/OperatorQrDetailPage').then((m) => ({
+    default: m.OperatorQrDetailPage,
   }))
 );
 
@@ -267,6 +287,8 @@ export function AppRoutes() {
           <Route path="paraderos" element={<StopListPage />} />
           <Route path="ciudades" element={<CityListPage />} />
           <Route path="operadores" element={<OperatorListPage />} />
+          <Route path="qr-codes" element={<AdminQrListPage />} />
+          <Route path="qr-codes/:id" element={<AdminQrDetailPage />} />
           <Route path="comunidad" element={<CommunityModerationPage />} />
         </Route>
 
@@ -293,6 +315,8 @@ export function AppRoutes() {
           <Route path="rutas" element={<OperatorRoutesPage />} />
           <Route path="paraderos" element={<OperatorStopsPage />} />
           <Route path="desvios" element={<OperatorDisruptionsPage />} />
+          <Route path="qr-codes" element={<OperatorQrListPage />} />
+          <Route path="qr-codes/:id" element={<OperatorQrDetailPage />} />
           <Route path="analitica" element={<OperatorAnalyticsPage />} />
           <Route path="suscripcion" element={<OperatorSubscriptionPage />} />
         </Route>

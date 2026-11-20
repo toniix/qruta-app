@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   LogOut,
   MapPin,
+  QrCode,
   Route,
   TriangleAlert,
   X,
@@ -18,6 +19,7 @@ const navigation = [
   { to: '/operador/rutas', label: 'Rutas', icon: Route },
   { to: '/operador/paraderos', label: 'Paraderos', icon: MapPin },
   { to: '/operador/desvios', label: 'Desvíos', icon: TriangleAlert },
+  { to: '/operador/qr-codes', label: 'Códigos QR', icon: QrCode },
   { to: '/operador/analitica', label: 'Analítica', icon: BarChart3 },
   { to: '/operador/suscripcion', label: 'Suscripción', icon: CreditCard },
 ];
