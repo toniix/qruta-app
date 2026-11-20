@@ -798,3 +798,63 @@ Todos los errores siguen este formato:
 | Admin Rutas | GET/POST/PUT/DELETE | `/api/admin/routes` y `/api/admin/routes/{id}` | **Sí** (JWT admin) |
 | Admin Rutas | PUT | `/api/admin/routes/{id}/directions` | **Sí** (JWT admin) |
 | Admin Comunidad | GET/DELETE | `/api/admin/community/posts` y deletes de post/comentario | **Sí** (JWT admin) |
+| Smart QR Público | GET | `/q/{code}` | No (Redirección 302 con tracking de escaneo) |
+| Analítica Ingesta | POST | `/api/analytics/events` | No (Lote de eventos de uso ciudadano) |
+| Admin Smart QR | GET/POST | `/api/admin/qr-codes` | **Sí** (JWT admin) |
+| Admin Smart QR | GET | `/api/admin/qr-codes/{id}` | **Sí** (JWT admin) |
+| Admin Smart QR | PATCH | `/api/admin/qr-codes/{id}/status` | **Sí** (JWT admin) |
+| Admin Smart QR | GET | `/api/admin/qr-codes/{id}/stats` | **Sí** (JWT admin) |
+| Operador Smart QR | GET/POST | `/api/operator/qr-codes` | **Sí** (JWT operador, alcance multi-tenant) |
+| Operador Smart QR | GET | `/api/operator/qr-codes/{id}` | **Sí** (JWT operador, alcance multi-tenant) |
+| Operador Smart QR | PATCH | `/api/operator/qr-codes/{id}/status` | **Sí** (JWT operador, alcance multi-tenant) |
+| Operador Smart QR | GET | `/api/operator/qr-codes/{id}/stats` | **Sí** (JWT operador, alcance multi-tenant) |
+
+---
+
+## Smart QR y Analítica de Producto
+
+### GET `/q/{code}`
+
+Endpoint público de redirección física inteligente. Genera un evento `qr_scan` inmediato y redirige mediante HTTP 302 hacia el recurso de destino interno (Ruta, Paradero, Home).
+
+**Parámetros:**
+- `code`: Token alfanumérico no ambiguo de 8 caracteres (ej. `r8X9k2Lm`).
+
+**Comportamiento de redirección:**
+- QR activo con destino `ROUTE`: `302 Found` -> `/mapa/ruta/{targetId}?qr={code}&qrId={id}&utm_...`
+- QR activo con destino `STOP`: `302 Found` -> `/?stopId={targetId}&qr={code}&qrId={id}&utm_...`
+- QR activo sin destino específico: `302 Found` -> `/?qr={code}&qrId={id}&utm_...`
+- QR pausado (`PAUSED`): `302 Found` -> `/?qr_status=paused` (fallback seguro sin romper la experiencia del pasajero)
+- QR revocado (`REVOKED`) o inexistente: `404 Not Found`
+
+---
+
+### POST `/api/analytics/events`
+
+Endpoint público para recepción de lotes de telemetría de uso ciudadano.
+
+**Request Body:**
+```json
+{
+  "events": [
+    {
+      "category": "route_view",
+      "deviceId": "anon-device-uuid",
+      "routeId": "00000000-0000-0000-0000-000000000001",
+      "qrCodeId": "00000000-0000-0000-0000-000000000099",
+      "campaign": "afiche_paradero_central"
+    }
+  ]
+}
+```
+
+---
+
+### Endpoints de Gestión de Smart QR (`/api/admin/qr-codes` y `/api/operator/qr-codes`)
+
+- `GET /api/admin/qr-codes`: Lista todos los códigos QR del sistema (filtro opcional `?status=&operatorId=`).
+- `POST /api/admin/qr-codes`: Crea un nuevo código QR global o asignado a un operador.
+- `GET /api/admin/qr-codes/{id}/stats`: Métricas de rendimiento (total scans, vistas efectivas, CTR y serie temporal por día en zona horaria America/Lima).
+- `PATCH /api/admin/qr-codes/{id}/status`: Transición de estado (`ACTIVE`, `PAUSED`, `REVOKED`).
+- `GET/POST/PATCH/stats` en `/api/operator/qr-codes`: Idéntica interfaz funcional pero estrictamente acotada a las líneas y rutas pertenecientes al operador autenticado (`ROLE_OPERATOR`).
+

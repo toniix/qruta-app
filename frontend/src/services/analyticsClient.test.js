@@ -32,6 +32,19 @@ describe('analyticsClient', () => {
     expect(body.events[0].deviceId).toHaveLength(64);
   });
 
+  it('supports tracking qrCodeId and custom properties', async () => {
+    await trackEvent('qr_scan', { qrCodeId: 'qr-123', campaign: 'afiche' });
+    await vi.advanceTimersByTimeAsync(5000);
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.events[0]).toMatchObject({
+      category: 'qr_scan',
+      qrCodeId: 'qr-123',
+      campaign: 'afiche',
+    });
+  });
+
   it('flushes immediately once the batch reaches fifty events', async () => {
     for (let i = 0; i < 50; i += 1) {
       await trackEvent('qr_scan', { campaign: 'paradero' });

@@ -180,13 +180,23 @@ export function RouteDrawer() {
   // from a physical QR code (?qr=campaign in the URL).
   useEffect(() => {
     if (!selectedRoute?.id) return;
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrParam = urlParams.get("qr");
+    const qrIdParam = urlParams.get("qrId");
+    const resolvedQrCodeId = qrIdParam || (qrParam && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(qrParam) ? qrParam : undefined);
+
     void trackEvent("route_view", {
       routeId: selectedRoute.id,
       transportLineId: selectedRoute.transportLineId,
+      ...(resolvedQrCodeId ? { qrCodeId: resolvedQrCodeId } : {}),
+      ...(qrParam ? { campaign: qrParam } : {}),
     });
-    const campaign = new URLSearchParams(window.location.search).get("qr");
-    if (campaign) {
-      void trackEvent("qr_scan", { routeId: selectedRoute.id, campaign });
+    if (qrParam) {
+      void trackEvent("qr_scan", {
+        routeId: selectedRoute.id,
+        campaign: qrParam,
+        ...(resolvedQrCodeId ? { qrCodeId: resolvedQrCodeId } : {}),
+      });
     }
   }, [selectedRoute?.id, selectedRoute?.transportLineId]);
 

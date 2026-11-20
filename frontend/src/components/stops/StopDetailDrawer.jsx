@@ -51,7 +51,16 @@ export function StopDetailDrawer({ stop, context = "map" }) {
     if (!stop?.id || isRouteContext) return;
     let isMounted = true;
 
-    void trackEvent("stop_view", { stopId: stop.id });
+    const urlParams = new URLSearchParams(window.location.search);
+    const qrParam = urlParams.get("qr");
+    const qrIdParam = urlParams.get("qrId");
+    const resolvedQrCodeId = qrIdParam || (qrParam && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(qrParam) ? qrParam : undefined);
+
+    void trackEvent("stop_view", {
+      stopId: stop.id,
+      ...(resolvedQrCodeId ? { qrCodeId: resolvedQrCodeId } : {}),
+      ...(qrParam ? { campaign: qrParam } : {}),
+    });
 
     async function fetchRoutes() {
       setLoading(true);

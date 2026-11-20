@@ -104,6 +104,7 @@ export async function trackEvent(category, properties = {}) {
       stopId: properties.stopId || null,
       transportLineId: properties.transportLineId || null,
       cityId: properties.cityId || getSelectedCityId() || null,
+      qrCodeId: properties.qrCodeId || null,
       campaign: properties.campaign || null,
       recordedAt: new Date().toISOString(),
     });

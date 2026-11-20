@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { useRoutes } from "../../contexts/RouteContext";
 import { routeService } from "../../services/routeService";
+import { stopService } from "../../services/stopService";
 import { geocodingService, streetLine } from "../../services/geocodingService";
 import { calculateDistanceKm } from "../../utils/geoUtils";
 import {
@@ -110,6 +111,31 @@ export function HomeMapPage() {
       }
     }
   }, [id, routes, selectRoute, selectedRoute, hasSelectedStop]);
+
+  // Sync stop from query param ?stopId=... (e.g. from Smart QR redirect)
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    const stopIdParam = searchParams.get("stopId");
+    if (!stopIdParam) return;
+    if (selectedStop && (selectedStop.id === stopIdParam || selectedStop.code === stopIdParam)) return;
+
+    let isMounted = true;
+    stopService
+      .getStopById(stopIdParam)
+      .then((stop) => {
+        if (isMounted && stop) {
+          selectStop(stop);
+          if (focusStop) focusStop(stop);
+        }
+      })
+      .catch((err) => {
+        console.error("No se pudo cargar el paradero desde la URL:", err);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [location.search, selectedStop, selectStop, focusStop]);
 
   // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {
