@@ -7,10 +7,14 @@ import com.anthony.rutas.config.SecurityConfig;
 import com.anthony.rutas.controllers.AdminBillingController;
 import com.anthony.rutas.controllers.AdminLineController;
 import com.anthony.rutas.controllers.AdminOperatorController;
+import com.anthony.rutas.controllers.AdminQrCodeController;
 import com.anthony.rutas.controllers.AdminRouteController;
 import com.anthony.rutas.controllers.BillingController;
 import com.anthony.rutas.controllers.OperatorPortalController;
+import com.anthony.rutas.controllers.OperatorQrCodeController;
+import com.anthony.rutas.controllers.PublicQrController;
 import com.anthony.rutas.controllers.RouteController;
+import com.anthony.rutas.services.SmartQrService;
 import com.anthony.rutas.dtos.response.BillingCheckoutResponse;
 import com.anthony.rutas.dtos.response.BillingMonthlyCloseResponse;
 import com.anthony.rutas.dtos.response.BillingWebhookResponse;
@@ -54,8 +58,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
         AdminLineController.class,
         AdminOperatorController.class,
         AdminRouteController.class,
+        AdminQrCodeController.class,
         BillingController.class,
         OperatorPortalController.class,
+        OperatorQrCodeController.class,
+        PublicQrController.class,
         RouteController.class
 })
 @Import(SecurityConfig.class)
@@ -88,6 +95,12 @@ class EndpointAuthorizationTest {
 
     @MockBean
     private BillingWebhookService billingWebhookService;
+
+    @MockBean
+    private SmartQrService smartQrService;
+
+    @MockBean
+    private OperatorScope operatorScope;
 
     @MockBean
     private BillingMonthlyCloseService billingMonthlyCloseService;
@@ -252,6 +265,52 @@ class EndpointAuthorizationTest {
         when(operatorPortalService.getLines()).thenReturn(List.of());
 
         mockMvc.perform(get("/api/operator/lines").header("Authorization", "Bearer operator-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void publicQrResolverIsPermittedWithoutToken() throws Exception {
+        when(smartQrService.resolveAndTrack(eq("test1234"), any()))
+                .thenReturn(new SmartQrService.ResolvedRedirect("/mapa/ruta/123", true));
+
+        mockMvc.perform(get("/q/test1234"))
+                .andExpect(status().isFound());
+    }
+
+    @Test
+    void adminQrCodesRequireAdminRole() throws Exception {
+        int anonStatus = mockMvc.perform(get("/api/admin/qr-codes"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertThat(anonStatus).isIn(401, 403);
+
+        stubOperatorToken();
+        mockMvc.perform(get("/api/admin/qr-codes").header("Authorization", "Bearer operator-token"))
+                .andExpect(status().isForbidden());
+
+        stubAdminToken();
+        when(smartQrService.listAll()).thenReturn(List.of());
+        mockMvc.perform(get("/api/admin/qr-codes").header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void operatorQrCodesRequireOperatorRole() throws Exception {
+        int anonStatus = mockMvc.perform(get("/api/operator/qr-codes"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertThat(anonStatus).isIn(401, 403);
+
+        stubAdminToken();
+        mockMvc.perform(get("/api/operator/qr-codes").header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isForbidden());
+
+        stubOperatorToken();
+        when(operatorScope.requireOperatorId()).thenReturn(java.util.UUID.randomUUID());
+        when(smartQrService.listForOperator(any())).thenReturn(List.of());
+        mockMvc.perform(get("/api/operator/qr-codes").header("Authorization", "Bearer operator-token"))
                 .andExpect(status().isOk());
     }
 
