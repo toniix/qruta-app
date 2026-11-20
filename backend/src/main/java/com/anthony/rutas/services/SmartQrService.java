@@ -81,7 +81,10 @@ public class SmartQrService {
                     .build();
             routeEventRepository.save(failedEvent);
 
-            String fallback = "/?qr_error=" + (optQr.isEmpty() ? "not_found" : "inactive");
+            String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
+                    ? configuredFrontendUrl.trim().replaceAll("/+$", "")
+                    : "";
+            String fallback = base + "/?qr_error=" + (optQr.isEmpty() ? "not_found" : "inactive");
             return new ResolvedRedirect(fallback, false);
         }
 
@@ -132,10 +135,13 @@ public class SmartQrService {
 
     public String buildDestinationUrl(QrCode qr) {
         StringBuilder sb = new StringBuilder();
+        if (configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()) {
+            sb.append(configuredFrontendUrl.trim().replaceAll("/+$", ""));
+        }
         if ("ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
             sb.append("/mapa/ruta/").append(qr.getTargetId());
         } else if ("STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            sb.append("/?stopId=").append(qr.getTargetId());
+            sb.append("/mapa/paradero/").append(qr.getTargetId());
         } else {
             sb.append("/");
         }

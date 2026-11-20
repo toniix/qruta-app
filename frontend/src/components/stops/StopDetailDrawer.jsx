@@ -13,6 +13,7 @@ import {
   AlertCircle,
   RefreshCw,
   Info,
+  X,
 } from "lucide-react";
 import { stopService } from "../../services/stopService";
 import { useRoutes } from "../../contexts/RouteContext";
@@ -208,6 +209,20 @@ export function StopDetailDrawer({ stop, context = "map" }) {
               ) : (
                 <ChevronUp className="w-4 h-4" />
               )}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                selectStop(null);
+                if (location.pathname?.startsWith("/mapa/paradero/")) {
+                  navigate("/mapa", { replace: true });
+                }
+              }}
+              className="relative w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-600 flex items-center justify-center transition-all active:scale-90 cursor-pointer after:absolute after:-inset-1.5 after:content-['']"
+              title="Cerrar detalle"
+              aria-label="Cerrar detalle"
+            >
+              <X className="w-4 h-4" />
             </button>
           </div>
         )}

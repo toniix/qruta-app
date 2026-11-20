@@ -87,41 +87,49 @@ export function HomeMapPage() {
 
   // Sync route only when entering via a route URL (/mapa/ruta/:id)
   useEffect(() => {
-    if (id) {
-      if (isClosingRef.current) return;
-      const target = String(id).toLowerCase();
-      const isCurrent =
-        selectedRoute &&
-        (String(selectedRoute.id || "").toLowerCase() === target ||
-          String(selectedRoute.code || "").toLowerCase() === target);
+    const isRoutePath = (location.pathname || "").startsWith("/mapa/ruta/");
+    if (!isRoutePath || !id) return;
+    if (isClosingRef.current) return;
+    const target = String(id).toLowerCase();
+    const isCurrent =
+      selectedRoute &&
+      (String(selectedRoute.id || "").toLowerCase() === target ||
+        String(selectedRoute.code || "").toLowerCase() === target);
 
-      if (!isCurrent) {
-        const found = routes?.find(
-          (r) =>
-            String(r.id || "").toLowerCase() === target ||
-            String(r.code || "").toLowerCase() === target,
+    if (!isCurrent) {
+      const found = routes?.find(
+        (r) =>
+          String(r.id || "").toLowerCase() === target ||
+          String(r.code || "").toLowerCase() === target,
+      );
+      const isUUID =
+        typeof id === "string" &&
+        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+          id,
         );
-        const isUUID =
-          typeof id === "string" &&
-          /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-            id,
-          );
-        const fallbackStub = isUUID ? { id } : { code: id };
-        selectRoute(found || fallbackStub, hasSelectedStop);
-      }
+      const fallbackStub = isUUID ? { id } : { code: id };
+      selectRoute(found || fallbackStub, hasSelectedStop);
     }
-  }, [id, routes, selectRoute, selectedRoute, hasSelectedStop]);
+  }, [location.pathname, id, routes, selectRoute, selectedRoute, hasSelectedStop]);
 
-  // Sync stop from query param ?stopId=... (e.g. from Smart QR redirect)
+  // Sync stop when entering via /mapa/paradero/:id or query param ?stopId=... (e.g. from Smart QR redirect)
   useEffect(() => {
+    const isStopPath = (location.pathname || "").startsWith("/mapa/paradero/");
     const searchParams = new URLSearchParams(location.search);
-    const stopIdParam = searchParams.get("stopId");
-    if (!stopIdParam) return;
-    if (selectedStop && (selectedStop.id === stopIdParam || selectedStop.code === stopIdParam)) return;
+    const stopTarget = isStopPath ? id : searchParams.get("stopId");
+    if (!stopTarget) return;
+
+    if (
+      selectedStop &&
+      (String(selectedStop.id || "").toLowerCase() === String(stopTarget).toLowerCase() ||
+        String(selectedStop.code || "").toLowerCase() === String(stopTarget).toLowerCase())
+    ) {
+      return;
+    }
 
     let isMounted = true;
     stopService
-      .getStopById(stopIdParam)
+      .getStopById(stopTarget)
       .then((stop) => {
         if (isMounted && stop) {
           selectStop(stop);
@@ -135,7 +143,7 @@ export function HomeMapPage() {
     return () => {
       isMounted = false;
     };
-  }, [location.search, selectedStop, selectStop, focusStop]);
+  }, [location.pathname, location.search, id, selectedStop, selectStop, focusStop]);
 
   // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {
@@ -161,6 +169,18 @@ export function HomeMapPage() {
       }
     },
     [selectRoute, selectStop, navigate],
+  );
+
+  const handleSelectStop = useCallback(
+    (stop) => {
+      selectStop(stop);
+      if (stop?.id && !selectedRoute) {
+        navigate(`/mapa/paradero/${encodeURIComponent(stop.id)}`, {
+          state: { from: "/mapa" },
+        });
+      }
+    },
+    [selectStop, selectedRoute, navigate],
   );
 
   const handleBack = useCallback(() => {
@@ -693,7 +713,7 @@ export function HomeMapPage() {
           gpsReady={gpsReady}
           isLocating={isLocating}
           onSelectRoute={handleSelectRoute}
-          onSelectStop={selectStop}
+          onSelectStop={handleSelectStop}
           onFocusStop={focusStop}
           activeDirection={activeDirection}
           recenterTrigger={recenterTrigger}

@@ -822,7 +822,7 @@ Endpoint público de redirección física inteligente. Genera un evento `qr_scan
 
 **Comportamiento de redirección:**
 - QR activo con destino `ROUTE`: `302 Found` -> `/mapa/ruta/{targetId}?qr={code}&qrId={id}&utm_...`
-- QR activo con destino `STOP`: `302 Found` -> `/?stopId={targetId}&qr={code}&qrId={id}&utm_...`
+- QR activo con destino `STOP`: `302 Found` -> `/mapa/paradero/{targetId}?qr={code}&qrId={id}&utm_...`
 - QR activo sin destino específico: `302 Found` -> `/?qr={code}&qrId={id}&utm_...`
 - QR pausado (`PAUSED`): `302 Found` -> `/?qr_status=paused` (fallback seguro sin romper la experiencia del pasajero)
 - QR revocado (`REVOKED`) o inexistente: `404 Not Found`

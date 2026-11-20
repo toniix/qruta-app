@@ -329,3 +329,26 @@ export function generateQrDataUrl(text, sizePx = 300) {
 
   return canvas.toDataURL("image/png");
 }
+
+/**
+ * Resolves a QR URL ensuring it is an absolute hyperlink starting with http:// or https://.
+ * If canonicalUrl is relative or missing, prepends window.location.origin.
+ */
+export function resolveAbsoluteQrUrl(qr) {
+  if (!qr) return "";
+  const code = typeof qr === "string" ? qr : qr.code;
+  const canonical = typeof qr === "object" ? qr.canonicalUrl : null;
+
+  if (canonical && (canonical.startsWith("http://") || canonical.startsWith("https://"))) {
+    return canonical;
+  }
+  const origin =
+    typeof window !== "undefined" && window.location?.origin
+      ? window.location.origin
+      : "http://localhost:5173";
+
+  if (canonical && canonical.startsWith("/")) {
+    return `${origin}${canonical}`;
+  }
+  return `${origin}/q/${code || "PREVIEW"}`;
+}

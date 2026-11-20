@@ -15,7 +15,7 @@ import { StatusBadge } from '../../components/admin/common/StatusBadge';
 import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
 import { QrPrintModal } from '../../components/admin/qr/QrPrintModal';
 import { operatorQrCodeService } from '../../services/qrCodeService';
-import { generateQrSvg } from '../../utils/qrGenerator';
+import { generateQrSvg, resolveAbsoluteQrUrl } from '../../utils/qrGenerator';
 import { useAdminToast } from '../../hooks/useAdminToast';
 
 export function OperatorQrDetailPage() {
@@ -90,7 +90,7 @@ export function OperatorQrDetailPage() {
     );
   }
 
-  const qrUrl = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
+  const qrUrl = resolveAbsoluteQrUrl(qr);
   const svgMarkup = generateQrSvg(qrUrl, { margin: 1 });
   const totalScans = stats?.totalScans || qr.totalScans || 0;
   const effectiveViews = stats?.effectiveViews || 0;

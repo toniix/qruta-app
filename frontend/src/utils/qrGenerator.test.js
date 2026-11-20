@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { encodeQrMatrix, generateQrSvg } from './qrGenerator';
+import { encodeQrMatrix, generateQrSvg, resolveAbsoluteQrUrl } from './qrGenerator';
 
 describe('qrGenerator utility', () => {
   it('encodes short text into a valid 2D matrix', () => {
@@ -19,5 +19,11 @@ describe('qrGenerator utility', () => {
     expect(svg).toContain('xmlns="http://www.w3.org/2000/svg"');
     expect(svg).toContain('<rect');
     expect(svg).toContain('<path');
+  });
+
+  it('resolves absolute URL for QR payloads', () => {
+    expect(resolveAbsoluteQrUrl({ canonicalUrl: 'https://qruta.pe/q/code1' })).toBe('https://qruta.pe/q/code1');
+    expect(resolveAbsoluteQrUrl({ canonicalUrl: '/q/code2', code: 'code2' })).toMatch(/^https?:\/\/.+\/q\/code2$/);
+    expect(resolveAbsoluteQrUrl({ code: 'code3' })).toMatch(/^https?:\/\/.+\/q\/code3$/);
   });
 });

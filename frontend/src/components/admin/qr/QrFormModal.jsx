@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { X, QrCode as QrIcon, Loader2, Sparkles } from 'lucide-react';
-import { generateQrSvg } from '../../../utils/qrGenerator';
+import { generateQrSvg, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 
 export function QrFormModal({
   open,
@@ -78,7 +78,7 @@ export function QrFormModal({
 
   // Generate live preview preview URL
   const previewSlug = initialData?.code || 'PREVIEW';
-  const previewUrl = `${window.location.origin}/q/${previewSlug}`;
+  const previewUrl = resolveAbsoluteQrUrl(initialData || previewSlug);
   const previewSvg = generateQrSvg(previewUrl, { margin: 1 });
 
   return (

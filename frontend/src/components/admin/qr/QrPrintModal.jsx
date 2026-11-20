@@ -1,6 +1,6 @@
 import { useState, useRef } from 'react';
 import { X, Printer, Download, Copy, Check, QrCode as QrIcon } from 'lucide-react';
-import { generateQrSvg, generateQrDataUrl } from '../../../utils/qrGenerator';
+import { generateQrSvg, generateQrDataUrl, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 
 export function QrPrintModal({ open, onClose, qr }) {
   const [copied, setCopied] = useState(false);
@@ -8,7 +8,7 @@ export function QrPrintModal({ open, onClose, qr }) {
 
   if (!open || !qr) return null;
 
-  const qrUrl = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
+  const qrUrl = resolveAbsoluteQrUrl(qr);
   const svgMarkup = generateQrSvg(qrUrl, { margin: 1 });
 
   const handleCopy = () => {

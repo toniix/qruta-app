@@ -37,6 +37,11 @@ const PlacesPage = lazy(() =>
     default: m.PlacesPage,
   }))
 );
+const QrRedirectHandler = lazy(() =>
+  import('../pages/citizen/QrRedirectHandler').then((m) => ({
+    default: m.QrRedirectHandler,
+  }))
+);
 
 // Lazy-loaded Admin pages
 const AdminLoginPage = lazy(() =>
@@ -239,6 +244,11 @@ function RouteAliasRedirect() {
   return <Navigate to={`/mapa/ruta/${id}`} replace />;
 }
 
+function StopAliasRedirect() {
+  const { id } = useParams();
+  return <Navigate to={`/mapa/paradero/${id}`} replace />;
+}
+
 export function AppRoutes() {
   return (
     <Suspense fallback={<PageLoading />}>
@@ -250,7 +260,10 @@ export function AppRoutes() {
           <Route path="/cercanas" element={<NearbyRoutesPage />} />
           <Route path="/mapa" element={<HomeMapPage />} />
           <Route path="/mapa/ruta/:id" element={<HomeMapPage />} />
+          <Route path="/mapa/paradero/:id" element={<HomeMapPage />} />
           <Route path="/ruta/:id" element={<RouteAliasRedirect />} />
+          <Route path="/paradero/:id" element={<StopAliasRedirect />} />
+          <Route path="/q/:code" element={<QrRedirectHandler />} />
           <Route path="/rutas" element={<RoutesListPage />} />
           <Route path="/comunidad" element={<CommunityPage />} />
           <Route

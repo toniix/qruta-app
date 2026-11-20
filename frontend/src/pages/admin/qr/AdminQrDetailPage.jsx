@@ -20,7 +20,7 @@ import { StatusBadge } from '../../../components/admin/common/StatusBadge';
 import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
 import { QrPrintModal } from '../../../components/admin/qr/QrPrintModal';
 import { adminQrCodeService } from '../../../services/qrCodeService';
-import { generateQrSvg, generateQrDataUrl } from '../../../utils/qrGenerator';
+import { generateQrSvg, generateQrDataUrl, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
 export function AdminQrDetailPage() {
@@ -95,7 +95,7 @@ export function AdminQrDetailPage() {
     );
   }
 
-  const qrUrl = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
+  const qrUrl = resolveAbsoluteQrUrl(qr);
   const svgMarkup = generateQrSvg(qrUrl, { margin: 1 });
   const totalScans = stats?.totalScans || qr.totalScans || 0;
   const effectiveViews = stats?.effectiveViews || 0;
