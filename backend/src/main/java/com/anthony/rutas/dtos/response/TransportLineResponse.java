@@ -19,4 +19,6 @@ public class TransportLineResponse {
     private String contact;
     private String description;
     private String status;
+    private UUID operatorId;
+    private String operatorName;
 }

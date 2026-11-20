@@ -13,6 +13,7 @@ import { StatusBadge } from '../../../components/admin/common/StatusBadge';
 import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
 import { LineFormDrawer } from './LineFormDrawer';
 import { adminLineService } from '../../../services/adminLineService';
+import { adminOperatorService } from '../../../services/adminOperatorService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
@@ -20,7 +21,9 @@ export function LineListPage() {
   const toast = useAdminToast();
   const [lines, setLines] = useState([]);
   const [cities, setCities] = useState([]);
+  const [operators, setOperators] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadingOperators, setLoadingOperators] = useState(true);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -37,39 +40,48 @@ export function LineListPage() {
 
   const loadData = useCallback(async () => {
     setLoading(true);
+    setLoadingOperators(true);
     try {
-      const [linesData, citiesData] = await Promise.all([
+      const [linesData, citiesData, operatorsData] = await Promise.all([
         adminLineService.getAllLines(),
         cityService.getAdminCities().catch(() => []),
+        adminOperatorService.getAllOperators().catch(() => []),
       ]);
       setLines(Array.isArray(linesData) ? linesData : []);
       setCities(Array.isArray(citiesData) ? citiesData : []);
+      setOperators(Array.isArray(operatorsData) ? operatorsData : []);
     } catch (err) {
       console.error('Error cargando líneas:', err);
       toast.error('Error al cargar la lista de líneas.');
     } finally {
       setLoading(false);
+      setLoadingOperators(false);
     }
   }, [toast]);
 
   useEffect(() => {
     let isMounted = true;
     (async () => {
+      setLoadingOperators(true);
       try {
-        const [linesData, citiesData] = await Promise.all([
+        const [linesData, citiesData, operatorsData] = await Promise.all([
           adminLineService.getAllLines(),
           cityService.getAdminCities().catch(() => []),
+          adminOperatorService.getAllOperators().catch(() => []),
         ]);
         if (isMounted) {
           setLines(Array.isArray(linesData) ? linesData : []);
           setCities(Array.isArray(citiesData) ? citiesData : []);
+          setOperators(Array.isArray(operatorsData) ? operatorsData : []);
           setLoading(false);
+          setLoadingOperators(false);
         }
       } catch (err) {
         if (isMounted) {
           console.error('Error cargando líneas:', err);
           toast.error('Error al cargar la lista de líneas.');
           setLoading(false);
+          setLoadingOperators(false);
         }
       }
     })();
@@ -83,6 +95,12 @@ export function LineListPage() {
     cities.forEach((c) => map.set(c.id, c.name));
     return map;
   }, [cities]);
+
+  const operatorMap = useMemo(() => {
+    const map = new Map();
+    operators.forEach((operator) => map.set(String(operator.id), operator.name));
+    return map;
+  }, [operators]);
 
   // Filtered lines
   const filteredLines = useMemo(() => {
@@ -169,6 +187,20 @@ export function LineListPage() {
       render: (line) => (
         <span className="text-slate-600 font-medium">{line.company || '—'}</span>
       ),
+    },
+    {
+      key: 'operatorId',
+      label: 'Operador',
+      width: '160px',
+      render: (line) => {
+        const operatorName =
+          line.operatorName || operatorMap.get(String(line.operatorId));
+        return operatorName ? (
+          <span className="text-slate-600 font-medium">{operatorName}</span>
+        ) : (
+          <span className="text-slate-300">Plataforma</span>
+        );
+      },
     },
     {
       key: 'cityId',
@@ -313,6 +345,8 @@ export function LineListPage() {
         }}
         initialData={editingLine}
         cities={cities}
+        operators={operators}
+        loadingOperators={loadingOperators}
         onSubmit={handleFormSubmit}
         loading={saving}
       />

@@ -20,6 +20,8 @@ function LineFormDrawerContent({
   onClose,
   initialData,
   cities = [],
+  operators = [],
+  loadingOperators = false,
   onSubmit,
   loading = false,
 }) {
@@ -34,6 +36,7 @@ function LineFormDrawerContent({
     contact: initialData?.contact || '',
     description: initialData?.description || '',
     status: initialData?.status || 'ACTIVE',
+    operatorId: initialData?.operatorId ? String(initialData.operatorId) : '',
   }));
 
   const [errors, setErrors] = useState({});
@@ -189,6 +192,32 @@ function LineFormDrawerContent({
           />
           <FieldError message={errors.contact} />
         </div>
+      </div>
+
+      {/* Operador asignado */}
+      <div>
+        <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+          Operador asignado
+        </label>
+        <select
+          value={form.operatorId}
+          onChange={(e) => update({ operatorId: e.target.value }, 'operatorId')}
+          disabled={loading || loadingOperators}
+          className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
+        >
+          <option value="">
+            {loadingOperators ? 'Cargando operadores...' : 'Plataforma (sin operador)'}
+          </option>
+          {operators.map((operator) => (
+            <option key={operator.id} value={operator.id}>
+              {operator.name}
+            </option>
+          ))}
+        </select>
+        <FieldError message={errors.operatorId} />
+        <p className="mt-1 text-[11px] text-slate-400">
+          Las líneas sin operador permanecen bajo administración de la plataforma.
+        </p>
       </div>
 
       {/* Estado */}

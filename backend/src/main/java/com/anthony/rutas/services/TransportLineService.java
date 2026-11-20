@@ -4,13 +4,16 @@ import com.anthony.rutas.dtos.request.CreateTransportLineRequest;
 import com.anthony.rutas.dtos.request.UpdateTransportLineRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
+import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.util.List;
 import java.util.UUID;
@@ -22,6 +25,7 @@ public class TransportLineService {
 
     private final TransportLineRepository transportLineRepository;
     private final CityRepository cityRepository;
+    private final OperatorRepository operatorRepository;
 
     @Transactional(readOnly = true)
     public List<TransportLineResponse> findAll() {
@@ -42,8 +46,11 @@ public class TransportLineService {
         City city = cityRepository.findById(UUID.fromString(request.getCityId()))
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
+        Operator operator = resolveOperatorForAssignment(request.getOperatorId(), null, null);
+
         TransportLine line = TransportLine.builder()
                 .city(city)
+                .operator(operator)
                 .name(request.getName())
                 .code(request.getCode())
                 .color(request.getColor())
@@ -69,7 +76,35 @@ public class TransportLineService {
         if (request.getDescription() != null) line.setDescription(request.getDescription());
         if (request.getStatus() != null) line.setStatus(request.getStatus());
 
+        UUID currentOperatorId = line.getOperator() != null ? line.getOperator().getId() : null;
+        Operator currentOperator = line.getOperator();
+        line.setOperator(resolveOperatorForAssignment(request.getOperatorId(), currentOperator, currentOperatorId));
+
         return DtoMapper.toTransportLineResponse(transportLineRepository.save(line));
+    }
+
+    /**
+     * Resolves the operator assignment for a line request.
+     *
+     * A blank value clears the assignment. A non-blank value must reference an
+     * existing active operator, except when it is the operator the line already
+     * belongs to (so editing other fields does not fail just because that
+     * operator was later deactivated).
+     */
+    private Operator resolveOperatorForAssignment(String operatorId, Operator currentOperator, UUID currentOperatorId) {
+        if (!StringUtils.hasText(operatorId)) {
+            return null;
+        }
+        UUID targetId = UUID.fromString(operatorId.trim());
+        if (currentOperatorId != null && targetId.equals(currentOperatorId)) {
+            return currentOperator;
+        }
+        Operator operator = operatorRepository.findById(targetId)
+                .orElseThrow(() -> new ResourceNotFoundException("Operator not found with id: " + operatorId));
+        if (!operator.isActive()) {
+            throw new BadRequestException("No se puede asignar un operador inactivo");
+        }
+        return operator;
     }
 
     @Transactional
