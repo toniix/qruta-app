@@ -13,7 +13,8 @@ export function FavoritesPage() {
       routes.find((r) => String(r.id) === String(fav.id)) ||
       { id: fav.id, code: fav.code, name: fav.name, color: fav.color, fare: fav.fare, transportLineName: fav.transportLineName };
     selectRoute(full);
-    navigate(`/mapa/ruta/${fav.id}`);
+    const target = fav.code || fav.id;
+    navigate(`/mapa/ruta/${encodeURIComponent(target)}`);
   };
 
   return (

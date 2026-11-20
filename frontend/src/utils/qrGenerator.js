@@ -330,25 +330,21 @@ export function generateQrDataUrl(text, sizePx = 300) {
   return canvas.toDataURL("image/png");
 }
 
+const DEFAULT_BASE_URL =
+  (typeof import.meta !== "undefined" && import.meta.env?.VITE_QR_BASE_URL) ||
+  "https://back.anthonywar.dev";
+
 /**
- * Resolves a QR URL ensuring it is an absolute hyperlink starting with http:// or https://.
- * If canonicalUrl is relative or missing, prepends window.location.origin.
+ * Resolves a QR URL ensuring it is an absolute hyperlink.
+ * Prioritizes canonicalUrl from the backend response, falling back to VITE_QR_BASE_URL or production domain.
  */
 export function resolveAbsoluteQrUrl(qr) {
-  if (!qr) return "";
+  if (!qr) return `${DEFAULT_BASE_URL}/q/PREVIEW`;
   const code = typeof qr === "string" ? qr : qr.code;
   const canonical = typeof qr === "object" ? qr.canonicalUrl : null;
 
   if (canonical && (canonical.startsWith("http://") || canonical.startsWith("https://"))) {
     return canonical;
   }
-  const origin =
-    typeof window !== "undefined" && window.location?.origin
-      ? window.location.origin
-      : "http://localhost:5173";
-
-  if (canonical && canonical.startsWith("/")) {
-    return `${origin}${canonical}`;
-  }
-  return `${origin}/q/${code || "PREVIEW"}`;
+  return `${DEFAULT_BASE_URL}/q/${code || "PREVIEW"}`;
 }

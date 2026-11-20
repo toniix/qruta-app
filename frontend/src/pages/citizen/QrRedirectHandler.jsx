@@ -1,25 +1,24 @@
 import { useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams } from 'react-router-dom';
 
 /**
  * Handles `/q/:code` requests directly on the frontend domain.
- * Automatically forwards the citizen to the backend tracking resolver to log the scan
- * and follow the 302 redirect to the ultimate internal destination.
+ * Performs a clean top-level browser navigation to the backend tracking resolver,
+ * which logs the scan and 302-redirects to https://front.anthonywar.dev.
+ * Using top-level navigation avoids any in-page CORS fetch restrictions.
  */
 export function QrRedirectHandler() {
   const { code } = useParams();
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (!code) {
-      navigate('/', { replace: true });
+      window.location.replace('https://front.anthonywar.dev/');
       return;
     }
 
-    const apiBase = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
-    const backendRoot = apiBase.replace(/\/api\/?$/, '');
-    window.location.replace(`${backendRoot}/q/${encodeURIComponent(code)}`);
-  }, [code, navigate]);
+    const backendUrl = 'https://back.anthonywar.dev';
+    window.location.replace(`${backendUrl}/q/${encodeURIComponent(code)}`);
+  }, [code]);
 
   return (
     <div className="flex min-h-[60vh] flex-col items-center justify-center gap-3 p-6 text-center">

@@ -127,9 +127,10 @@ export function StopDetailDrawer({ stop, context = "map" }) {
         color: item.color,
       });
     }
-    const targetId = matched?.id || item.route?.id || item.id;
+    const targetIdentifier =
+      matched?.code || item.route?.code || item.code || matched?.id || item.route?.id || item.id;
     selectStop(null);
-    navigate(`/mapa/ruta/${targetId}`, {
+    navigate(`/mapa/ruta/${encodeURIComponent(targetIdentifier)}`, {
       state: {
         ...location.state,
         fromStop: stop,

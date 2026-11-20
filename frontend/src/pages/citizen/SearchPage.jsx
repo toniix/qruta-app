@@ -464,7 +464,8 @@ export function SearchPage() {
       !location.state.from.startsWith('/mapa/ruta/')
         ? location.state.from
         : '/';
-    navigate(`/mapa/ruta/${route.id}`, {
+    const target = route.code || route.id;
+    navigate(`/mapa/ruta/${encodeURIComponent(target)}`, {
       state: { from: "/buscar", returnTo },
     });
   };

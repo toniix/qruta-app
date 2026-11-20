@@ -820,12 +820,13 @@ Endpoint público de redirección física inteligente. Genera un evento `qr_scan
 **Parámetros:**
 - `code`: Token alfanumérico no ambiguo de 8 caracteres (ej. `r8X9k2Lm`).
 
-**Comportamiento de redirección:**
-- QR activo con destino `ROUTE`: `302 Found` -> `/mapa/ruta/{targetId}?qr={code}&qrId={id}&utm_...`
-- QR activo con destino `STOP`: `302 Found` -> `/mapa/paradero/{targetId}?qr={code}&qrId={id}&utm_...`
-- QR activo sin destino específico: `302 Found` -> `/?qr={code}&qrId={id}&utm_...`
-- QR pausado (`PAUSED`): `302 Found` -> `/?qr_status=paused` (fallback seguro sin romper la experiencia del pasajero)
-- QR revocado (`REVOKED`) o inexistente: `404 Not Found`
+**Comportamiento de redirección (Dominio estricto de destino: `https://front.anthonywar.dev`):**
+- URL pública del Smart QR: `https://back.anthonywar.dev/q/{code}`
+- QR activo con destino `ROUTE`: `302 Found` -> `https://front.anthonywar.dev/mapa/ruta/{routeCode}?qr={code}&qrId={id}&utm_...`
+- QR activo con destino `STOP`: `302 Found` -> `https://front.anthonywar.dev/mapa/paradero/{targetId}?qr={code}&qrId={id}&utm_...`
+- QR activo sin destino específico: `302 Found` -> `https://front.anthonywar.dev/?qr={code}&qrId={id}&utm_...`
+- QR pausado (`PAUSED`): `302 Found` -> `https://front.anthonywar.dev/?qr_error=inactive` (fallback seguro sin romper la experiencia del pasajero)
+- QR revocado (`REVOKED`) o inexistente: `404 Not Found` o fallback con error
 
 ---
 

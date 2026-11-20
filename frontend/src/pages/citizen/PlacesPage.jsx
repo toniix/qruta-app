@@ -27,7 +27,8 @@ export function PlacesPage() {
       transportLineName: fav.transportLineName,
     };
     selectRoute(full);
-    navigate(`/mapa/ruta/${fav.id}`, { state: { from: "/lugares" } });
+    const target = fav.code || fav.id;
+    navigate(`/mapa/ruta/${encodeURIComponent(target)}`, { state: { from: "/lugares" } });
   };
 
   return (

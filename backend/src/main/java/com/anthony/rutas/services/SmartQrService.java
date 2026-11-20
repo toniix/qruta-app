@@ -47,8 +47,11 @@ public class SmartQrService {
     private final RouteEventRepository routeEventRepository;
     private final DeviceHasher deviceHasher;
 
-    @Value("${app.frontend.url:}")
-    private String configuredFrontendUrl;
+    @Value("${app.frontend.url:https://front.anthonywar.dev}")
+    private String configuredFrontendUrl = "https://front.anthonywar.dev";
+
+    @Value("${app.backend.url:https://back.anthonywar.dev}")
+    private String configuredBackendUrl = "https://back.anthonywar.dev";
 
     public record ResolvedRedirect(String redirectUrl, boolean active) {}
 
@@ -83,7 +86,7 @@ public class SmartQrService {
 
             String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
                     ? configuredFrontendUrl.trim().replaceAll("/+$", "")
-                    : "";
+                    : "https://front.anthonywar.dev";
             String fallback = base + "/?qr_error=" + (optQr.isEmpty() ? "not_found" : "inactive");
             return new ResolvedRedirect(fallback, false);
         }
@@ -135,11 +138,16 @@ public class SmartQrService {
 
     public String buildDestinationUrl(QrCode qr) {
         StringBuilder sb = new StringBuilder();
-        if (configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()) {
-            sb.append(configuredFrontendUrl.trim().replaceAll("/+$", ""));
-        }
+        String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
+                ? configuredFrontendUrl.trim().replaceAll("/+$", "")
+                : "https://front.anthonywar.dev";
+        sb.append(base);
         if ("ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            sb.append("/mapa/ruta/").append(qr.getTargetId());
+            String routeCode = routeRepository.findById(qr.getTargetId())
+                    .map(Route::getCode)
+                    .filter(c -> !c.isBlank())
+                    .orElseGet(() -> qr.getTargetId().toString());
+            sb.append("/mapa/ruta/").append(urlEncode(routeCode));
         } else if ("STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
             sb.append("/mapa/paradero/").append(qr.getTargetId());
         } else {
@@ -167,9 +175,9 @@ public class SmartQrService {
     }
 
     public String getCanonicalUrl(String code) {
-        String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
-                ? configuredFrontendUrl.trim().replaceAll("/+$", "")
-                : "";
+        String base = configuredBackendUrl != null && !configuredBackendUrl.isBlank()
+                ? configuredBackendUrl.trim().replaceAll("/+$", "")
+                : "https://back.anthonywar.dev";
         return base + "/q/" + code;
     }
 

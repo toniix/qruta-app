@@ -370,7 +370,8 @@ export function CommunityPage() {
       color: post.routeColor,
     };
     selectRoute(matched);
-    navigate(`/mapa/ruta/${post.routeId}`, { state: { from: "/comunidad" } });
+    const target = post.routeCode || matched?.code || post.routeId;
+    navigate(`/mapa/ruta/${encodeURIComponent(target)}`, { state: { from: "/comunidad" } });
   };
 
   const handleCreatePost = async (e) => {

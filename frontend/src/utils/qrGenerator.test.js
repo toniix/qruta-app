@@ -22,8 +22,8 @@ describe('qrGenerator utility', () => {
   });
 
   it('resolves absolute URL for QR payloads', () => {
-    expect(resolveAbsoluteQrUrl({ canonicalUrl: 'https://qruta.pe/q/code1' })).toBe('https://qruta.pe/q/code1');
-    expect(resolveAbsoluteQrUrl({ canonicalUrl: '/q/code2', code: 'code2' })).toMatch(/^https?:\/\/.+\/q\/code2$/);
-    expect(resolveAbsoluteQrUrl({ code: 'code3' })).toMatch(/^https?:\/\/.+\/q\/code3$/);
+    expect(resolveAbsoluteQrUrl({ canonicalUrl: 'https://back.anthonywar.dev/q/code1' })).toBe('https://back.anthonywar.dev/q/code1');
+    expect(resolveAbsoluteQrUrl({ canonicalUrl: '/q/code2', code: 'code2' })).toBe('https://back.anthonywar.dev/q/code2');
+    expect(resolveAbsoluteQrUrl({ code: 'code3' })).toBe('https://back.anthonywar.dev/q/code3');
   });
 });

@@ -99,7 +99,7 @@ class SmartQrServiceTest {
         assertThat(res.getLabel()).isEqualTo("Afiche Paradero 1");
         assertThat(res.getTargetType()).isEqualTo("ROUTE");
         assertThat(res.getTargetTitle()).isEqualTo("L10 - Línea 10");
-        assertThat(res.getTargetUrl()).contains("/mapa/ruta/" + routeId);
+        assertThat(res.getTargetUrl()).contains("https://front.anthonywar.dev/mapa/ruta/L10");
         assertThat(res.getTargetUrl()).contains("utm_source=afiche_plaza");
         assertThat(res.getTargetUrl()).contains("utm_campaign=verano_2026");
     }
@@ -141,12 +141,13 @@ class SmartQrServiceTest {
                 .build();
 
         when(qrCodeRepository.findByCode("code1234")).thenReturn(Optional.of(qr));
+        when(routeRepository.findById(routeId)).thenReturn(Optional.of(Route.builder().id(routeId).code("L10").name("Línea 10").build()));
         when(deviceHasher.hash(anyString(), any(Instant.class))).thenReturn("hashed_device_123");
 
         SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("code1234", "192.168.1.1|Mozilla");
 
         assertThat(redirect.active()).isTrue();
-        assertThat(redirect.redirectUrl()).startsWith("/mapa/ruta/" + routeId);
+        assertThat(redirect.redirectUrl()).startsWith("https://front.anthonywar.dev/mapa/ruta/L10");
         assertThat(redirect.redirectUrl()).contains("qr=code1234");
 
         ArgumentCaptor<RouteEvent> eventCaptor = ArgumentCaptor.forClass(RouteEvent.class);
@@ -174,7 +175,7 @@ class SmartQrServiceTest {
         SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("pausedCode", "10.0.0.1|Safari");
 
         assertThat(redirect.active()).isFalse();
-        assertThat(redirect.redirectUrl()).isEqualTo("/?qr_error=inactive");
+        assertThat(redirect.redirectUrl()).isEqualTo("https://front.anthonywar.dev/?qr_error=inactive");
 
         ArgumentCaptor<RouteEvent> eventCaptor = ArgumentCaptor.forClass(RouteEvent.class);
         verify(routeEventRepository).save(eventCaptor.capture());
@@ -201,7 +202,7 @@ class SmartQrServiceTest {
         SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("stopCode1", "127.0.0.1|Chrome");
 
         assertThat(redirect.active()).isTrue();
-        assertThat(redirect.redirectUrl()).startsWith("/mapa/paradero/" + stopId);
+        assertThat(redirect.redirectUrl()).startsWith("https://front.anthonywar.dev/mapa/paradero/" + stopId);
         assertThat(redirect.redirectUrl()).contains("qr=stopCode1");
         assertThat(redirect.redirectUrl()).contains("qrId=" + qrId);
     }
