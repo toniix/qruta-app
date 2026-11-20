@@ -8,6 +8,7 @@ const ROUTE_LABELS = {
   lineas: 'Líneas',
   paraderos: 'Paraderos',
   ciudades: 'Ciudades',
+  operadores: 'Operadores',
   comunidad: 'Comunidad',
 };
 

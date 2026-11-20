@@ -59,6 +59,10 @@ vi.mock('../pages/admin/overview/AdminOverviewPage', () => ({
   AdminOverviewPage: () => <div data-testid="admin-overview-stub" />,
 }));
 
+vi.mock('../pages/admin/operators/OperatorListPage', () => ({
+  OperatorListPage: () => <div data-testid="admin-operators-stub" />,
+}));
+
 vi.mock('../pages/operator/OperatorLoginPage', () => ({
   OperatorLoginPage: () => <div data-testid="operator-login-stub" />,
 }));
@@ -149,5 +153,14 @@ describe('AppRoutes operator and admin session isolation', () => {
 
     expect(await screen.findByTestId('admin-layout-stub')).toBeTruthy();
     expect(screen.getByTestId('admin-overview-stub')).toBeTruthy();
+  });
+
+  it('allows a valid admin session into the operator management page', async () => {
+    authMocks.getToken.mockReturnValue('admin-token');
+    authMocks.me.mockResolvedValue({ role: 'ADMIN' });
+
+    renderAt('/admin/operadores');
+
+    expect(await screen.findByTestId('admin-operators-stub')).toBeTruthy();
   });
 });

@@ -79,6 +79,58 @@ export const lineSchema = z.object({
   contact: optionalText(120, "Contacto demasiado largo (máx. 120)."),
   description: optionalText(500, "Descripción demasiado larga (máx. 500)."),
   status: statusField(),
+  // '' = platform-owned (no operator). null/undefined keeps zod permissive for edits.
+  operatorId: z
+    .union([z.string().uuid("Seleccioná un operador válido."), z.literal("")])
+    .nullish(),
+});
+
+// ── Operators (admin management) ───────────────────────────────────────────
+export const operatorSchema = z.object({
+  name: requiredText(1, 255, "El nombre del operador es obligatorio."),
+  ruc: z
+    .string()
+    .trim()
+    .regex(/^\d{11}$/, "El RUC debe tener exactamente 11 dígitos."),
+  cityId: uuidField("Seleccioná una ciudad."),
+  plan: z.enum(["BASIC", "PRO", "ENTERPRISE"], { error: "Plan inválido." }),
+  contactName: optionalText(255, "Nombre de contacto demasiado largo."),
+  contactEmail: z
+    .string()
+    .trim()
+    .email("Ingresá un correo de contacto válido.")
+    .optional()
+    .or(z.literal("")),
+  contactPhone: optionalText(50, "Teléfono demasiado largo."),
+  active: z.boolean(),
+});
+
+export const operatorUserCreateSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .min(1, "Ingresá el correo del usuario.")
+    .max(120, "Correo demasiado largo.")
+    .pipe(z.email("Ingresá un correo válido.")),
+  fullName: requiredText(1, 255, "El nombre completo es obligatorio."),
+  role: z.enum(["OWNER", "EDITOR"], { error: "Rol inválido." }),
+  password: requiredText(8, 128, "La contraseña debe tener al menos 8 caracteres."),
+});
+
+export const operatorUserUpdateSchema = z.object({
+  email: z
+    .string()
+    .trim()
+    .max(120, "Correo demasiado largo.")
+    .optional()
+    .or(z.literal("")),
+  fullName: optionalText(255, "Nombre completo demasiado largo."),
+  role: z.enum(["OWNER", "EDITOR"], { error: "Rol inválido." }).optional(),
+  active: z.boolean().optional(),
+});
+
+export const operatorResetPasswordSchema = z.object({
+  password: requiredText(8, 128, "La contraseña debe tener al menos 8 caracteres."),
 });
 
 // ── Stops ─────────────────────────────────────────────────────────────────

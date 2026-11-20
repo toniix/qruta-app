@@ -74,6 +74,11 @@ const CommunityModerationPage = lazy(() =>
     default: m.CommunityModerationPage,
   }))
 );
+const OperatorListPage = lazy(() =>
+  import('../pages/admin/operators/OperatorListPage').then((m) => ({
+    default: m.OperatorListPage,
+  }))
+);
 
 const OperatorLoginPage = lazy(() =>
   import('../pages/operator/OperatorLoginPage').then((m) => ({
@@ -261,6 +266,7 @@ export function AppRoutes() {
           <Route path="lineas" element={<LineListPage />} />
           <Route path="paraderos" element={<StopListPage />} />
           <Route path="ciudades" element={<CityListPage />} />
+          <Route path="operadores" element={<OperatorListPage />} />
           <Route path="comunidad" element={<CommunityModerationPage />} />
         </Route>
 

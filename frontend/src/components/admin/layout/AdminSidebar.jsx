@@ -5,6 +5,7 @@ import {
   Bus,
   MapPin,
   Building2,
+  Users,
   MessageSquare,
   Compass,
   LogOut,
@@ -18,6 +19,7 @@ const NAV_ITEMS = [
   { to: '/admin/lineas', label: 'Líneas', icon: Bus },
   { to: '/admin/paraderos', label: 'Paraderos', icon: MapPin },
   { to: '/admin/ciudades', label: 'Ciudades', icon: Building2 },
+  { to: '/admin/operadores', label: 'Operadores', icon: Users },
   { to: '/admin/comunidad', label: 'Comunidad', icon: MessageSquare },
 ];
 
