@@ -312,3 +312,14 @@ Agregar 3 o 4 publicaciones iniciales realistas (ej. una alerta sobre la ruta `R
 - [x] **Paso 7 (Frontend - RouteDrawer y Admin):** Integrar el widget de resumen comunitario en `RouteDrawer.jsx` y la pestaña de moderación en `AdminDashboardPage.jsx`.
 - [x] **Paso 8 (Verificación):** Compilar backend (`./mvnw test-compile`) y frontend (`pnpm run build` / `lint`) verificando todos los flujos.
 
+---
+
+## 7. Deuda Técnica y Seguridad (Backlog)
+
+### 7.1. Blindaje de Identidad de Dispositivo (`X-Device-Id`) y Rate Limiting
+- **Contexto**: El header `X-Device-Id` se utiliza como pseudónimo para el cooldown en caché Caffeine (`rateLimitCache`, 8s) y para la unicidad de likes (`community_post_likes`). Al ser provisto por el cliente sin firma criptográfica, un atacante automatizado puede rotar identificadores para saltear los 8s de cooldown o emitir votos repetidos para inflar `likesCount`.
+- **Estado actual**: Compromiso de diseño aceptado para MVP en instancia única (ver nota en `CommunityService.java:41`).
+- **Acciones planificadas para escala / producción**:
+  1. **Mitigación perimetral / IP**: Combinar la clave de rate limit con la IP del cliente (`IP + ':' + deviceId` vía header sanitizado de proxy) o configurar Cloud Armor / WAF con rate limiting por IP en endpoints `POST /api/community/**`.
+  2. **Caché distribuida**: Migrar el control de cooldowns de la memoria local de Caffeine a Redis distribuido al activar escalado horizontal multi-instancia en Cloud Run.
+  3. **Aislamiento de semillas**: Asegurar que los IDs de dispositivo semilla (`seed-device-*` en `DataInitializer.java`) queden estrictamente confinados al perfil `@Profile("dev")` para evitar borrados no autorizados.

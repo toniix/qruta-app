@@ -174,6 +174,8 @@ Alternativa sin habilitar el seed: insertar el admin por SQL con un hash BCrypt 
 
 El backend se empaqueta como una sola imagen (`backend/Dockerfile`): build multi-stage con Maven y JDK 21, y ejecución sobre JRE 21 con un usuario sin privilegios. El `.env` **no** entra en la imagen — `backend/.dockerignore` lo excluye del contexto — así que toda la configuración llega por variables de entorno. La imagen define `SPRING_PROFILES_ACTIVE=prod` por defecto: si la variable falta en el deploy, el perfil seguro es `prod` (`validate` + Flyway), nunca `local` con `ddl-auto=update`.
 
+> **Región activa:** `southamerica-east1`. El servicio desplegado es `qruta-app` en el proyecto `rutas-app-511504`, y la URL real es `https://qruta-app-645317527911.southamerica-east1.run.app`. Los ejemplos de abajo usan `us-central1` como referencia genérica de Artifact Registry: ajustá la región al desplegar.
+
 ```bash
 # 1. Construir y subir la imagen (contexto = backend/)
 gcloud builds submit backend \
@@ -284,3 +286,28 @@ PostGIS es obligatorio: las entidades mapean columnas `geometry(Point, 4326)`. N
 - `docs/PLAN_FILTRADO_POR_CIUDAD.md` — detección y filtrado por ciudad.
 - `docs/PLAN_MENU_COMUNIDAD.md` — alcance del módulo comunitario.
 - `docs/GUIA_CONTACTO_EMPRESAS_TRANSPORTE.md` — guía de relevamiento de datos con operadores.
+- `docs/ventas/README.md` — material de venta para empresas de transporte (carta de precios, one-pager, guion de llamada, propuesta formal, Anexo D comercial).
+
+## Validación manual de GTFS
+
+La validación con MobilityData `gtfs-validator` no forma parte de la suite automática. Para verificar un feed generado:
+
+1. Descargar el JAR CLI desde la sección Releases de `MobilityData/gtfs-validator` (por ejemplo, `gtfs-validator-8.0.1-cli.jar`) y usar Java 17 o superior.
+2. Descargar el feed desde `GET /api/gtfs/{citySlug}.zip`, por ejemplo `curl -o lima.zip http://localhost:8080/api/gtfs/lima.zip`.
+3. Ejecutar:
+
+```bash
+java -jar gtfs-validator-8.0.1-cli.jar -i lima.zip -o validator-report -c pe
+```
+
+4. Revisar `validator-report/report.json` y `validator-report/report.html`. La exportación se considera verificada solo cuando el reporte no contiene errores de severidad `ERROR`.
+
+Si el JAR no está disponible en el entorno, la validación queda pendiente y debe registrarse como una tarea manual de bloqueo; no se debe afirmar que el feed pasó el validador.
+
+## Producción
+
+| Componente | URL | Estado |
+| --- | --- | --- |
+| Frontend (SPA) | https://qruta-app.vercel.app | Activo |
+| Backend API | https://qruta-app-645317527911.southamerica-east1.run.app | Activo, región `southamerica-east1` |
+| Frontend alternativo | https://front.anthonywar.dev | Caído (502) |
