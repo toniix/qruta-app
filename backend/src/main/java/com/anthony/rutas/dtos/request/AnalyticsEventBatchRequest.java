@@ -38,6 +38,7 @@ public class AnalyticsEventBatchRequest {
         private String stopId;
         private String transportLineId;
         private String cityId;
+        private String qrCodeId;
 
         /** Raw device id sent by the client; the server hashes it before storing. */
         @NotBlank(message = "deviceId is required")

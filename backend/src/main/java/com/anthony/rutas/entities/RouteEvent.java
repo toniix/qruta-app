@@ -50,6 +50,9 @@ public class RouteEvent {
     @Column(name = "device_hash", nullable = false, length = 64)
     private String deviceHash;
 
+    @Column(name = "qr_code_id")
+    private UUID qrCodeId;
+
     /** Campaign carried by a physical QR code, so an operator can measure its return. */
     @Column(length = 255)
     private String campaign;

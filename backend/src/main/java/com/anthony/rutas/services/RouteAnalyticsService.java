@@ -58,6 +58,7 @@ public class RouteAnalyticsService {
                     .stopId(parseUuid(item.getStopId(), "stopId"))
                     .transportLineId(parseUuid(item.getTransportLineId(), "transportLineId"))
                     .cityId(parseUuid(item.getCityId(), "cityId"))
+                    .qrCodeId(parseUuid(item.getQrCodeId(), "qrCodeId"))
                     .category(item.getCategory())
                     .deviceHash(deviceHasher.hash(item.getDeviceId(), recordedAt))
                     .campaign(trimToNull(item.getCampaign()))
