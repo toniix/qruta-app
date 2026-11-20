@@ -40,7 +40,9 @@ public class OperatorAuthService {
                 .token(token)
                 .email(user.getEmail())
                 .fullName(user.getFullName())
-                .role(user.getRole())
+                // The portal session guard expects the portal principal role
+                // ("OPERATOR"), not the persisted business role (OWNER/EDITOR).
+                .role("ROLE_OPERATOR")
                 .operatorId(operatorId)
                 .operatorName(user.getOperator().getName())
                 .build();
