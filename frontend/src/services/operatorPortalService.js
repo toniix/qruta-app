@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { operatorClient } from './apiClient';
 
 function unwrap(response) {
   return response.data;
@@ -22,73 +22,73 @@ function rangeQuery(from, to) {
 
 export const operatorPortalService = {
   async getProfile() {
-    return unwrap(await apiClient.get('/operator/profile'));
+    return unwrap(await operatorClient.get('/operator/profile'));
   },
 
   async getLines() {
-    return toList(unwrap(await apiClient.get('/operator/lines')));
+    return toList(unwrap(await operatorClient.get('/operator/lines')));
   },
 
   async updateLine(id, payload) {
-    return unwrap(await apiClient.put(`/operator/lines/${id}`, payload));
+    return unwrap(await operatorClient.put(`/operator/lines/${id}`, payload));
   },
 
   async getRoutes() {
-    return toList(unwrap(await apiClient.get('/operator/routes')));
+    return toList(unwrap(await operatorClient.get('/operator/routes')));
   },
 
   async getRouteById(id) {
-    return unwrap(await apiClient.get(`/operator/routes/${id}`));
+    return unwrap(await operatorClient.get(`/operator/routes/${id}`));
   },
 
   async updateRoute(id, payload) {
-    return unwrap(await apiClient.put(`/operator/routes/${id}`, payload));
+    return unwrap(await operatorClient.put(`/operator/routes/${id}`, payload));
   },
 
   async updateRouteDirections(id, payload) {
-    return unwrap(await apiClient.put(`/operator/routes/${id}/directions`, payload));
+    return unwrap(await operatorClient.put(`/operator/routes/${id}/directions`, payload));
   },
 
   async getStops() {
-    return toList(unwrap(await apiClient.get('/operator/stops')));
+    return toList(unwrap(await operatorClient.get('/operator/stops')));
   },
 
   async updateStop(id, payload) {
-    return unwrap(await apiClient.put(`/operator/stops/${id}`, payload));
+    return unwrap(await operatorClient.put(`/operator/stops/${id}`, payload));
   },
 
   async getDisruptions() {
-    return toList(unwrap(await apiClient.get('/operator/disruptions')));
+    return toList(unwrap(await operatorClient.get('/operator/disruptions')));
   },
 
   async createDisruption(payload) {
-    return unwrap(await apiClient.post('/operator/disruptions', payload));
+    return unwrap(await operatorClient.post('/operator/disruptions', payload));
   },
 
   async updateDisruption(id, payload) {
-    return unwrap(await apiClient.put(`/operator/disruptions/${id}`, payload));
+    return unwrap(await operatorClient.put(`/operator/disruptions/${id}`, payload));
   },
 
   async deleteDisruption(id) {
-    await apiClient.delete(`/operator/disruptions/${id}`);
+    await operatorClient.delete(`/operator/disruptions/${id}`);
   },
 
   async getAnalyticsSummary(from, to) {
-    return unwrap(await apiClient.get(`/operator/analytics/summary${rangeQuery(from, to)}`));
+    return unwrap(await operatorClient.get(`/operator/analytics/summary${rangeQuery(from, to)}`));
   },
 
   async getRouteAnalytics(routeId, from, to) {
     return unwrap(
-      await apiClient.get(`/operator/analytics/routes/${routeId}${rangeQuery(from, to)}`)
+      await operatorClient.get(`/operator/analytics/routes/${routeId}${rangeQuery(from, to)}`)
     );
   },
 
   async getSubscription() {
-    return unwrap(await apiClient.get('/operator/subscription'));
+    return unwrap(await operatorClient.get('/operator/subscription'));
   },
 
   async createCheckout(payload) {
-    return unwrap(await apiClient.post('/billing/checkout', payload));
+    return unwrap(await operatorClient.post('/billing/checkout', payload));
   },
 };
 

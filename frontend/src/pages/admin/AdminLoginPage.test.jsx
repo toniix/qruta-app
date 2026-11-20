@@ -5,9 +5,13 @@ import { MemoryRouter } from 'react-router-dom';
 import { AdminLoginPage } from './AdminLoginPage';
 import { apiClient } from '../../services/apiClient';
 
-vi.mock('../../services/apiClient', () => ({
-  apiClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
-}));
+vi.mock('../../services/apiClient', () => {
+  const client = { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() };
+  return {
+    apiClient: client,
+    adminClient: client,
+  };
+});
 
 function renderPage() {
   render(

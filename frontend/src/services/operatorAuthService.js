@@ -1,8 +1,9 @@
-import { apiClient } from './apiClient';
+import { operatorClient } from './apiClient';
 
 const TOKEN_KEY = 'rutasya_operator_token';
 const USER_KEY = 'rutasya_operator_user';
 const OPERATOR_ROLE = 'OPERATOR';
+const OPERATOR_ROLES = new Set(['OPERATOR', 'OWNER', 'EDITOR']);
 
 function normalizeRole(role) {
   return String(role || '')
@@ -49,7 +50,7 @@ function buildUser(data = {}, token = '') {
 }
 
 function isOperatorUser(user) {
-  return normalizeRole(user?.role) === OPERATOR_ROLE;
+  return OPERATOR_ROLES.has(normalizeRole(user?.role));
 }
 
 function persistSession(token, data) {
@@ -61,7 +62,7 @@ function persistSession(token, data) {
 
 export const operatorAuthService = {
   async login(email, password) {
-    const { data } = await apiClient.post('/auth/operator/login', { email, password });
+    const { data } = await operatorClient.post('/auth/operator/login', { email, password });
     if (!data?.token) {
       throw new Error('El servidor no devolvió una sesión válida');
     }
@@ -102,11 +103,11 @@ export const operatorAuthService = {
     }
     const payload = parseJwt(token);
     const storedUser = this.getCurrentUser();
-    if (payload?.role && normalizeRole(payload.role) !== OPERATOR_ROLE) {
+    if (payload?.role && !OPERATOR_ROLES.has(normalizeRole(payload.role))) {
       this.logout();
       return false;
     }
-    if (!isOperatorUser(storedUser) && normalizeRole(payload?.role) !== OPERATOR_ROLE) {
+    if (storedUser && !isOperatorUser(storedUser)) {
       this.logout();
       return false;
     }
@@ -117,7 +118,7 @@ export const operatorAuthService = {
     if (!this.isAuthenticated()) {
       throw new Error('No active session');
     }
-    const { data } = await apiClient.get('/operator/profile');
+    const { data } = await operatorClient.get('/operator/profile');
     const user = persistSession(this.getToken(), {
       ...this.getCurrentUser(),
       ...data,

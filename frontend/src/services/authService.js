@@ -1,4 +1,4 @@
-import { apiClient } from './apiClient';
+import { adminClient } from './apiClient';
 
 const TOKEN_KEY = 'rutasya_admin_token';
 const ADMIN_USER_KEY = 'rutasya_admin_user';
@@ -20,7 +20,7 @@ function isExpired(token) {
 
 export const authService = {
   async login(email, password) {
-    const response = await apiClient.post('/auth/admin/login', { email, password });
+    const response = await adminClient.post('/auth/admin/login', { email, password });
     const { token, email: returnedEmail, role } = response.data;
     const userRole = role || 'ROLE_ADMIN';
     localStorage.setItem(TOKEN_KEY, token);
@@ -58,7 +58,7 @@ export const authService = {
       throw new Error('No active session');
     }
     try {
-      const response = await apiClient.get('/auth/me');
+      const response = await adminClient.get('/auth/me');
       const { email, role } = response.data;
       if (role && role !== 'ROLE_ADMIN') {
         throw new Error('Insufficient permissions');
