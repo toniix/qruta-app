@@ -19,6 +19,7 @@ export function normalizeStop(raw) {
   return {
     id: raw.id,
     name: raw.name || "Paradero sin nombre",
+    slug: raw.slug || null,
     latitude: lat != null ? Number(lat) : null,
     longitude: lng != null ? Number(lng) : null,
     reference: raw.reference || "",

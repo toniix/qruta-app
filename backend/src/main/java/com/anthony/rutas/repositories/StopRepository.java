@@ -13,6 +13,13 @@ public interface StopRepository extends JpaRepository<Stop, UUID> {
 
     List<Stop> findByNameContainingIgnoreCase(String name);
 
+    Optional<Stop> findBySlug(String slug);
+
+    boolean existsBySlug(String slug);
+
+    @Query("SELECT CASE WHEN COUNT(s) > 0 THEN true ELSE false END FROM Stop s WHERE s.slug = :slug AND s.id <> :id")
+    boolean existsBySlugAndIdNot(@Param("slug") String slug, @Param("id") UUID id);
+
     @Query("SELECT s FROM Stop s WHERE s.city.id = :cityId ORDER BY s.name ASC")
     List<Stop> findByCityId(@Param("cityId") UUID cityId);
 

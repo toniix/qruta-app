@@ -44,6 +44,9 @@ public class Stop {
     @Column(name = "image_url")
     private String imageUrl;
 
+    @Column(unique = true, length = 150)
+    private String slug;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
@@ -54,10 +57,16 @@ public class Stop {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
+        if ((slug == null || slug.isBlank()) && name != null) {
+            slug = com.anthony.rutas.utils.SlugUtils.toSlug(name);
+        }
     }
 
     @PreUpdate
     protected void onUpdate() {
         updatedAt = LocalDateTime.now();
+        if ((slug == null || slug.isBlank()) && name != null) {
+            slug = com.anthony.rutas.utils.SlugUtils.toSlug(name);
+        }
     }
 }

@@ -12,6 +12,7 @@ import java.util.UUID;
 public class StopResponse {
     private UUID id;
     private String name;
+    private String slug;
     private Double latitude;
     private Double longitude;
     private String reference;

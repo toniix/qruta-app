@@ -17,6 +17,7 @@ import java.util.UUID;
 public class KeyStopResponse {
     private UUID id;
     private String name;
+    private String slug;
     private Double latitude;
     private Double longitude;
 

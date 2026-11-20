@@ -9,6 +9,7 @@ import lombok.*;
 @Builder
 public class UpdateStopRequest {
     private String name;
+    private String slug;
     private Double latitude;
     private Double longitude;
     private String reference;

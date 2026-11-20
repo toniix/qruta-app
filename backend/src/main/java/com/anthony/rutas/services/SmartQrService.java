@@ -149,7 +149,10 @@ public class SmartQrService {
                     .orElseGet(() -> qr.getTargetId().toString());
             sb.append("/mapa/ruta/").append(urlEncode(routeCode));
         } else if ("STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            sb.append("/mapa/paradero/").append(qr.getTargetId());
+            String stopIdentifier = stopRepository.findById(qr.getTargetId())
+                    .map(s -> s.getSlug() != null && !s.getSlug().isBlank() ? s.getSlug() : s.getId().toString())
+                    .orElseGet(() -> qr.getTargetId().toString());
+            sb.append("/mapa/paradero/").append(urlEncode(stopIdentifier));
         } else {
             sb.append("/");
         }

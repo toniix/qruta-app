@@ -16,6 +16,8 @@ public class CreateStopRequest {
     @NotBlank(message = "Name is required")
     private String name;
 
+    private String slug;
+
     @NotNull(message = "Latitude is required")
     private Double latitude;
 

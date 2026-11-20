@@ -26,7 +26,12 @@ export function NearbyStopCard({ stop, routes, distanceKm }) {
     } else {
       clearSelectedRoute();
       selectStop(stop);
-      navigate("/mapa", { state: { from: "/" } });
+      const identifier = stop?.slug || stop?.id;
+      if (identifier) {
+        navigate(`/mapa/paradero/${encodeURIComponent(identifier)}`, { state: { from: "/" } });
+      } else {
+        navigate("/mapa", { state: { from: "/" } });
+      }
     }
   };
 

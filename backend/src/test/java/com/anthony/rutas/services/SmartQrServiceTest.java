@@ -208,6 +208,31 @@ class SmartQrServiceTest {
     }
 
     @Test
+    void resolveAndTrackRedirectsToStopSlugWhenStopHasSlug() {
+        UUID stopId = UUID.randomUUID();
+        UUID qrId = UUID.randomUUID();
+        QrCode qr = QrCode.builder()
+                .id(qrId)
+                .code("stopCodeSlug")
+                .status("ACTIVE")
+                .targetType("STOP")
+                .targetId(stopId)
+                .build();
+
+        Stop stop = Stop.builder().id(stopId).name("El Quinde").slug("el-quinde").build();
+
+        when(qrCodeRepository.findByCode("stopCodeSlug")).thenReturn(Optional.of(qr));
+        when(stopRepository.findById(stopId)).thenReturn(Optional.of(stop));
+        when(deviceHasher.hash(anyString(), any(Instant.class))).thenReturn("hashed_device_slug");
+
+        SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("stopCodeSlug", "127.0.0.1|Chrome");
+
+        assertThat(redirect.active()).isTrue();
+        assertThat(redirect.redirectUrl()).startsWith("https://front.anthonywar.dev/mapa/paradero/el-quinde");
+        assertThat(redirect.redirectUrl()).contains("qr=stopCodeSlug");
+    }
+
+    @Test
     void getStatsComputesScansAndEffectiveViewsWithLimaTimezone() {
         UUID qrId = UUID.randomUUID();
         QrCode qr = QrCode.builder().id(qrId).code("qrStat1").label("Etiqueta").status("ACTIVE").build();

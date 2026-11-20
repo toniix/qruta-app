@@ -265,4 +265,47 @@ class StopServiceTest {
         assertNull(result.getImageUrl());
         verify(storageService, never()).deleteByPublicUrl(any());
     }
+
+    @Test
+    @DisplayName("findByIdOrSlug resolves by UUID when given a valid UUID")
+    void shouldFindByIdOrSlugWithUuid() {
+        UUID id = UUID.randomUUID();
+        Stop stop = stopWithLocation(id);
+        stop.setSlug("paradero-mercado");
+
+        when(stopRepository.findById(id)).thenReturn(Optional.of(stop));
+
+        StopResponse result = stopService.findByIdOrSlug(id.toString());
+
+        assertNotNull(result);
+        assertEquals(id, result.getId());
+        assertEquals("paradero-mercado", result.getSlug());
+    }
+
+    @Test
+    @DisplayName("findByIdOrSlug resolves by slug when given a non-UUID string")
+    void shouldFindByIdOrSlugWithSlug() {
+        UUID id = UUID.randomUUID();
+        Stop stop = stopWithLocation(id);
+        stop.setSlug("paradero-mercado");
+
+        when(stopRepository.findBySlug("paradero-mercado")).thenReturn(Optional.of(stop));
+
+        StopResponse result = stopService.findByIdOrSlug("paradero-mercado");
+
+        assertNotNull(result);
+        assertEquals(id, result.getId());
+        assertEquals("paradero-mercado", result.getSlug());
+    }
+
+    @Test
+    @DisplayName("generateUniqueSlug generates incremented suffix on collision")
+    void shouldGenerateUniqueSlugOnCollision() {
+        when(stopRepository.existsBySlug("paradero-mercado")).thenReturn(true);
+        when(stopRepository.existsBySlug("paradero-mercado-2")).thenReturn(false);
+
+        String uniqueSlug = stopService.generateUniqueSlug("Paradero Mercado", null);
+
+        assertEquals("paradero-mercado-2", uniqueSlug);
+    }
 }

@@ -12,6 +12,7 @@ import java.util.UUID;
 public class DirectionStopResponse {
     private UUID id;
     private String name;
+    private String slug;
     private Coordinates location;
     private String reference;
     private String address;

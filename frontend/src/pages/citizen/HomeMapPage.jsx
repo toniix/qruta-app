@@ -122,6 +122,7 @@ export function HomeMapPage() {
     if (
       selectedStop &&
       (String(selectedStop.id || "").toLowerCase() === String(stopTarget).toLowerCase() ||
+        String(selectedStop.slug || "").toLowerCase() === String(stopTarget).toLowerCase() ||
         String(selectedStop.code || "").toLowerCase() === String(stopTarget).toLowerCase())
     ) {
       return;
@@ -134,6 +135,13 @@ export function HomeMapPage() {
         if (isMounted && stop) {
           selectStop(stop);
           if (focusStop) focusStop(stop);
+          // Canonicalize URL to slug when accessed by UUID
+          if (isStopPath && stop.slug && id !== stop.slug) {
+            navigate(`/mapa/paradero/${encodeURIComponent(stop.slug)}${location.search || ""}`, {
+              replace: true,
+              state: location.state,
+            });
+          }
         }
       })
       .catch((err) => {
@@ -143,7 +151,7 @@ export function HomeMapPage() {
     return () => {
       isMounted = false;
     };
-  }, [location.pathname, location.search, id, selectedStop, selectStop, focusStop]);
+  }, [location.pathname, location.search, location.state, id, selectedStop, selectStop, focusStop, navigate]);
 
   // Auto-scroll carousel to position 0 when nearby filter is activated
   useEffect(() => {
@@ -174,8 +182,9 @@ export function HomeMapPage() {
   const handleSelectStop = useCallback(
     (stop) => {
       selectStop(stop);
-      if (stop?.id && !selectedRoute) {
-        navigate(`/mapa/paradero/${encodeURIComponent(stop.id)}`, {
+      const identifier = stop?.slug || stop?.id;
+      if (identifier && !selectedRoute) {
+        navigate(`/mapa/paradero/${encodeURIComponent(identifier)}`, {
           state: { from: "/mapa" },
         });
       }

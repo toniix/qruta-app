@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.UUID;
@@ -53,6 +54,43 @@ public class StopService {
         return DtoMapper.toStopResponse(stop);
     }
 
+    @Transactional(readOnly = true)
+    public StopResponse findByIdOrSlug(String identifier) {
+        return DtoMapper.toStopResponse(findEntityByIdOrSlug(identifier));
+    }
+
+    @Transactional(readOnly = true)
+    public Stop findEntityByIdOrSlug(String identifier) {
+        if (identifier == null || identifier.isBlank()) {
+            throw new BadRequestException("Stop identifier is required");
+        }
+        String trimmed = identifier.trim();
+        try {
+            UUID id = UUID.fromString(trimmed);
+            Optional<Stop> byId = stopRepository.findById(id);
+            if (byId.isPresent()) {
+                return byId.get();
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Not a UUID, look up by slug
+        }
+
+        return stopRepository.findBySlug(trimmed.toLowerCase(java.util.Locale.ROOT))
+                .orElseThrow(() -> new ResourceNotFoundException("Stop not found with identifier: " + identifier));
+    }
+
+    public String generateUniqueSlug(String name, UUID excludeId) {
+        String baseSlug = com.anthony.rutas.utils.SlugUtils.toSlug(name);
+        String candidate = baseSlug;
+        int counter = 2;
+        while (excludeId == null
+                ? stopRepository.existsBySlug(candidate)
+                : stopRepository.existsBySlugAndIdNot(candidate, excludeId)) {
+            candidate = baseSlug + "-" + counter++;
+        }
+        return candidate;
+    }
+
     /**
      * Finds stops nearby a geographic coordinate within radius meters.
      */
@@ -60,6 +98,12 @@ public class StopService {
     public List<StopResponse> findNearbyStops(double latitude, double longitude, double radiusMeters) {
         List<Stop> nearbyStops = stopRepository.findNearby(latitude, longitude, radiusMeters);
         return DtoMapper.toStopList(nearbyStops);
+    }
+
+    @Transactional(readOnly = true)
+    public List<StopRouteResponse> findRoutesByStop(String identifier) {
+        Stop stop = findEntityByIdOrSlug(identifier);
+        return findRoutesByStopId(stop.getId());
     }
 
     /**
@@ -70,6 +114,10 @@ public class StopService {
      */
     @Transactional(readOnly = true)
     public List<StopRouteResponse> findRoutesByStop(UUID stopId) {
+        return findRoutesByStopId(stopId);
+    }
+
+    private List<StopRouteResponse> findRoutesByStopId(UUID stopId) {
         // Resolve the stop first so a missing id still yields 404 rather than an
         // empty list. The route-stop query below then joins direction and route,
         // so dereferencing them costs no extra round trips.
@@ -117,9 +165,18 @@ public class StopService {
 
         Point location = geometryFactory.createPoint(new Coordinate(request.getLongitude(), request.getLatitude()));
 
+        String slug = request.getSlug() != null && !request.getSlug().isBlank()
+                ? com.anthony.rutas.utils.SlugUtils.toSlug(request.getSlug())
+                : generateUniqueSlug(request.getName(), null);
+
+        if (stopRepository.existsBySlug(slug)) {
+            slug = generateUniqueSlug(slug, null);
+        }
+
         Stop stop = Stop.builder()
                 .city(city)
                 .name(request.getName())
+                .slug(slug)
                 .location(location)
                 .reference(request.getReference())
                 .address(request.getAddress())
@@ -135,6 +192,16 @@ public class StopService {
                 .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + id));
 
         if (request.getName() != null) stop.setName(request.getName());
+        if (request.getSlug() != null && !request.getSlug().isBlank()) {
+            String newSlug = com.anthony.rutas.utils.SlugUtils.toSlug(request.getSlug());
+            if (stopRepository.existsBySlugAndIdNot(newSlug, id)) {
+                throw new BadRequestException("Slug already in use: " + newSlug);
+            }
+            stop.setSlug(newSlug);
+        } else if (request.getName() != null && (stop.getSlug() == null || stop.getSlug().isBlank())) {
+            stop.setSlug(generateUniqueSlug(request.getName(), id));
+        }
+
         if (request.getLatitude() != null && request.getLongitude() != null) {
             Point location = geometryFactory.createPoint(new Coordinate(request.getLongitude(), request.getLatitude()));
             stop.setLocation(location);

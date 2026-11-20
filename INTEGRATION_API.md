@@ -154,9 +154,9 @@ Filtra líneas por ciudad. Misma estructura de respuesta que `GET /api/lines`.
 
 Lista todos los paraderos (array de `StopResponse`).
 
-### GET `/api/stops/{id}`
+### GET `/api/stops/{idOrSlug}`
 
-Obtiene un paradero por su ID (misma estructura).
+Obtiene un paradero por su UUID o por su slug semántico (`plaza-de-armas-de-ica`). Misma estructura `StopResponse` (incluyendo campo `slug`).
 - `404` — No existe.
 
 ### GET `/api/stops/search?query=plaza`
@@ -823,7 +823,7 @@ Endpoint público de redirección física inteligente. Genera un evento `qr_scan
 **Comportamiento de redirección (Dominio estricto de destino: `https://front.anthonywar.dev`):**
 - URL pública del Smart QR: `https://back.anthonywar.dev/q/{code}`
 - QR activo con destino `ROUTE`: `302 Found` -> `https://front.anthonywar.dev/mapa/ruta/{routeCode}?qr={code}&qrId={id}&utm_...`
-- QR activo con destino `STOP`: `302 Found` -> `https://front.anthonywar.dev/mapa/paradero/{targetId}?qr={code}&qrId={id}&utm_...`
+- QR activo con destino `STOP`: `302 Found` -> `https://front.anthonywar.dev/mapa/paradero/{slug}?qr={code}&qrId={id}&utm_...` (utiliza el slug semántico del paradero con fallback a UUID).
 - QR activo sin destino específico: `302 Found` -> `https://front.anthonywar.dev/?qr={code}&qrId={id}&utm_...`
 - QR pausado (`PAUSED`): `302 Found` -> `https://front.anthonywar.dev/?qr_error=inactive` (fallback seguro sin romper la experiencia del pasajero)
 - QR revocado (`REVOKED`) o inexistente: `404 Not Found` o fallback con error

@@ -224,7 +224,12 @@ export function StopRoutesModal({ stop, onClose }) {
               clearSelectedRoute();
               selectStop(stop);
               onClose();
-              navigate("/mapa", { state: { from: "/" } });
+              const identifier = stop?.slug || stop?.id;
+              if (identifier) {
+                navigate(`/mapa/paradero/${encodeURIComponent(identifier)}`, { state: { from: "/" } });
+              } else {
+                navigate("/mapa", { state: { from: "/" } });
+              }
             }}
             className="w-full bg-brand-primary text-white font-bold text-xs py-3.5 rounded-2xl hover:bg-brand-primary-dark transition-all active:scale-[0.98] shadow-xs flex items-center justify-center gap-2"
           >

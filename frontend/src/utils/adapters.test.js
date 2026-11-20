@@ -23,6 +23,14 @@ describe('normalizeStop imageUrl', () => {
 
     expect(stop.imageUrl).toBeNull();
   });
+
+  it('exposes slug from raw.slug and falls back to null', () => {
+    const stopWithSlug = normalizeStop({ id: 'stop-4', name: 'El Quinde', slug: 'el-quinde' });
+    expect(stopWithSlug.slug).toBe('el-quinde');
+
+    const stopWithoutSlug = normalizeStop({ id: 'stop-5', name: 'Sin Slug' });
+    expect(stopWithoutSlug.slug).toBeNull();
+  });
 });
 
 describe('normalizeRoute category', () => {

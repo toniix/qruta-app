@@ -24,14 +24,14 @@ public class StopController {
         return ResponseEntity.ok(stopService.findAll());
     }
 
-    @GetMapping("/{id}")
-    public ResponseEntity<StopResponse> getStopById(@PathVariable UUID id) {
-        return ResponseEntity.ok(stopService.findById(id));
+    @GetMapping("/{idOrSlug}")
+    public ResponseEntity<StopResponse> getStopById(@PathVariable String idOrSlug) {
+        return ResponseEntity.ok(stopService.findByIdOrSlug(idOrSlug));
     }
 
-    @GetMapping("/{id}/routes")
-    public ResponseEntity<List<StopRouteResponse>> getRoutesByStop(@PathVariable UUID id) {
-        return ResponseEntity.ok(stopService.findRoutesByStop(id));
+    @GetMapping("/{idOrSlug}/routes")
+    public ResponseEntity<List<StopRouteResponse>> getRoutesByStop(@PathVariable String idOrSlug) {
+        return ResponseEntity.ok(stopService.findRoutesByStop(idOrSlug));
     }
 
     @GetMapping("/search")

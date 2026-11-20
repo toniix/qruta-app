@@ -12,6 +12,7 @@ import java.util.UUID;
 public class OperatorStopResponse {
     private UUID id;
     private String name;
+    private String slug;
     private String address;
     private String reference;
     private Boolean keyStop;

@@ -58,6 +58,7 @@ public final class OperatorDtoMapper {
         return OperatorStopResponse.builder()
                 .id(stop.getId())
                 .name(stop.getName())
+                .slug(stop.getSlug())
                 .address(stop.getAddress())
                 .reference(stop.getReference())
                 .keyStop(stop.getKeyStop())
