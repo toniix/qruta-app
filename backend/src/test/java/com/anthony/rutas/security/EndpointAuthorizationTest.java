@@ -5,12 +5,14 @@ import com.anthony.rutas.billing.BillingService;
 import com.anthony.rutas.billing.BillingWebhookService;
 import com.anthony.rutas.config.SecurityConfig;
 import com.anthony.rutas.controllers.AdminBillingController;
+import com.anthony.rutas.controllers.AdminOperatorController;
 import com.anthony.rutas.controllers.AdminRouteController;
 import com.anthony.rutas.controllers.BillingController;
 import com.anthony.rutas.controllers.RouteController;
 import com.anthony.rutas.dtos.response.BillingCheckoutResponse;
 import com.anthony.rutas.dtos.response.BillingMonthlyCloseResponse;
 import com.anthony.rutas.dtos.response.BillingWebhookResponse;
+import com.anthony.rutas.services.AdminOperatorService;
 import com.anthony.rutas.services.OperatorUserService;
 import com.anthony.rutas.services.RouteService;
 import org.junit.jupiter.api.Test;
@@ -45,6 +47,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = {
         AdminBillingController.class,
+        AdminOperatorController.class,
         AdminRouteController.class,
         BillingController.class,
         RouteController.class
@@ -76,6 +79,9 @@ class EndpointAuthorizationTest {
 
     @MockBean
     private BillingMonthlyCloseService billingMonthlyCloseService;
+
+    @MockBean
+    private AdminOperatorService adminOperatorService;
 
     @Test
     void adminRouteListIsRejectedWithoutAuthentication() throws Exception {
@@ -171,6 +177,27 @@ class EndpointAuthorizationTest {
 
         mockMvc.perform(post("/api/admin/billing/monthly-close")
                         .header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void operatorManagementIsRejectedWithoutAuthentication() throws Exception {
+        int status = mockMvc.perform(get("/api/admin/operators"))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+
+        assertThat(status)
+                .as("GET /api/admin/operators must require the ADMIN role")
+                .isIn(401, 403);
+    }
+
+    @Test
+    void operatorManagementIsReachableForAdmin() throws Exception {
+        stubAdminToken();
+        when(adminOperatorService.findAll()).thenReturn(List.of());
+
+        mockMvc.perform(get("/api/admin/operators").header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk());
     }
 

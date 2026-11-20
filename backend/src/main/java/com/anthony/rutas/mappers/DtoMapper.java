@@ -32,6 +32,37 @@ public class DtoMapper {
                                 .contact(line.getContact())
                                 .description(line.getDescription())
                                 .status(line.getStatus())
+                                .operatorId(line.getOperator() != null ? line.getOperator().getId() : null)
+                                .operatorName(line.getOperator() != null ? line.getOperator().getName() : null)
+                                .build();
+        }
+
+        public static OperatorResponse toOperatorResponse(Operator operator) {
+                return OperatorResponse.builder()
+                                .id(operator.getId())
+                                .name(operator.getName())
+                                .ruc(operator.getRuc())
+                                .contactName(operator.getContactName())
+                                .contactEmail(operator.getContactEmail())
+                                .contactPhone(operator.getContactPhone())
+                                .cityId(operator.getCity() != null ? operator.getCity().getId() : null)
+                                .cityName(operator.getCity() != null ? operator.getCity().getName() : null)
+                                .plan(operator.getPlan())
+                                .active(operator.isActive())
+                                .createdAt(operator.getCreatedAt())
+                                .updatedAt(operator.getUpdatedAt())
+                                .build();
+        }
+
+        public static OperatorUserResponse toOperatorUserResponse(OperatorUser user) {
+                return OperatorUserResponse.builder()
+                                .id(user.getId())
+                                .operatorId(user.getOperator() != null ? user.getOperator().getId() : null)
+                                .email(user.getEmail())
+                                .fullName(user.getFullName())
+                                .role(user.getRole())
+                                .active(user.isActive())
+                                .createdAt(user.getCreatedAt())
                                 .build();
         }
 
