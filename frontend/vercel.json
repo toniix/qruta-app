@@ -1,6 +1,14 @@
 {
   "rewrites": [
     {
+      "source": "/q/:path*",
+      "destination": "https://qruta-app-645317527911.southamerica-east1.run.app/q/:path*"
+    },
+    {
+      "source": "/api/:path*",
+      "destination": "https://qruta-app-645317527911.southamerica-east1.run.app/api/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/"
     }
