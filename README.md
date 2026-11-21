@@ -115,11 +115,13 @@ La SPA queda en `http://localhost:5173`, origen ya permitido por la configuraci�
 
 ### Datos de ejemplo (opcional)
 
-`backend/src/main/resources/db/seed/seed_data.sql` carga ciudades, líneas, rutas y paraderos de muestra. Es un script manual y destructivo: no se ejecuta automáticamente y no debe correrse sobre una base con datos reales.
+`backend/src/main/resources/db/seed/seed_data.sql` carga el catálogo (ciudades, líneas, rutas, paraderos, vehículos), además de operadores, suscripciones, facturación, licencias de datos, QR codes, 30 días de métricas de analítica y un administrador de demostración. Es un script manual y destructivo: no se ejecuta automáticamente y **nunca** debe correrse sobre una base con datos reales.
 
 ```bash
 psql -d rutas -f backend/src/main/resources/db/seed/seed_data.sql
 ```
+
+Accesos de demostración (solo local): `admin@rutasya.pe` / `Admin123!`. Los tres usuarios operador tienen contraseñas aleatorias: sus emails están en la cabecera del script y la contraseña se cambia desde el panel admin (Operadores > Usuarios > Reset password).
 
 ## Variables de entorno
 
