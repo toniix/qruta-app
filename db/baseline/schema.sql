@@ -939,7 +939,7 @@ CREATE TABLE public.qr_codes (
     CONSTRAINT qr_codes_pkey PRIMARY KEY (id),
     CONSTRAINT qr_codes_code_key UNIQUE (code),
     CONSTRAINT qr_codes_target_type_check CHECK (target_type IN ('HOME', 'ROUTE', 'STOP', 'CAMPAIGN')),
-    CONSTRAINT qr_codes_status_check CHECK (status IN ('ACTIVE', 'PAUSED', 'REVOKED')),
+    CONSTRAINT qr_codes_status_check CHECK (status IN ('ACTIVE', 'PAUSED')),
     CONSTRAINT fk_qr_codes_operator FOREIGN KEY (operator_id) REFERENCES public.operators(id) ON DELETE SET NULL
 );
 

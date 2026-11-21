@@ -6,6 +6,10 @@ import { OperatorQrListPage } from './OperatorQrListPage';
 import { operatorQrCodeService } from '../../services/qrCodeService';
 import { operatorPortalService } from '../../services/operatorPortalService';
 
+const { toastMock } = vi.hoisted(() => ({
+  toastMock: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+}));
+
 vi.mock('../../services/qrCodeService', () => ({
   operatorQrCodeService: {
     getAll: vi.fn(),
@@ -22,10 +26,7 @@ vi.mock('../../services/operatorPortalService', () => ({
 }));
 
 vi.mock('../../hooks/useAdminToast', () => ({
-  useAdminToast: () => ({
-    success: vi.fn(),
-    error: vi.fn(),
-  }),
+  useAdminToast: () => toastMock,
 }));
 
 const mockQrCodes = [
@@ -63,6 +64,10 @@ describe('OperatorQrListPage', () => {
       expect(screen.getByText('op123456')).toBeInTheDocument();
       expect(screen.getByText('88')).toBeInTheDocument();
     });
+
+    expect(
+      screen.queryByRole('button', { name: /Eliminar código QR/i })
+    ).not.toBeInTheDocument();
   });
 
   it('opens creation modal on clicking button', async () => {
@@ -77,5 +82,44 @@ describe('OperatorQrListPage', () => {
     await user.click(newBtn);
 
     expect(screen.getByText('Crear Código QR Inteligente')).toBeInTheDocument();
+  });
+
+  it('opens the edit modal and submits updates through the operator service', async () => {
+    const user = userEvent.setup();
+    operatorQrCodeService.getAll.mockResolvedValue([
+      { ...mockQrCodes[0], targetType: 'HOME' },
+    ]);
+    operatorQrCodeService.update.mockResolvedValue({
+      ...mockQrCodes[0],
+      targetType: 'HOME',
+      label: 'QR Bus 101 Actualizado',
+    });
+
+    render(
+      <MemoryRouter>
+        <OperatorQrListPage />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('QR Bus 101')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Editar código QR QR Bus 101' }));
+
+    expect(screen.getByRole('heading', { name: 'Editar Código QR' })).toBeInTheDocument();
+
+    const labelInput = screen.getByPlaceholderText('Ej. Afiche Paradero Plaza Bolognesi');
+    expect(labelInput).toHaveValue('QR Bus 101');
+    await user.clear(labelInput);
+    await user.type(labelInput, 'QR Bus 101 Actualizado');
+    await user.click(screen.getByRole('button', { name: /Guardar Cambios/i }));
+
+    await waitFor(() => {
+      expect(operatorQrCodeService.update).toHaveBeenCalledWith(
+        'op-qr-1',
+        expect.objectContaining({ label: 'QR Bus 101 Actualizado', targetType: 'HOME' })
+      );
+    });
   });
 });

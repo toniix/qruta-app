@@ -147,6 +147,38 @@ class CommunityServiceTest {
             assertThrows(NoSuchFieldException.class, () ->
                     CommunityPostResponse.class.getDeclaredField("lineCode"));
         }
+
+        @Test
+        @DisplayName("Maps official post fields including operator details")
+        void getPostsMapsOfficialPostWithOperator() {
+            UUID opId = UUID.randomUUID();
+            Operator operator = Operator.builder()
+                    .id(opId)
+                    .name("Empresa Operadora SA")
+                    .build();
+            CommunityPost officialPost = CommunityPost.builder()
+                    .id(UUID.randomUUID())
+                    .authorAlias("Empresa Operadora SA")
+                    .authorDeviceId("OPERATOR:" + opId)
+                    .category(PostCategory.ALERTA)
+                    .content("[DESVIO] Desvío por desfile")
+                    .isOfficial(true)
+                    .operator(operator)
+                    .createdAt(LocalDateTime.now())
+                    .build();
+
+            when(postRepository.findFilteredPosts(any(), any(), any(), any(PageRequest.class)))
+                    .thenReturn(List.of(officialPost));
+
+            List<CommunityPostResponse> result = communityService.getPosts(
+                    null, null, null, 10, 0, "recent", deviceA);
+
+            assertEquals(1, result.size());
+            CommunityPostResponse resp = result.get(0);
+            assertTrue(resp.isOfficial());
+            assertEquals(opId, resp.getOperatorId());
+            assertEquals("Empresa Operadora SA", resp.getOperatorName());
+        }
     }
 
     @Nested

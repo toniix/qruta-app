@@ -44,7 +44,7 @@ public class QrCode {
 
     @Column(nullable = false, length = 20)
     @Builder.Default
-    private String status = "ACTIVE"; // ACTIVE, PAUSED, REVOKED
+    private String status = "ACTIVE"; // ACTIVE, PAUSED
 
     @Column(name = "operator_id")
     private UUID operatorId;

@@ -4,8 +4,10 @@ import { AdminDrawer } from '../../../components/admin/common/AdminDrawer';
 import { FieldError } from '../../../components/common/FieldError';
 import { operatorSchema, validateWith } from '../../../schemas';
 import { cityService } from '../../../services/cityService';
+import { adminLineService } from '../../../services/adminLineService';
 
 const EMPTY_FORM = {
+  transportLineId: '',
   name: '',
   ruc: '',
   cityId: '',
@@ -21,26 +23,30 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
   const [form, setForm] = useState(() => ({
     ...EMPTY_FORM,
     ...initialData,
+    transportLineId: initialData?.transportLineId || '',
     cityId: initialData?.cityId || '',
     plan: initialData?.plan || 'PRO',
     active: initialData?.active ?? true,
   }));
   const [cities, setCities] = useState([]);
+  const [lines, setLines] = useState([]);
   const [errors, setErrors] = useState({});
-  const [loadingCities, setLoadingCities] = useState(true);
+  const [loadingData, setLoadingData] = useState(true);
 
   useEffect(() => {
     let cancelled = false;
-    cityService
-      .getAdminCities()
-      .then((data) => {
-        if (!cancelled) setCities(Array.isArray(data) ? data : []);
-      })
-      .catch(() => {
-        if (!cancelled) setCities([]);
+    Promise.all([
+      cityService.getAdminCities().catch(() => []),
+      adminLineService.getAllLines().catch(() => []),
+    ])
+      .then(([citiesData, linesData]) => {
+        if (!cancelled) {
+          setCities(Array.isArray(citiesData) ? citiesData : []);
+          setLines(Array.isArray(linesData) ? linesData : []);
+        }
       })
       .finally(() => {
-        if (!cancelled) setLoadingCities(false);
+        if (!cancelled) setLoadingData(false);
       });
     return () => {
       cancelled = true;
@@ -59,8 +65,28 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
     }
   };
 
+  const handleLineSelect = (lineId) => {
+    const selectedLine = lines.find((l) => l.id === lineId);
+    update(
+      {
+        transportLineId: lineId,
+        name: selectedLine ? selectedLine.company : form.name,
+        cityId: selectedLine?.cityId ? selectedLine.cityId : form.cityId,
+      },
+      'transportLineId'
+    );
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
+    if (!isEdit && !form.transportLineId) {
+      setErrors((prev) => ({
+        ...prev,
+        transportLineId: 'Selecciona una empresa de transporte registrada.',
+      }));
+      return;
+    }
+
     const payload = { ...form, contactEmail: form.contactEmail || '' };
     const result = validateWith(operatorSchema, payload);
     if (!result.ok) {
@@ -86,6 +112,33 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
       submitLabel={isEdit ? 'Actualizar Operador' : 'Crear Operador'}
       loading={loading}
     >
+      {!isEdit && (
+        <div>
+          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+            Empresa de Transporte (Línea) <span className="text-rose-500">*</span>
+          </label>
+          <select
+            value={form.transportLineId}
+            onChange={(e) => handleLineSelect(e.target.value)}
+            disabled={loadingData || loading}
+            className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
+          >
+            <option value="">
+              {loadingData ? 'Cargando empresas...' : 'Selecciona una empresa de transporte...'}
+            </option>
+            {lines.map((line) => {
+              const isLinked = Boolean(line.operatorId && line.operatorId !== initialData?.id);
+              return (
+                <option key={line.id} value={line.id} disabled={isLinked}>
+                  {line.company} {isLinked ? '(Ya vinculada a otro operador)' : ''}
+                </option>
+              );
+            })}
+          </select>
+          <FieldError message={errors.transportLineId} />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
           <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
@@ -93,7 +146,6 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
           </label>
           <input
             type="text"
-            required
             value={form.name}
             onChange={(e) => update({ name: e.target.value }, 'name')}
             placeholder="Ej: Expreso Ica S.A.C."
@@ -108,7 +160,6 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
           </label>
           <input
             type="text"
-            required
             inputMode="numeric"
             maxLength={11}
             value={form.ruc}
@@ -128,11 +179,11 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
           <select
             value={form.cityId}
             onChange={(e) => update({ cityId: e.target.value }, 'cityId')}
-            disabled={loadingCities || loading}
+            disabled={loadingData || loading}
             className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20 disabled:bg-slate-50"
           >
             <option value="">
-              {loadingCities ? 'Cargando ciudades...' : 'Selecciona una ciudad...'}
+              {loadingData ? 'Cargando ciudades...' : 'Selecciona una ciudad...'}
             </option>
             {cities.map((c) => (
               <option key={c.id} value={c.id}>
@@ -215,9 +266,9 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
         </span>
       </label>
 
-      {loadingCities && (
+      {loadingData && (
         <p className="flex items-center gap-1.5 text-[11px] text-slate-400">
-          <Loader2 className="h-3 w-3 animate-spin" /> Cargando ciudades...
+          <Loader2 className="h-3 w-3 animate-spin" /> Cargando datos...
         </p>
       )}
     </AdminDrawer>

@@ -18,4 +18,6 @@ public interface QrCodeRepository extends JpaRepository<QrCode, UUID> {
     List<QrCode> findAllByOrderByCreatedAtDesc();
 
     boolean existsByCode(String code);
+
+    long countByTargetTypeAndTargetIdAndStatusIn(String targetType, UUID targetId, List<String> statuses);
 }

@@ -106,4 +106,29 @@ describe('StopListPage image upload flow', () => {
     expect(await screen.findByText(/imagen no se pudo subir/i)).toBeInTheDocument();
     expect(adminStopService.createStop).toHaveBeenCalledTimes(1);
   }, 20000);
+
+  it('shows the QR conflict message returned by the delete API', async () => {
+    const user = userEvent.setup();
+    adminStopService.getAllStops.mockResolvedValue([
+      { id: 'stop-conflict', name: 'Paradero Bolognesi', reference: 'Ref 1' },
+    ]);
+    adminStopService.deleteStop.mockRejectedValueOnce({
+      response: {
+        data: {
+          message:
+            'Cannot delete stop: 1 QR code still target this stop. Edit or delete those QR codes first.',
+        },
+      },
+    });
+
+    renderPage();
+
+    await user.click(await screen.findByRole('button', { name: 'Eliminar paradero' }));
+    await user.click(screen.getByRole('button', { name: 'Eliminar Paradero' }));
+
+    expect(
+      await screen.findByText(/1 QR code still target this stop/i)
+    ).toBeInTheDocument();
+    expect(adminStopService.deleteStop).toHaveBeenCalledWith('stop-conflict');
+  }, 20000);
 });

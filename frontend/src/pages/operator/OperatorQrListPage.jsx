@@ -8,9 +8,9 @@ import {
   Check,
   Pause,
   Play,
-  Ban,
   BarChart3,
   RefreshCw,
+  Edit2,
 } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { StatusBadge } from '../../components/admin/common/StatusBadge';
@@ -34,9 +34,10 @@ export function OperatorQrListPage() {
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingQr, setEditingQr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [printModalQr, setPrintModalQr] = useState(null);
-  const [statusConfirm, setStatusConfirm] = useState(null);
+  const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, description }
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -58,6 +59,7 @@ export function OperatorQrListPage() {
   }, [toast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR list state
     loadData();
   }, [loadData]);
 
@@ -76,12 +78,33 @@ export function OperatorQrListPage() {
     setSaving(true);
     try {
       const created = await operatorQrCodeService.create(formData);
-      setQrCodes([created, ...qrCodes]);
+      setQrCodes((prev) => [created, ...prev]);
       setCreateModalOpen(false);
+      // Surface the freshly created QR right away so the operator can download
+      // or print it without having to hunt for it in the list.
+      setPrintModalQr(created);
       toast.success('Código QR creado exitosamente.');
     } catch (err) {
       console.error('Error creando QR:', err);
       toast.error(err.response?.data?.message || 'Error al crear el código QR.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = async (formData) => {
+    const qrId = editingQr?.id;
+    if (!qrId) return;
+
+    setSaving(true);
+    try {
+      const updated = await operatorQrCodeService.update(qrId, formData);
+      setQrCodes((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingQr(null);
+      toast.success('Código QR actualizado exitosamente.');
+    } catch (err) {
+      console.error('Error actualizando QR:', err);
+      toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
     } finally {
       setSaving(false);
     }
@@ -155,7 +178,6 @@ export function OperatorQrListPage() {
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activos</option>
           <option value="PAUSED">Pausados</option>
-          <option value="REVOKED">Revocados</option>
         </select>
       </div>
 
@@ -240,7 +262,7 @@ export function OperatorQrListPage() {
                       <StatusBadge
                         status={qr.status}
                         activeLabel="Activo"
-                        inactiveLabel={qr.status === 'PAUSED' ? 'Pausado' : 'Revocado'}
+                        inactiveLabel="Pausado"
                       />
                     </td>
                     <td className="px-4 py-3.5 text-right">
@@ -260,6 +282,15 @@ export function OperatorQrListPage() {
                         >
                           <Printer className="h-4 w-4" />
                         </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingQr(qr)}
+                          className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600"
+                          title="Editar código QR"
+                          aria-label={`Editar código QR ${qr.label}`}
+                        >
+                          <Edit2 className="h-4 w-4" />
+                        </button>
                         {qr.status === 'ACTIVE' ? (
                           <button
                             type="button"
@@ -267,7 +298,7 @@ export function OperatorQrListPage() {
                               setStatusConfirm({
                                 qr,
                                 newStatus: 'PAUSED',
-                                message: `¿Pausar el código "${qr.label}"?`,
+                                description: `¿Pausar el código "${qr.label}"? Los escaneos futuros mostrarán un aviso y no abrirán el destino.`,
                               })
                             }
                             className="rounded-lg p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600"
@@ -305,6 +336,17 @@ export function OperatorQrListPage() {
         isOperator={true}
       />
 
+      <QrFormModal
+        open={Boolean(editingQr)}
+        initialData={editingQr}
+        onClose={() => setEditingQr(null)}
+        onSave={handleEdit}
+        saving={saving}
+        routes={routes}
+        stops={stops}
+        isOperator={true}
+      />
+
       <QrPrintModal
         open={Boolean(printModalQr)}
         onClose={() => setPrintModalQr(null)}
@@ -314,9 +356,9 @@ export function OperatorQrListPage() {
       <ConfirmDialog
         open={Boolean(statusConfirm)}
         title="Cambiar Estado del Código QR"
-        message={statusConfirm?.message}
+        description={statusConfirm?.description}
         confirmLabel="Confirmar"
-        confirmVariant="warning"
+        tone="warning"
         onConfirm={() => handleToggleStatus(statusConfirm.qr, statusConfirm.newStatus)}
         onCancel={() => setStatusConfirm(null)}
       />

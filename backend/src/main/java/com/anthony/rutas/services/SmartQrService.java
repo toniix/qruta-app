@@ -73,34 +73,29 @@ public class SmartQrService {
     public ResolvedRedirect resolveAndTrack(String code, String clientIdentifier) {
         Instant now = Instant.now();
         Optional<QrCode> optQr = qrCodeRepository.findByCode(code);
-        if (optQr.isEmpty() || !"ACTIVE".equalsIgnoreCase(optQr.get().getStatus())) {
-            String deviceHash = deviceHasher.hash(clientIdentifier != null ? clientIdentifier : "anon", now);
-            RouteEvent failedEvent = RouteEvent.builder()
-                    .recordedAt(now)
-                    .receivedAt(now)
-                    .category(EventCategory.QR_REDIRECT_FAILED)
-                    .campaign(code)
-                    .deviceHash(deviceHash)
-                    .build();
-            routeEventRepository.save(failedEvent);
-
-            String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
-                    ? configuredFrontendUrl.trim().replaceAll("/+$", "")
-                    : "https://front.anthonywar.dev";
-            String fallback = base + "/?qr_error=" + (optQr.isEmpty() ? "not_found" : "inactive");
-            return new ResolvedRedirect(fallback, false);
+        if (optQr.isEmpty()) {
+            return recordFailedRedirect(code, null, null, null, "not_found", now, clientIdentifier);
         }
 
         QrCode qr = optQr.get();
+        if (!"ACTIVE".equalsIgnoreCase(qr.getStatus())) {
+            return recordFailedRedirect(code, qr.getId(), null, null, "inactive", now, clientIdentifier);
+        }
+
         UUID routeId = null;
         UUID stopId = null;
         UUID transportLineId = null;
         UUID cityId = null;
+        boolean targetMissing = false;
 
-        if ("ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
+        if ("ROUTE".equalsIgnoreCase(qr.getTargetType())) {
             routeId = qr.getTargetId();
-            Optional<Route> optRoute = routeRepository.findById(routeId);
-            if (optRoute.isPresent()) {
+            Optional<Route> optRoute = qr.getTargetId() == null
+                    ? Optional.empty()
+                    : routeRepository.findById(qr.getTargetId());
+            if (optRoute.isEmpty()) {
+                targetMissing = true;
+            } else {
                 Route r = optRoute.get();
                 if (r.getTransportLine() != null) {
                     transportLineId = r.getTransportLine().getId();
@@ -109,12 +104,20 @@ public class SmartQrService {
                     }
                 }
             }
-        } else if ("STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
+        } else if ("STOP".equalsIgnoreCase(qr.getTargetType())) {
             stopId = qr.getTargetId();
-            Optional<Stop> optStop = stopRepository.findById(stopId);
-            if (optStop.isPresent() && optStop.get().getCity() != null) {
+            Optional<Stop> optStop = qr.getTargetId() == null
+                    ? Optional.empty()
+                    : stopRepository.findById(qr.getTargetId());
+            if (optStop.isEmpty()) {
+                targetMissing = true;
+            } else if (optStop.get().getCity() != null) {
                 cityId = optStop.get().getCity().getId();
             }
+        }
+
+        if (targetMissing) {
+            return recordFailedRedirect(code, qr.getId(), routeId, stopId, "target_missing", now, clientIdentifier);
         }
 
         String deviceHash = deviceHasher.hash(clientIdentifier != null ? clientIdentifier : "anon", now);
@@ -134,6 +137,36 @@ public class SmartQrService {
 
         String destinationUrl = buildDestinationUrl(qr);
         return new ResolvedRedirect(destinationUrl, true);
+    }
+
+    private ResolvedRedirect recordFailedRedirect(
+            String code,
+            UUID qrCodeId,
+            UUID routeId,
+            UUID stopId,
+            String error,
+            Instant now,
+            String clientIdentifier) {
+        String deviceHash = deviceHasher.hash(clientIdentifier != null ? clientIdentifier : "anon", now);
+        RouteEvent failedEvent = RouteEvent.builder()
+                .recordedAt(now)
+                .receivedAt(now)
+                .category(EventCategory.QR_REDIRECT_FAILED)
+                .qrCodeId(qrCodeId)
+                .routeId(routeId)
+                .stopId(stopId)
+                .campaign(code)
+                .deviceHash(deviceHash)
+                .build();
+        routeEventRepository.save(failedEvent);
+        return new ResolvedRedirect(buildFallback(error), false);
+    }
+
+    private String buildFallback(String error) {
+        String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
+                ? configuredFrontendUrl.trim().replaceAll("/+$", "")
+                : "https://front.anthonywar.dev";
+        return base + "/?qr_error=" + error;
     }
 
     public String buildDestinationUrl(QrCode qr) {
@@ -279,11 +312,21 @@ public class SmartQrService {
     }
 
     @Transactional
+    public void delete(UUID id) {
+        QrCode qr = qrCodeRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("QR Code not found: " + id));
+        qrCodeRepository.delete(qr);
+    }
+
+    @Transactional
     public QrCodeResponse updateForOperator(UUID id, UUID operatorId, UpdateQrCodeRequest request) {
         QrCode qr = qrCodeRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("QR Code not found: " + id));
         if (qr.getOperatorId() == null || !operatorId.equals(qr.getOperatorId())) {
             throw new AccessDeniedException("Resource is outside the operator scope");
+        }
+        if (request.getTargetType() != null && !request.getTargetType().isBlank()) {
+            validateOperatorOwnership(operatorId, request.getTargetType(), request.getTargetId());
         }
         applyUpdate(qr, request);
         return toResponse(qrCodeRepository.save(qr), null);
@@ -342,6 +385,22 @@ public class SmartQrService {
         }
         if (request.getStatus() != null && !request.getStatus().isBlank()) {
             qr.setStatus(request.getStatus().toUpperCase());
+        }
+        if (request.getTargetType() != null && !request.getTargetType().isBlank()) {
+            String targetType = request.getTargetType().toUpperCase();
+            UUID targetId = request.getTargetId();
+            if ("HOME".equals(targetType) || "CAMPAIGN".equals(targetType)) {
+                targetId = null;
+            }
+            validateTargetResource(targetType, targetId);
+            qr.setTargetType(targetType);
+            qr.setTargetId(targetId);
+        } else if (request.getTargetId() != null) {
+            if (!"ROUTE".equalsIgnoreCase(qr.getTargetType()) && !"STOP".equalsIgnoreCase(qr.getTargetType())) {
+                throw new BadRequestException("targetId is only valid for ROUTE or STOP destinations");
+            }
+            validateTargetResource(qr.getTargetType(), request.getTargetId());
+            qr.setTargetId(request.getTargetId());
         }
         if (request.getCampaignSource() != null) {
             qr.setCampaignSource(trimToNull(request.getCampaignSource()));

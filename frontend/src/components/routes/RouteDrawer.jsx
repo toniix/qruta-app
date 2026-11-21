@@ -13,6 +13,7 @@ import {
   Plus,
   Share2,
   Bus,
+  ShieldCheck,
 } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
@@ -637,7 +638,13 @@ export function RouteDrawer() {
         </div>
 
         {communitySummary?.latestPost ? (
-          <div className="bg-white rounded-xl p-2.5 border border-slate-200/70 space-y-1">
+          <div
+            className={`rounded-xl p-2.5 border space-y-1 ${
+              communitySummary.latestPost.isOfficial || communitySummary.latestPost.official
+                ? "bg-gradient-to-br from-blue-50/90 to-white border-blue-300 shadow-2xs"
+                : "bg-white border-slate-200/70"
+            }`}
+          >
             <div className="flex items-center justify-between gap-2 text-[11px]">
               <div className="flex items-center gap-1.5 min-w-0">
                 <span
@@ -651,6 +658,12 @@ export function RouteDrawer() {
                       .shortLabel
                   }
                 </span>
+                {(communitySummary.latestPost.isOfficial || communitySummary.latestPost.official) && (
+                  <span className="inline-flex items-center gap-0.5 font-bold px-1.5 py-0.2 rounded border text-[10px] bg-blue-100 text-blue-800 border-blue-300">
+                    <ShieldCheck className="w-2.5 h-2.5 text-blue-700" aria-hidden="true" />
+                    Oficial
+                  </span>
+                )}
                 <span className="font-semibold text-slate-700 truncate">
                   {communitySummary.latestPost.authorAlias}
                 </span>

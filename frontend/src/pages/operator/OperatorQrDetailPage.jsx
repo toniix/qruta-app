@@ -2,19 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
-  QrCode as QrIcon,
   Printer,
   Copy,
   Check,
-  Pause,
-  Play,
-  Calendar,
+  Edit2,
 } from 'lucide-react';
-import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { StatusBadge } from '../../components/admin/common/StatusBadge';
-import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
 import { QrPrintModal } from '../../components/admin/qr/QrPrintModal';
+import { QrFormModal } from '../../components/admin/qr/QrFormModal';
 import { operatorQrCodeService } from '../../services/qrCodeService';
+import { operatorPortalService } from '../../services/operatorPortalService';
 import { generateQrSvg, resolveAbsoluteQrUrl } from '../../utils/qrGenerator';
 import { useAdminToast } from '../../hooks/useAdminToast';
 
@@ -25,7 +22,11 @@ export function OperatorQrDetailPage() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [statusConfirm, setStatusConfirm] = useState(null);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [routes, setRoutes] = useState([]);
+  const [stops, setStops] = useState([]);
+  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -46,6 +47,7 @@ export function OperatorQrDetailPage() {
   }, [id, toast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR detail state
     loadData();
   }, [loadData]);
 
@@ -58,16 +60,37 @@ export function OperatorQrDetailPage() {
     });
   };
 
-  const handleToggleStatus = async (newStatus) => {
+  const openEdit = async () => {
+    if (!catalogsLoaded) {
+      try {
+        const [routesData, stopsData] = await Promise.all([
+          operatorPortalService.getRoutes(),
+          operatorPortalService.getStops(),
+        ]);
+        setRoutes(Array.isArray(routesData) ? routesData : []);
+        setStops(Array.isArray(stopsData) ? stopsData : []);
+        setCatalogsLoaded(true);
+      } catch (err) {
+        console.error('Error cargando catálogos para editar QR:', err);
+        toast.error('No se pudieron cargar los catálogos para editar el código QR.');
+        return;
+      }
+    }
+    setEditModalOpen(true);
+  };
+
+  const handleEdit = async (formData) => {
+    setSaving(true);
     try {
-      const updated = await operatorQrCodeService.update(qr.id, { status: newStatus });
+      const updated = await operatorQrCodeService.update(qr.id, formData);
       setQr(updated);
-      toast.success(`Código QR marcado como ${newStatus}.`);
+      setEditModalOpen(false);
+      toast.success('Código QR actualizado exitosamente.');
     } catch (err) {
-      console.error('Error actualizando estado:', err);
-      toast.error('Error al actualizar el estado del código QR.');
+      console.error('Error actualizando QR:', err);
+      toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
     } finally {
-      setStatusConfirm(null);
+      setSaving(false);
     }
   };
 
@@ -115,13 +138,21 @@ export function OperatorQrDetailPage() {
             <StatusBadge
               status={qr.status}
               activeLabel="Activo"
-              inactiveLabel={qr.status === 'PAUSED' ? 'Pausado' : 'Revocado'}
+              inactiveLabel="Pausado"
             />
           </div>
           <h1 className="text-xl font-extrabold text-slate-900 tracking-tight mt-0.5">
             {qr.label}
           </h1>
         </div>
+        <button
+          type="button"
+          onClick={openEdit}
+          className="ml-auto inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+        >
+          <Edit2 className="h-3.5 w-3.5" />
+          <span>Editar QR</span>
+        </button>
       </div>
 
       {/* KPI Cards */}
@@ -245,6 +276,17 @@ export function OperatorQrDetailPage() {
         open={printModalOpen}
         onClose={() => setPrintModalOpen(false)}
         qr={qr}
+      />
+
+      <QrFormModal
+        open={editModalOpen}
+        initialData={qr}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleEdit}
+        saving={saving}
+        routes={routes}
+        stops={stops}
+        isOperator={true}
       />
     </div>
   );

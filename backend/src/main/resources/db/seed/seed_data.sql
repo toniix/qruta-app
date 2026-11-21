@@ -1,17 +1,29 @@
 -- =============================================================================
--- RutaYa - Seed de datos de prueba (Lima + Ica + Huánuco + Chincha + Huancayo)
--- DESTRUYE TODO el contenido actual y lo reemplaza con datos reales de prueba.
+-- RutaYa - Seed de demostración (Lima + Ica + Huánuco + Chincha + Huancayo)
+-- DESTRUYE TODO el contenido actual y lo reemplaza con datos realistas de prueba.
 --
--- Requiere: PostgreSQL con extensión PostGIS (Supabase ya la incluye).
--- Ejecutar MANUALMENTE en el SQL Editor de Supabase o con:
+-- Requiere: el esquema creado por V1__initial_schema.sql (PostgreSQL + PostGIS).
+-- Ejecutar MANUALMENTE, nunca en producción:
 --   psql -h <HOST> -U postgres -d postgres -f seed_data.sql
---
 -- NO se ejecuta automáticamente al arrancar el backend.
 --
--- NOTA: la tabla `administrators` se limpia A PROPÓSITO. Después hay que crear
--- un admin a mano: el DataInitializer solo lo hace si `app.seed.enabled=true`
--- y `ADMIN_SEED_PASSWORD` tiene valor. El perfil `prod` desactiva el seed, y ya
--- no existe ninguna contraseña por defecto.
+-- CREDENCIALES DE DEMO (solo local)
+--   Admin:        admin@rutasya.pe / Admin123!
+--   Operadores:   operador.66bbee27@rutasya.pe
+--                 operador.32109707@rutasya.pe
+--                 operador.38d86457@rutasya.pe
+--   La contraseña de los operadores es un hash aleatorio: nadie conoce el
+--   plaintext. Cambiala desde el panel admin (Operadores > Usuarios > Reset password).
+--
+-- ANALÍTICA INCLUIDA
+--   route_events: eventos crudos de los últimos 14 días (con qr_scan por código).
+--   route_daily_stats: 30 días de métricas por ruta para /api/admin/analytics/overview
+--   y /api/admin/analytics/routes/{id}, y para el panel de analítica del operador.
+--   Además: suscripciones ACTIVE, períodos PAID, billing events, licencias de datos,
+--   QR codes, disruptiones oficiales y change logs para recorrir toda la UI.
+--
+-- ADVERTENCIA: las credenciales de arriba son de demostración. Este script no
+-- debe correrse jamás contra una base con datos reales.
 -- =============================================================================
 
 BEGIN;
@@ -24,7 +36,11 @@ CREATE EXTENSION IF NOT EXISTS postgis;
 -- ---------------------------------------------------------------------------
 TRUNCATE TABLE vehicle_locations, vehicles, route_points, route_stops,
               route_directions, routes, stops, transport_lines, cities,
-              administrators
+              administrators, operators, operator_users, disruptions, change_logs,
+              subscriptions, subscription_periods, billing_events,
+              data_licenses, data_api_keys, data_access_logs,
+              qr_codes, route_events, route_daily_stats,
+              community_posts, community_comments, community_post_likes
        RESTART IDENTITY CASCADE;
 
 -- ===========================================================================
@@ -733,40 +749,8 @@ INSERT INTO vehicle_locations (id, vehicle_id, latitude, longitude, speed, headi
 
 -- ===========================================================================
 -- COMUNIDAD: PUBLICACIONES Y COMENTARIOS (demo)
+-- Las tablas ya existen: las crea V1__initial_schema.sql.
 -- ===========================================================================
-CREATE TABLE IF NOT EXISTS community_posts (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    author_alias VARCHAR(50) NOT NULL,
-    author_device_id VARCHAR(64) NOT NULL,
-    category VARCHAR(30) NOT NULL,
-    content VARCHAR(600) NOT NULL,
-    route_id UUID REFERENCES routes(id) ON DELETE SET NULL,
-    city_id UUID REFERENCES cities(id) ON DELETE SET NULL,
-    likes_count INTEGER NOT NULL DEFAULT 0,
-    comments_count INTEGER NOT NULL DEFAULT 0,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS community_comments (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
-    author_alias VARCHAR(50) NOT NULL,
-    author_device_id VARCHAR(64) NOT NULL,
-    content VARCHAR(400) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS community_post_likes (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    post_id UUID NOT NULL REFERENCES community_posts(id) ON DELETE CASCADE,
-    device_id VARCHAR(64) NOT NULL,
-    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
-    CONSTRAINT uq_community_post_like_device UNIQUE (post_id, device_id)
-);
-
-TRUNCATE TABLE community_post_likes, community_comments, community_posts RESTART IDENTITY CASCADE;
-
 INSERT INTO community_posts (id, author_alias, author_device_id, category, content, route_id, city_id, likes_count, comments_count, created_at, updated_at) VALUES
 ('a0000000-0000-4000-8000-000000000001', 'Carlos M.',    'seed-device-1', 'ALERTA',           'Tráfico lento cerca de Av. Los Maestros frente a El Quinde por obras en la vía. Tomen precauciones si van hacia Huacachina.', '40000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000002', 5, 2, NOW() - INTERVAL '25 minutes', NOW() - INTERVAL '25 minutes'),
 ('a0000000-0000-4000-8000-000000000002', 'Lucía Vargas', 'seed-device-2', 'PREGUNTA',         '¿Alguien sabe hasta qué hora están pasando las unidades hacia la UNICA hoy por la noche?',                                     '40000000-0000-4000-8000-000000000009', '10000000-0000-4000-8000-000000000002', 3, 1, NOW() - INTERVAL '1 hour',     NOW() - INTERVAL '1 hour'),
@@ -777,6 +761,163 @@ INSERT INTO community_comments (id, post_id, author_alias, author_device_id, con
 ('b0000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000001', 'Pedro Ica',    'seed-device-5', 'Confirmo, están desviando una cuadra antes de llegar al centro comercial.', NOW() - INTERVAL '18 minutes'),
 ('b0000000-0000-4000-8000-000000000002', 'a0000000-0000-4000-8000-000000000001', 'Ana Torres',   'seed-device-6', '¡Gracias por el dato! Mejor bajo en el paradero anterior.',                 NOW() - INTERVAL '10 minutes'),
 ('b0000000-0000-4000-8000-000000000003', 'a0000000-0000-4000-8000-000000000002', 'Diego UNICA',  'seed-device-7', 'Normalmente pasan hasta las 9:30 pm por el Mercado Modelo.',                 NOW() - INTERVAL '40 minutes');
+
+-- ===========================================================================
+-- OPERADORES Y USUARIOS DEL PORTAL
+-- Contraseñas: hashes BCrypt aleatorios. El plaintext NO se guarda; el administrador
+-- debe hacer reset desde el panel (Operadores > Usuarios > Reset password).
+-- ===========================================================================
+INSERT INTO operators (id, name, ruc, contact_name, contact_email, contact_phone, city_id, plan, active, created_at, updated_at) VALUES
+('b0000000-0000-4000-8000-000000000001', 'Consorcio Urbano Ica S.A.C.', '20123456781', 'Rosa Melgar', 'contacto@urbanoica.pe',   '+51 956 123 456', '10000000-0000-4000-8000-000000000002', 'PRO',        true, NOW(), NOW()),
+('b0000000-0000-4000-8000-000000000002', 'Trans San Carlos S.A.',      '20234567892', 'Julio Rojas',  'contacto@transsc.pe',     '+51 964 111 222', '10000000-0000-4000-8000-000000000005', 'PRO',        true, NOW(), NOW()),
+('b0000000-0000-4000-8000-000000000003', 'Consorcio Corredor Lima S.A.', '20345678903', 'María Paz',  'contacto@corredorlima.pe', '+51 987 111 111', '10000000-0000-4000-8000-000000000001', 'ENTERPRISE', true, NOW(), NOW());
+
+-- Cada operador es dueño de las líneas de su ciudad.
+UPDATE public.transport_lines SET operator_id = 'b0000000-0000-4000-8000-000000000001'
+WHERE id IN ('20000000-0000-4000-8000-000000000006','20000000-0000-4000-8000-000000000007','20000000-0000-4000-8000-000000000008','20000000-0000-4000-8000-000000000009','20000000-0000-4000-8000-000000000010');
+UPDATE public.transport_lines SET operator_id = 'b0000000-0000-4000-8000-000000000002'
+WHERE id IN ('20000000-0000-4000-8000-000000000020','20000000-0000-4000-8000-000000000021','20000000-0000-4000-8000-000000000022','20000000-0000-4000-8000-000000000023','20000000-0000-4000-8000-000000000024');
+UPDATE public.transport_lines SET operator_id = 'b0000000-0000-4000-8000-000000000003'
+WHERE id IN ('20000000-0000-4000-8000-000000000001','20000000-0000-4000-8000-000000000002','20000000-0000-4000-8000-000000000003','20000000-0000-4000-8000-000000000004','20000000-0000-4000-8000-000000000005');
+
+INSERT INTO operator_users (id, operator_id, email, password_hash, full_name, role, active, created_at, updated_at) VALUES
+('c0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'operador.66bbee27@rutasya.pe', '$2b$10$djzWRvA77NmOxrSRua.FJuoeZeHEP6qGv.uw2Jvfnfl2GcJVoyKv.', 'Rosa Melgar', 'OWNER', true, NOW(), NOW()),
+('c0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002', 'operador.32109707@rutasya.pe', '$2b$10$f4taOVVYCpPnXg2ZYD8zWODN33.OTyu4En9wJu49qZ4B.HRREobn.', 'Julio Rojas', 'OWNER', true, NOW(), NOW()),
+('c0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003', 'operador.38d86457@rutasya.pe', '$2b$10$szXiD0yQwFt1/RjWziVDLuW9sD2iHvTa5HSfjHmgbrG0nrYHRPoO6', 'María Paz',  'OWNER', true, NOW(), NOW());
+
+-- ===========================================================================
+-- SUSCRIPCIONES Y FACTURACIÓN (ACTIVAS: habilitan analítica del operador)
+-- ===========================================================================
+INSERT INTO subscriptions (id, operator_id, plan, status, starts_at, renews_at, grace_until, created_at, updated_at) VALUES
+('d0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'PRO', 'ACTIVE', NOW() - INTERVAL '15 days', NOW() + INTERVAL '15 days', NULL, NOW(), NOW()),
+('d0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002', 'PRO', 'ACTIVE', NOW() - INTERVAL '15 days', NOW() + INTERVAL '15 days', NULL, NOW(), NOW()),
+('d0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003', 'PRO', 'ACTIVE', NOW() - INTERVAL '15 days', NOW() + INTERVAL '15 days', NULL, NOW(), NOW());
+
+INSERT INTO subscription_periods (id, subscription_id, operator_id, from_at, to_at, amount, currency, method, status, provider_reference, created_at, updated_at) VALUES
+('e0000000-0000-4000-8000-000000000001', 'd0000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', NOW() - INTERVAL '15 days', NOW() + INTERVAL '15 days', 49.00, 'PEN', 'QR', 'PAID', 'DEMO-PERIOD-0001', NOW(), NOW()),
+('e0000000-0000-4000-8000-000000000002', 'd0000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002', NOW() - INTERVAL '15 days', NOW() + INTERVAL '15 days', 49.00, 'PEN', 'QR', 'PAID', 'DEMO-PERIOD-0002', NOW(), NOW()),
+('e0000000-0000-4000-8000-000000000003', 'd0000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003', NOW() - INTERVAL '15 days', NOW() + INTERVAL '15 days', 49.00, 'PEN', 'QR', 'PAID', 'DEMO-PERIOD-0003', NOW(), NOW());
+
+INSERT INTO billing_events (id, provider_event_id, event_type, provider_reference, payload, processed_at, created_at) VALUES
+('f0000000-0000-4000-8000-000000000001', 'DEMO-EVT-0001', 'payment.succeeded', 'DEMO-PERIOD-0001', '{"provider":"simulated","amount":"49.00","currency":"PEN"}'::jsonb, NOW() - INTERVAL '15 days', NOW() - INTERVAL '15 days'),
+('f0000000-0000-4000-8000-000000000002', 'DEMO-EVT-0002', 'payment.succeeded', 'DEMO-PERIOD-0002', '{"provider":"simulated","amount":"49.00","currency":"PEN"}'::jsonb, NOW() - INTERVAL '15 days', NOW() - INTERVAL '15 days'),
+('f0000000-0000-4000-8000-000000000003', 'DEMO-EVT-0003', 'payment.succeeded', 'DEMO-PERIOD-0003', '{"provider":"simulated","amount":"49.00","currency":"PEN"}'::jsonb, NOW() - INTERVAL '15 days', NOW() - INTERVAL '15 days');
+
+-- ===========================================================================
+-- LICENCIAS DE DATOS (panel de administración B2B)
+-- ===========================================================================
+INSERT INTO data_licenses (id, client_name, plan, conditions, valid_from, valid_until, monthly_quota, active, created_at, updated_at) VALUES
+('11000000-0000-4000-8000-000000000001', 'Municipalidad Provincial de Ica', 'PRO',         'Uso interno de planificación urbana',        CURRENT_DATE - 30, CURRENT_DATE + 335, 50000, true, NOW(), NOW()),
+('11000000-0000-4000-8000-000000000002', 'Universidad Nacional San Luis Gonzaga', 'BASIC', 'Investigación y docencia, sin redistribución', CURRENT_DATE - 10, CURRENT_DATE + 355, 10000, true, NOW(), NOW()),
+('11000000-0000-4000-8000-000000000003', 'Consorcio de Transportes del Centro', 'ENTERPRISE', 'Integración operativa en tiempo real',       CURRENT_DATE - 60, CURRENT_DATE + 305, 250000, true, NOW(), NOW());
+
+INSERT INTO data_api_keys (id, key_hash, client_name, plan, monthly_quota, used_this_period, period_start, active, operator_id, data_license_id, created_at, updated_at, last_used_at) VALUES
+('12000000-0000-4000-8000-000000000001', '5a0efb47c19d23afa14eb6a8f3f6ce76da7f82c7f06bf1b42832ed3ddbdccbce', 'Municipalidad Provincial de Ica', 'PRO', 50000, 18430, date_trunc('month', CURRENT_DATE)::date, true, 'b0000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000001', NOW(), NOW(), NOW() - INTERVAL '2 hours'),
+('12000000-0000-4000-8000-000000000002', '0eaaa65e0ce06334c9014c639fb8ebb8626da2e489201270902bf52a336051cb', 'UNICA - Investigación', 'BASIC', 10000, 3210, date_trunc('month', CURRENT_DATE)::date, true, 'b0000000-0000-4000-8000-000000000001', '11000000-0000-4000-8000-000000000002', NOW(), NOW(), NOW() - INTERVAL '1 day'),
+('12000000-0000-4000-8000-000000000003', 'd2ab867b4ba26692cb171af4c5694af289029a411b803ba02e900630aba1e908', 'Consorcio Corredor Lima S.A.', 'ENTERPRISE', 250000, 96240, date_trunc('month', CURRENT_DATE)::date, true, 'b0000000-0000-4000-8000-000000000003', '11000000-0000-4000-8000-000000000003', NOW(), NOW(), NOW() - INTERVAL '30 minutes');
+
+INSERT INTO data_access_logs (id, api_key_id, endpoint, city_slug, status_code, requested_at) VALUES
+('12500000-0000-4000-8000-000000000001', '12000000-0000-4000-8000-000000000001', '/api/data/v1/routes', 'ica', 200, NOW() - INTERVAL '2 hours'),
+('12500000-0000-4000-8000-000000000002', '12000000-0000-4000-8000-000000000001', '/api/data/v1/stops/nearby', 'ica', 200, NOW() - INTERVAL '3 hours'),
+('12500000-0000-4000-8000-000000000003', '12000000-0000-4000-8000-000000000003', '/api/data/v1/routes', 'lima', 200, NOW() - INTERVAL '30 minutes');
+
+-- ===========================================================================
+-- QR INTELIGENTES
+-- ===========================================================================
+INSERT INTO qr_codes (id, code, label, target_type, target_id, campaign_source, campaign_medium, campaign_name, status, operator_id) VALUES
+('13000000-0000-4000-8000-000000000001', 'QR-ICA-0001', 'Plaza de Armas de Ica',  'STOP',  '30000000-0000-4000-8000-000000000015', 'demo', 'qr', 'Centro Ica',     'ACTIVE', 'b0000000-0000-4000-8000-000000000001'),
+('13000000-0000-4000-8000-000000000002', 'QR-ICA-0002', 'Ruta ICA-01 Huacachina', 'ROUTE', '40000000-0000-4000-8000-000000000008', 'demo', 'qr', 'Huacachina',     'ACTIVE', 'b0000000-0000-4000-8000-000000000001'),
+('13000000-0000-4000-8000-000000000003', 'QR-ICA-0003', 'UNICA Ciudad Universitaria', 'STOP', '30000000-0000-4000-8000-000000000019', 'demo', 'qr', 'Campaña UNICA', 'PAUSED', 'b0000000-0000-4000-8000-000000000001'),
+('13000000-0000-4000-8000-000000000004', 'QR-HYO-0001', 'Plaza Huamanmarca', 'STOP', '30000000-0000-4000-8000-000000000051', 'demo', 'qr', 'Centro Huancayo', 'ACTIVE', 'b0000000-0000-4000-8000-000000000002'),
+('13000000-0000-4000-8000-000000000005', 'QR-HYO-0002', 'Ruta HYO-01 Chilca', 'ROUTE', '40000000-0000-4000-8000-000000000033', 'demo', 'qr', 'Troncal Huancayo', 'ACTIVE', 'b0000000-0000-4000-8000-000000000002'),
+('13000000-0000-4000-8000-000000000006', 'QR-LIM-0001', 'Parque Kennedy', 'STOP', '30000000-0000-4000-8000-000000000006', 'demo', 'qr', 'Miraflores', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003'),
+('13000000-0000-4000-8000-000000000007', 'QR-LIM-0002', 'Ruta LIMA-01', 'ROUTE', '40000000-0000-4000-8000-000000000001', 'demo', 'qr', 'Corredor Lima', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003'),
+('13000000-0000-4000-8000-000000000008', 'QR-LIM-0003', 'Home', 'HOME', NULL, 'demo', 'qr', 'Portal QRuta', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003');
+
+-- ===========================================================================
+-- COMUNICADOS OFICIALES Y DISRUPCIONES (V10)
+-- ===========================================================================
+INSERT INTO community_posts (id, author_alias, author_device_id, category, content, route_id, city_id, likes_count, comments_count, is_official, operator_id, created_at, updated_at) VALUES
+('a0000000-0000-4000-8000-000000000005', 'Consorcio Urbano Ica',   'operator-b000000000000001', 'ALERTA', 'COMUNICADO OFICIAL: desvío temporal en Av. Los Maestros por obras. La ruta ICA-01 mantiene su frecuencia habitual.', '40000000-0000-4000-8000-000000000008', '10000000-0000-4000-8000-000000000002', 14, 4, true, 'b0000000-0000-4000-8000-000000000001', NOW() - INTERVAL '2 hours',  NOW() - INTERVAL '2 hours'),
+('a0000000-0000-4000-8000-000000000006', 'Trans San Carlos',       'operator-b000000000000002', 'ALERTA', 'COMUNICADO OFICIAL: ampliación de horario en HYO-01 durante la temporada de fiestas patronales.',                    '40000000-0000-4000-8000-000000000033', '10000000-0000-4000-8000-000000000005', 9, 2, true, 'b0000000-0000-4000-8000-000000000002', NOW() - INTERVAL '5 hours',  NOW() - INTERVAL '5 hours'),
+('a0000000-0000-4000-8000-000000000007', 'Consorcio Corredor Lima', 'operator-b000000000000003', 'RECOMENDACION', 'COMUNICADO OFICIAL: nuevo paradero temporal en Parque Kennedy mientras duren las obras del malecón.',                  '40000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000001', 21, 6, true, 'b0000000-0000-4000-8000-000000000003', NOW() - INTERVAL '8 hours',  NOW() - INTERVAL '8 hours');
+
+INSERT INTO disruptions (id, operator_id, route_id, community_post_id, type, description, starts_at, ends_at, active, created_at, updated_at) VALUES
+('14000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000008', 'a0000000-0000-4000-8000-000000000005', 'DESVIO',   'Desvío por obras en Av. Los Maestros frente a El Quinde', NOW() - INTERVAL '3 hours', NOW() + INTERVAL '2 days',  true, NOW(), NOW()),
+('14000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002', '40000000-0000-4000-8000-000000000033', 'a0000000-0000-4000-8000-000000000006', 'HORARIO',  'Horario extendido hasta las 23:30 por fiestas patronales', NOW() - INTERVAL '1 day',   NOW() + INTERVAL '7 days',  true, NOW(), NOW()),
+('14000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003', '40000000-0000-4000-8000-000000000001', 'a0000000-0000-4000-8000-000000000007', 'PARADERO', 'Paradero temporal en Parque Kennedy',                       NOW() - INTERVAL '6 hours', NOW() + INTERVAL '10 days', true, NOW(), NOW()),
+('14000000-0000-4000-8000-000000000004', 'b0000000-0000-4000-8000-000000000001', '40000000-0000-4000-8000-000000000013', NULL, 'CORTE', 'Corte programado de la vía en Parcona', NOW() + INTERVAL '1 day', NOW() + INTERVAL '3 days', false, NOW(), NOW());
+
+INSERT INTO change_logs (id, operator_id, entity_type, entity_id, field, old_value, new_value, author_email, author_role, created_at) VALUES
+('15000000-0000-4000-8000-000000000001', 'b0000000-0000-4000-8000-000000000001', 'ROUTE', '40000000-0000-4000-8000-000000000008', 'schedule', '06:00 - 21:00', '06:00 - 21:30', 'operador.66bbee27@rutasya.pe', 'OWNER', NOW() - INTERVAL '4 hours'),
+('15000000-0000-4000-8000-000000000002', 'b0000000-0000-4000-8000-000000000002', 'STOP',  '30000000-0000-4000-8000-000000000052', 'reference', 'Calle Real', 'Calle Real cdra 5', 'operador.32109707@rutasya.pe', 'OWNER', NOW() - INTERVAL '1 day'),
+('15000000-0000-4000-8000-000000000003', 'b0000000-0000-4000-8000-000000000003', 'LINE',  '20000000-0000-4000-8000-000000000001', 'contact', '+51 987 000 000', '+51 987 111 111', 'operador.38d86457@rutasya.pe', 'OWNER', NOW() - INTERVAL '2 days');
+
+-- ===========================================================================
+-- ANALÍTICA CRUDA: eventos de los últimos 14 días
+-- device_hash = SHA-256 de 64 chars (doble md5 para el demo), nunca un device id.
+-- ===========================================================================
+INSERT INTO route_events (id, recorded_at, received_at, route_id, transport_line_id, city_id, category, device_hash)
+SELECT
+    gen_random_uuid(),
+    (d + (k || ' hours')::interval)::timestamptz,
+    (d + (k || ' hours')::interval)::timestamptz + INTERVAL '30 seconds',
+    r.id,
+    r.transport_line_id,
+    tl.city_id,
+    CASE k WHEN 0 THEN 'route_view' WHEN 1 THEN 'route_view' WHEN 2 THEN 'route_search' ELSE 'stop_view' END,
+    repeat(md5(r.id::text || d::text || k::text), 2)
+FROM generate_series(CURRENT_DATE - INTERVAL '13 days', CURRENT_DATE, INTERVAL '1 day') AS d
+CROSS JOIN routes r
+JOIN transport_lines tl ON tl.id = r.transport_line_id
+CROSS JOIN generate_series(0, 3) AS k;
+
+-- Escaneos de QR: alimentan la tarjeta "QR scans" del operador.
+INSERT INTO route_events (id, recorded_at, received_at, route_id, transport_line_id, city_id, category, device_hash, qr_code_id, campaign)
+SELECT
+    gen_random_uuid(),
+    ((CURRENT_DATE - ((n % 14) || ' days')::interval) + ((n % 20) || ' hours')::interval)::timestamptz,
+    NOW(),
+    r.id,
+    r.transport_line_id,
+    tl.city_id,
+    'qr_scan',
+    repeat(md5('qr-device-' || n::text), 2),
+    q.id,
+    q.campaign_name
+FROM qr_codes q
+CROSS JOIN generate_series(1, 40) AS n
+LEFT JOIN routes r ON r.id = q.target_id AND q.target_type = 'ROUTE'
+LEFT JOIN transport_lines tl ON tl.id = r.transport_line_id;
+
+-- ===========================================================================
+-- ANALÍTICA AGREGADA: 30 días de métricas por ruta.
+-- Es lo que leen /api/admin/analytics/overview y el panel de analítica del operador.
+-- ===========================================================================
+INSERT INTO route_daily_stats (id, route_id, transport_line_id, city_id, date, views, searches, qr_scans, stop_views, nearby_queries, community_posts, unique_devices, updated_at)
+SELECT
+    gen_random_uuid(),
+    r.id,
+    r.transport_line_id,
+    tl.city_id,
+    d::date,
+    20 + (row_number() OVER (ORDER BY d, r.id) * 7  % 160),
+     5 + (row_number() OVER (ORDER BY d, r.id) * 3  %  40),
+     2 + (row_number() OVER (ORDER BY d, r.id) * 5  %  25),
+    10 + (row_number() OVER (ORDER BY d, r.id) * 11 %  90),
+     3 + (row_number() OVER (ORDER BY d, r.id) * 13 %  30),
+         (row_number() OVER (ORDER BY d, r.id) * 2  %   8),
+     8 + (row_number() OVER (ORDER BY d, r.id) * 17 %  70),
+    NOW()
+FROM generate_series(CURRENT_DATE - 29, CURRENT_DATE, INTERVAL '1 day') AS d
+CROSS JOIN routes r
+JOIN transport_lines tl ON tl.id = r.transport_line_id;
+
+-- ===========================================================================
+-- ADMINISTRADOR DE DEMO (solo local; ver cabecera)
+-- ===========================================================================
+INSERT INTO administrators (id, email, full_name, password_hash, active, created_at, updated_at) VALUES
+('16000000-0000-4000-8000-000000000001', 'admin@rutasya.pe', 'Administrador Demo', '$2b$10$UZHySPmstMuf1dNFUPUhMuXqP2DkpVJJo4g1LZAXasKIntfx3cOGK', true, NOW(), NOW());
 
 -- ---------------------------------------------------------------------------
 -- VERIFICACIÓN: conteo por tabla
@@ -791,7 +932,26 @@ UNION ALL SELECT 'puntos-ruta', COUNT(*) FROM route_points
 UNION ALL SELECT 'vehículos', COUNT(*) FROM vehicles
 UNION ALL SELECT 'ubicaciones', COUNT(*) FROM vehicle_locations
 UNION ALL SELECT 'comunidad-posts', COUNT(*) FROM community_posts
-UNION ALL SELECT 'comunidad-comentarios', COUNT(*) FROM community_comments;
+UNION ALL SELECT 'comunidad-comentarios', COUNT(*) FROM community_comments
+UNION ALL SELECT 'operadores', COUNT(*) FROM operators
+UNION ALL SELECT 'usuarios-operador', COUNT(*) FROM operator_users
+UNION ALL SELECT 'suscripciones', COUNT(*) FROM subscriptions
+UNION ALL SELECT 'periodos-facturados', COUNT(*) FROM subscription_periods
+UNION ALL SELECT 'eventos-facturacion', COUNT(*) FROM billing_events
+UNION ALL SELECT 'licencias-datos', COUNT(*) FROM data_licenses
+UNION ALL SELECT 'api-keys', COUNT(*) FROM data_api_keys
+UNION ALL SELECT 'logs-acceso', COUNT(*) FROM data_access_logs
+UNION ALL SELECT 'qr-codes', COUNT(*) FROM qr_codes
+UNION ALL SELECT 'disrupciones', COUNT(*) FROM disruptions
+UNION ALL SELECT 'change-logs', COUNT(*) FROM change_logs
+UNION ALL SELECT 'eventos-analitica', COUNT(*) FROM route_events
+UNION ALL SELECT 'stats-diarias', COUNT(*) FROM route_daily_stats
+UNION ALL SELECT 'administradores', COUNT(*) FROM administrators;
+
+-- Comprobación rápida de métricas para el dashboard (últimos 30 días).
+SELECT COUNT(*) AS dias_con_metricas, SUM(views) AS vistas_totales, SUM(qr_scans) AS escaneos_qr
+FROM route_daily_stats
+WHERE date BETWEEN CURRENT_DATE - 29 AND CURRENT_DATE;
 
 -- Hubs (paraderos por donde pasan ≥3 rutas)
 SELECT s.name AS paradero, COUNT(DISTINCT d.route_id) AS n_rutas

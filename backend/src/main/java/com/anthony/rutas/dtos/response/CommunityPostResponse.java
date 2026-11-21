@@ -1,6 +1,7 @@
 package com.anthony.rutas.dtos.response;
 
 import com.anthony.rutas.entities.PostCategory;
+import com.fasterxml.jackson.annotation.JsonProperty;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -23,6 +24,12 @@ public class CommunityPostResponse {
     private int commentsCount;
     private boolean likedByMe;
     private boolean ownedByMe;
+
+    @JsonProperty("isOfficial")
+    private boolean isOfficial;
+
+    private UUID operatorId;
+    private String operatorName;
     private LocalDateTime createdAt;
 
     // Optional route context

@@ -7,6 +7,7 @@ import {
   Send,
   Loader2,
   ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/dateUtils';
 
@@ -133,37 +134,71 @@ export const MemoCommentSection = memo(CommentSection);
 
 export function PostCard({
   post,
-  catMeta,
-  CatIcon,
-  commentState,
-  onToggleLike,
-  onToggleComments,
-  onDeletePost,
-  onOpenRoute,
+  catMeta = { label: 'General', badgeClass: 'bg-slate-100 text-slate-700' },
+  CatIcon = MessageSquare,
+  commentState = { open: false, items: [], text: '', loading: false, sending: false },
+  onToggleLike = () => {},
+  onToggleComments = () => {},
+  onDeletePost = () => {},
+  onOpenRoute = () => {},
   commentSectionProps,
 }) {
+  const isOfficial = Boolean(post?.isOfficial || post?.official);
+
   return (
     <article
       aria-labelledby={`post-author-${post.id}`}
-      className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-card space-y-3 transition-all hover:border-slate-300"
+      className={`rounded-2xl p-4 sm:p-5 shadow-card space-y-3 transition-all ${
+        isOfficial
+          ? 'bg-gradient-to-br from-blue-50/90 via-indigo-50/40 to-white border-2 border-blue-400/80 shadow-md ring-2 ring-blue-500/10 hover:border-blue-500'
+          : 'bg-white border border-slate-200/80 hover:border-slate-300'
+      }`}
     >
+      {isOfficial && (
+        <div className="flex items-center justify-between pb-2.5 border-b border-blue-100">
+          <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-[11px] font-extrabold uppercase tracking-wider shadow-xs">
+            <ShieldCheck className="w-3.5 h-3.5 shrink-0 text-white" aria-hidden="true" />
+            <span>Comunicado Oficial</span>
+          </div>
+          <span className="text-[10px] font-bold text-blue-700 bg-blue-100/70 px-2 py-0.5 rounded-md border border-blue-200/60 uppercase tracking-wider">
+            Empresa Verificada
+          </span>
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             aria-hidden="true"
-            className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200/80"
+            className={`w-9 h-9 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 border ${
+              isOfficial
+                ? 'bg-blue-600 text-white border-blue-700 shadow-xs ring-2 ring-blue-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200/80'
+            }`}
           >
-            {getInitials(post.authorAlias)}
+            {isOfficial ? (
+              <ShieldCheck className="w-5 h-5 text-white" aria-hidden="true" />
+            ) : (
+              getInitials(post.authorAlias)
+            )}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
               <span
                 id={`post-author-${post.id}`}
-                className="font-bold text-sm text-slate-900 truncate"
+                className={`font-bold text-sm truncate ${
+                  isOfficial ? 'text-blue-950 font-extrabold' : 'text-slate-900'
+                }`}
               >
                 {post.authorAlias}
               </span>
-              {post.ownedByMe && (
+              {isOfficial && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 shadow-2xs">
+                  <ShieldCheck className="w-3 h-3 text-blue-600" aria-hidden="true" />
+                  Oficial
+                </span>
+              )}
+              {post.ownedByMe && !isOfficial && (
                 <span className="text-[11px] font-bold bg-blue-50 text-brand-primary px-1.5 py-0.5 rounded-md border border-blue-200/60">
                   Tú
                 </span>
@@ -197,7 +232,9 @@ export function PostCard({
         </div>
       </div>
 
-      <p className="text-sm text-slate-800 leading-relaxed whitespace-pre-line break-words">
+      <p className={`text-sm leading-relaxed whitespace-pre-line break-words ${
+        isOfficial ? 'text-slate-900 font-medium' : 'text-slate-800'
+      }`}>
         {post.content}
       </p>
 
@@ -281,9 +318,13 @@ export const MemoPostCard = memo(PostCard, (prev, next) => {
   const b = next.post;
   const pa = prev.commentSectionProps || {};
   const na = next.commentSectionProps || {};
+  const isOfficialA = Boolean(a?.isOfficial || a?.official);
+  const isOfficialB = Boolean(b?.isOfficial || b?.official);
+
   return (
     a.id === b.id &&
     a.content === b.content &&
+    isOfficialA === isOfficialB &&
     a.likesCount === b.likesCount &&
     a.commentsCount === b.commentsCount &&
     a.likedByMe === b.likedByMe &&

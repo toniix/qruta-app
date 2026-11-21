@@ -146,7 +146,6 @@ export function OperatorAnalyticsPage() {
         lines: payload?.lines || [],
         days: payload?.days || [],
         routes: payload?.routes || [],
-        qrCampaigns: payload?.qrCampaigns || [],
       });
     } catch (err) {
       if (err.response?.status !== 404) {
@@ -182,7 +181,6 @@ export function OperatorAnalyticsPage() {
   const lines = summary?.lines || [];
   const days = summary?.days || [];
   const routes = summary?.routes || [];
-  const campaigns = summary?.qrCampaigns || [];
 
   return (
     <div>
@@ -287,26 +285,6 @@ export function OperatorAnalyticsPage() {
                 ) : (
                   <DailyDemandChart entries={routeSeries?.series || []} title="Demanda diaria por ruta" />
                 )}
-              </div>
-            )}
-          </section>
-
-          <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
-            <h3 className="mb-4 text-sm font-bold text-slate-900">Escaneos QR por campaña</h3>
-            {campaigns.length === 0 ? (
-              <p className="py-4 text-center text-xs text-slate-500">Sin campañas registradas en el rango.</p>
-            ) : (
-              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-3">
-                {campaigns.map((campaign) => (
-                  <div key={campaign.campaign} className="rounded-xl border border-slate-200 bg-slate-50 p-4">
-                    <p className="text-xs font-semibold text-slate-600">
-                      {campaign.campaign === 'UNATTRIBUTED' ? 'Sin campaña' : campaign.campaign}
-                    </p>
-                    <p className="mt-1 text-lg font-extrabold text-slate-900">
-                      {formatter.format(campaign.scans)}
-                    </p>
-                  </div>
-                ))}
               </div>
             )}
           </section>

@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RouteDrawer } from './RouteDrawer';
 import * as shareUtils from '../../utils/shareUtils';
+import { communityService } from '../../services/communityService';
 
 const { mockUseRoutes, mockUseFavorites } = vi.hoisted(() => ({
   mockUseRoutes: vi.fn(),
@@ -22,7 +23,7 @@ vi.mock('../../services/communityService', () => ({
   communityService: {
     getRouteSummary: vi.fn().mockResolvedValue({ totalPostsCount: 0, categories: [] }),
   },
-  getCategoryMeta: vi.fn().mockReturnValue({ label: 'General', color: '#000' }),
+  getCategoryMeta: vi.fn().mockReturnValue({ label: 'General', color: '#000', badgeClass: 'bg-blue-50', shortLabel: 'Info' }),
 }));
 
 describe('RouteDrawer Share Feature', () => {
@@ -118,6 +119,32 @@ describe('RouteDrawer Share Feature', () => {
 
     expect(screen.getByRole('button', { name: 'Ida' })).toBeInTheDocument();
     expect(screen.getByText('No hay paraderos registrados para este recorrido.')).toBeInTheDocument();
+  });
+
+  it('renders official badge for latest community post if marked as official', async () => {
+    communityService.getRouteSummary.mockResolvedValueOnce({
+      totalPostsCount: 1,
+      categories: [],
+      latestPost: {
+        id: 'post-official-42',
+        category: 'ANNOUNCEMENT',
+        authorAlias: 'Línea 55 Oficial',
+        content: 'Cambio de paradero autorizado.',
+        createdAt: new Date().toISOString(),
+        isOfficial: true,
+      },
+    });
+
+    render(
+      <MemoryRouter>
+        <RouteDrawer />
+      </MemoryRouter>
+    );
+
+    await waitFor(() => {
+      expect(screen.getByText('Oficial')).toBeInTheDocument();
+      expect(screen.getByText('Línea 55 Oficial')).toBeInTheDocument();
+    });
   });
 });
 

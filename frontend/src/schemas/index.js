@@ -90,6 +90,7 @@ export const lineSchema = z.object({
 
 // ── Operators (admin management) ───────────────────────────────────────────
 export const operatorSchema = z.object({
+  transportLineId: optionalText(100, "ID de línea inválido.").nullish(),
   name: requiredText(1, 255, "El nombre del operador es obligatorio."),
   ruc: z
     .string()

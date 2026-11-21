@@ -388,6 +388,8 @@ public class CommunityService {
             city = line.getCity();
         }
 
+        Operator operator = post.getOperator();
+
         return CommunityPostResponse.builder()
                 .id(post.getId())
                 .authorAlias(post.getAuthorAlias())
@@ -398,6 +400,9 @@ public class CommunityService {
                 .likedByMe(likedByMe)
                 .ownedByMe(ownedByMe)
                 .createdAt(post.getCreatedAt())
+                .isOfficial(post.isOfficial())
+                .operatorId(operator != null ? operator.getId() : null)
+                .operatorName(operator != null ? operator.getName() : null)
                 .routeId(route != null ? route.getId() : null)
                 .routeCode(route != null ? route.getCode() : null)
                 .routeName(route != null ? route.getName() : null)
