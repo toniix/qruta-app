@@ -8,6 +8,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.UUID;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -18,7 +20,12 @@ public class UpdateQrCodeRequest {
     @Size(max = 120, message = "label must not exceed 120 characters")
     private String label;
 
-    @Pattern(regexp = "ACTIVE|PAUSED|REVOKED", message = "status must be ACTIVE, PAUSED, or REVOKED")
+    @Pattern(regexp = "HOME|ROUTE|STOP|CAMPAIGN", message = "targetType must be HOME, ROUTE, STOP, or CAMPAIGN")
+    private String targetType;
+
+    private UUID targetId;
+
+    @Pattern(regexp = "ACTIVE|PAUSED", message = "status must be ACTIVE or PAUSED")
     private String status;
 
     @Size(max = 60, message = "campaignSource must not exceed 60 characters")

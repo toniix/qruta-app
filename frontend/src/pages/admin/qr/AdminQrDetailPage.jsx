@@ -1,36 +1,46 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
-  QrCode as QrIcon,
   Printer,
-  Download,
   Copy,
   Check,
   Pause,
   Play,
-  Ban,
-  ExternalLink,
-  Calendar,
-  Layers,
-  Sparkles,
-  RefreshCw,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { StatusBadge } from '../../../components/admin/common/StatusBadge';
 import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
 import { QrPrintModal } from '../../../components/admin/qr/QrPrintModal';
+import { QrFormModal } from '../../../components/admin/qr/QrFormModal';
 import { adminQrCodeService } from '../../../services/qrCodeService';
-import { generateQrSvg, generateQrDataUrl, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
+import { adminRouteService } from '../../../services/adminRouteService';
+import { adminStopService } from '../../../services/adminStopService';
+import { adminOperatorService } from '../../../services/adminOperatorService';
+import { adminLineService } from '../../../services/adminLineService';
+import { cityService } from '../../../services/cityService';
+import { generateQrSvg, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
 export function AdminQrDetailPage() {
   const { id } = useParams();
+  const navigate = useNavigate();
   const toast = useAdminToast();
   const [qr, setQr] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [printModalOpen, setPrintModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [routes, setRoutes] = useState([]);
+  const [stops, setStops] = useState([]);
+  const [operators, setOperators] = useState([]);
+  const [cities, setCities] = useState([]);
+  const [lines, setLines] = useState([]);
+  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
   const [statusConfirm, setStatusConfirm] = useState(null);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   const [copied, setCopied] = useState(false);
 
   const loadData = useCallback(async () => {
@@ -51,6 +61,7 @@ export function AdminQrDetailPage() {
   }, [id, toast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR detail state
     loadData();
   }, [loadData]);
 
@@ -61,6 +72,62 @@ export function AdminQrDetailPage() {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     });
+  };
+
+  const openEdit = async () => {
+    if (!catalogsLoaded) {
+      try {
+        const [routesData, stopsData, operatorsData, citiesData, linesData] =
+          await Promise.all([
+            adminRouteService.getAllRoutes(),
+            adminStopService.getAllStops(),
+            adminOperatorService.getAllOperators(),
+            cityService.getAdminCities(),
+            adminLineService.getAllLines(),
+          ]);
+        setRoutes(Array.isArray(routesData) ? routesData : []);
+        setStops(Array.isArray(stopsData) ? stopsData : []);
+        setOperators(Array.isArray(operatorsData) ? operatorsData : []);
+        setCities(Array.isArray(citiesData) ? citiesData : []);
+        setLines(Array.isArray(linesData) ? linesData : []);
+        setCatalogsLoaded(true);
+      } catch (err) {
+        console.error('Error cargando catálogos para editar QR:', err);
+        toast.error('No se pudieron cargar los catálogos para editar el código QR.');
+        return;
+      }
+    }
+    setEditModalOpen(true);
+  };
+
+  const handleEdit = async (formData) => {
+    setSaving(true);
+    try {
+      const updated = await adminQrCodeService.update(id, formData);
+      setQr(updated);
+      setEditModalOpen(false);
+      toast.success('Código QR actualizado exitosamente.');
+    } catch (err) {
+      console.error('Error actualizando QR:', err);
+      toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    setSaving(true);
+    try {
+      await adminQrCodeService.delete(id);
+      setDeleteConfirm(false);
+      toast.success('Código QR eliminado exitosamente.');
+      navigate('/admin/qr-codes');
+    } catch (err) {
+      console.error('Error eliminando QR:', err);
+      toast.error(err.response?.data?.message || 'Error al eliminar el código QR.');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleToggleStatus = async (newStatus) => {
@@ -124,7 +191,7 @@ export function AdminQrDetailPage() {
               <StatusBadge
                 status={qr.status}
                 activeLabel="Activo"
-                inactiveLabel={qr.status === 'PAUSED' ? 'Pausado' : 'Revocado'}
+                inactiveLabel="Pausado"
               />
             </div>
             <h1 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight mt-0.5">
@@ -142,13 +209,21 @@ export function AdminQrDetailPage() {
             <Printer className="h-3.5 w-3.5" />
             <span>Imprimir Lámina</span>
           </button>
+          <button
+            type="button"
+            onClick={openEdit}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
+          >
+            <Edit2 className="h-3.5 w-3.5" />
+            <span>Editar QR</span>
+          </button>
           {qr.status === 'ACTIVE' ? (
             <button
               type="button"
               onClick={() =>
                 setStatusConfirm({
                   newStatus: 'PAUSED',
-                  message: '¿Deseas pausar este código QR?',
+                  description: '¿Deseas pausar este código QR? Los escaneos futuros mostrarán un aviso y no abrirán el destino.',
                 })
               }
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
@@ -166,6 +241,14 @@ export function AdminQrDetailPage() {
               <span>Reactivar</span>
             </button>
           ) : null}
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm(true)}
+            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 bg-white px-3.5 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 transition"
+          >
+            <Trash2 className="h-3.5 w-3.5" />
+            <span>Eliminar</span>
+          </button>
         </div>
       </div>
 
@@ -340,14 +423,39 @@ export function AdminQrDetailPage() {
         qr={qr}
       />
 
+      <QrFormModal
+        open={editModalOpen}
+        initialData={qr}
+        onClose={() => setEditModalOpen(false)}
+        onSave={handleEdit}
+        saving={saving}
+        routes={routes}
+        stops={stops}
+        operators={operators}
+        cities={cities}
+        lines={lines}
+        isOperator={false}
+      />
+
       <ConfirmDialog
         open={Boolean(statusConfirm)}
         title="Cambiar Estado de Código QR"
-        message={statusConfirm?.message}
+        description={statusConfirm?.description}
         confirmLabel="Confirmar"
-        confirmVariant={statusConfirm?.newStatus === 'REVOKED' ? 'danger' : 'warning'}
+        tone="warning"
         onConfirm={() => handleToggleStatus(statusConfirm.newStatus)}
         onCancel={() => setStatusConfirm(null)}
+      />
+
+      <ConfirmDialog
+        open={deleteConfirm}
+        title="Eliminar Código QR"
+        description={`¿Eliminar definitivamente el código QR "${qr.label}"? Sus eventos de escaneo se conservarán.`}
+        confirmLabel="Eliminar Código"
+        tone="danger"
+        loading={saving}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(false)}
       />
     </div>
   );

@@ -20,7 +20,6 @@ import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.OperatorUserRepository;
 import com.anthony.rutas.repositories.RouteDailyStatRepository;
-import com.anthony.rutas.repositories.RouteEventRepository;
 import com.anthony.rutas.repositories.RouteRepository;
 import com.anthony.rutas.repositories.StopRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
@@ -82,8 +81,6 @@ class TransportLineCompanyCanonicalFlowTest {
     private DisruptionRepository disruptionRepository;
     @Mock
     private RouteDailyStatRepository routeDailyStatRepository;
-    @Mock
-    private RouteEventRepository routeEventRepository;
     @Mock
     private BillingService billingService;
     @Mock
@@ -234,7 +231,6 @@ class TransportLineCompanyCanonicalFlowTest {
                 disruptionRepository,
                 routeService,
                 routeDailyStatRepository,
-                routeEventRepository,
                 routeAnalyticsService,
                 geometryFactory
         );

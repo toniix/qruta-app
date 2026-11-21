@@ -5,9 +5,11 @@ import com.anthony.rutas.dtos.request.UpdateStopRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
 import com.anthony.rutas.exceptions.BadRequestException;
+import com.anthony.rutas.exceptions.ConflictException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.QrCodeRepository;
 import com.anthony.rutas.repositories.RouteStopRepository;
 import com.anthony.rutas.repositories.StopRepository;
 import lombok.RequiredArgsConstructor;
@@ -34,9 +36,11 @@ import java.util.UUID;
 public class StopService {
 
     private static final Set<String> ALLOWED_IMAGE_TYPES = Set.of("image/jpeg", "image/png");
+    private static final List<String> REACTIVATABLE_QR_STATUSES = List.of("ACTIVE", "PAUSED");
 
     private final StopRepository stopRepository;
     private final CityRepository cityRepository;
+    private final QrCodeRepository qrCodeRepository;
     private final RouteStopRepository routeStopRepository;
     private final SupabaseStorageService storageService;
     private final ImageProcessingService imageProcessingService;
@@ -218,6 +222,18 @@ public class StopService {
         if (!stopRepository.existsById(id)) {
             throw new ResourceNotFoundException("Stop not found with id: " + id);
         }
+
+        long blockingCount = qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                "STOP", id, REACTIVATABLE_QR_STATUSES);
+        if (blockingCount > 0) {
+            String qrLabel = blockingCount == 1
+                    ? "1 QR code"
+                    : blockingCount + " QR codes";
+            throw new ConflictException(
+                    "Cannot delete stop: " + qrLabel
+                            + " still target this stop. Edit or delete those QR codes first.");
+        }
+
         stopRepository.deleteById(id);
     }
 

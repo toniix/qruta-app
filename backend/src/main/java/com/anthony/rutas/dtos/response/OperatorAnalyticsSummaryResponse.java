@@ -8,8 +8,7 @@ import java.util.UUID;
 public record OperatorAnalyticsSummaryResponse(
         List<LineUsage> lines,
         List<DailyUsage> days,
-        List<RouteRanking> routes,
-        List<QrCampaignUsage> qrCampaigns) {
+        List<RouteRanking> routes) {
 
     public record LineUsage(
             UUID lineId,
@@ -42,10 +41,5 @@ public record OperatorAnalyticsSummaryResponse(
             long searches,
             long qrScans,
             long interactions) {
-    }
-
-    public record QrCampaignUsage(
-            String campaign,
-            long scans) {
     }
 }

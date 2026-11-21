@@ -21,7 +21,6 @@ import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.RouteDailyStatRepository;
-import com.anthony.rutas.repositories.RouteEventRepository;
 import com.anthony.rutas.repositories.RouteRepository;
 import com.anthony.rutas.repositories.StopRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
@@ -40,7 +39,6 @@ import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -101,9 +99,6 @@ class OperatorPortalServiceTest {
     private RouteDailyStatRepository routeDailyStatRepository;
 
     @Mock
-    private RouteEventRepository routeEventRepository;
-
-    @Mock
     private RouteAnalyticsService routeAnalyticsService;
 
     private final GeometryFactory geometryFactory = new GeometryFactory();
@@ -131,7 +126,6 @@ class OperatorPortalServiceTest {
                 disruptionRepository,
                 routeService,
                 routeDailyStatRepository,
-                routeEventRepository,
                 routeAnalyticsService,
                 geometryFactory);
     }
@@ -166,7 +160,7 @@ class OperatorPortalServiceTest {
         doThrow(new AccessDeniedException("blocked")).when(subscriptionAccessService).requireAnalyticsAccess();
 
         assertThrows(AccessDeniedException.class, () -> service.getAnalyticsSummary(null, null));
-        verifyNoInteractions(transportLineRepository, routeDailyStatRepository, routeEventRepository);
+        verifyNoInteractions(transportLineRepository, routeDailyStatRepository);
     }
 
     @Test
@@ -277,7 +271,7 @@ class OperatorPortalServiceTest {
     }
 
     @Test
-    void analyticsSummaryOnlyIncludesOwnedLinesAndCampaignScans() {
+    void analyticsSummaryOnlyIncludesOwnedLines() {
         LocalDate from = LocalDate.of(2026, 11, 1);
         LocalDate to = LocalDate.of(2026, 11, 7);
         UUID foreignLineId = UUID.randomUUID();
@@ -293,13 +287,6 @@ class OperatorPortalServiceTest {
         when(routeRepository.findByOperatorId(OPERATOR_ID)).thenReturn(List.of(
                 Route.builder().id(ROUTE_ID).name("Ruta 1").code("101").build()));
 
-        RouteEventRepository.QrCampaignRow campaignRow = mock(RouteEventRepository.QrCampaignRow.class);
-        when(campaignRow.getCampaign()).thenReturn("centro");
-        when(campaignRow.getScans()).thenReturn(4L);
-        when(routeEventRepository.countQrScansByCampaign(
-                eq("qr_scan"), any(Instant.class), any(Instant.class), eq(Set.of(LINE_ID))))
-                .thenReturn(List.of(campaignRow));
-
         OperatorAnalyticsSummaryResponse response = service.getAnalyticsSummary(from, to);
 
         assertEquals(1, response.lines().size());
@@ -310,8 +297,6 @@ class OperatorPortalServiceTest {
         assertEquals(1, response.days().size());
         assertEquals(day, response.days().get(0).date());
         assertEquals(5, response.routes().get(0).interactions());
-        assertEquals("centro", response.qrCampaigns().get(0).campaign());
-        assertEquals(4, response.qrCampaigns().get(0).scans());
     }
 
     @Test

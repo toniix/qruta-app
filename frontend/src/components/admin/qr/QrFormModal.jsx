@@ -1,21 +1,48 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { X, QrCode as QrIcon, Loader2, Sparkles } from 'lucide-react';
 import { generateQrSvg, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
+
+// Stable identities for default props. Storing them at module scope keeps the
+// initialization effect from re-running on every render when a consumer omits
+// a prop (a fresh `[]` literal would change identity each time).
+const EMPTY_LIST = [];
+
+/**
+ * Routes inherit their city from the transport line, so the admin API exposes
+ * `transportLineId` but no `cityId` on the route summary. Both helpers mirror
+ * the lookup already used by the admin routes page.
+ */
+function routesOfCity(routes, lineCityMap, cityId) {
+  if (!cityId) return [];
+  return routes.filter(
+    (route) =>
+      String(lineCityMap.get(String(route.transportLineId)) || '') ===
+      String(cityId),
+  );
+}
+
+function stopsOfCity(stops, cityId) {
+  if (!cityId) return [];
+  return stops.filter((stop) => String(stop.cityId) === String(cityId));
+}
 
 export function QrFormModal({
   open,
   onClose,
   onSave,
   saving = false,
-  routes = [],
-  stops = [],
-  operators = [],
+  routes = EMPTY_LIST,
+  stops = EMPTY_LIST,
+  operators = EMPTY_LIST,
+  cities = EMPTY_LIST,
+  lines = EMPTY_LIST,
   isOperator = false,
   initialData = null,
 }) {
   const [formData, setFormData] = useState({
     label: '',
     targetType: 'ROUTE',
+    cityId: '',
     targetId: '',
     campaignSource: '',
     campaignMedium: 'print',
@@ -25,37 +52,145 @@ export function QrFormModal({
 
   const [errors, setErrors] = useState({});
 
+  // Initialize once per open cycle. Later prop updates (e.g. data finishing its
+  // load while the modal is open) must not wipe what the admin already typed.
+  const initializedRef = useRef(false);
+
+  const lineCityMap = useMemo(() => {
+    const map = new Map();
+    lines.forEach((line) => map.set(String(line.id), String(line.cityId || '')));
+    return map;
+  }, [lines]);
+
+  // The city filter only makes sense when the caller supplies the city catalog.
+  // Operator flows omit it, keeping the previous behaviour untouched.
+  const cityFilterEnabled = cities.length > 0;
+  const requiresTarget =
+    formData.targetType === 'ROUTE' || formData.targetType === 'STOP';
+
+  const routesInCity = useMemo(
+    () => routesOfCity(routes, lineCityMap, formData.cityId),
+    [routes, lineCityMap, formData.cityId],
+  );
+
+  const stopsInCity = useMemo(
+    () => stopsOfCity(stops, formData.cityId),
+    [stops, formData.cityId],
+  );
+
+  // What the target selects actually render. Without the city filter the full
+  // lists stay available, preserving operator behaviour.
+  const routesForPicker = cityFilterEnabled ? routesInCity : routes;
+  const stopsForPicker = cityFilterEnabled ? stopsInCity : stops;
+
   useEffect(() => {
-    if (initialData) {
-      setFormData({
-        label: initialData.label || '',
-        targetType: initialData.targetType || 'ROUTE',
-        targetId: initialData.targetId || '',
-        campaignSource: initialData.campaignSource || '',
-        campaignMedium: initialData.campaignMedium || 'print',
-        campaignName: initialData.campaignName || '',
-        operatorId: initialData.operatorId || '',
-      });
-    } else {
-      setFormData({
-        label: '',
-        targetType: 'ROUTE',
-        targetId: routes.length > 0 ? routes[0].id : '',
-        campaignSource: '',
-        campaignMedium: 'print',
-        campaignName: '',
-        operatorId: '',
-      });
+    if (!open) {
+      initializedRef.current = false;
+      return;
     }
+    if (initializedRef.current) return;
+
+    const pickDefaultTarget = (type, cityId) => {
+      if (type === 'ROUTE') {
+        const list = cityFilterEnabled
+          ? routesOfCity(routes, lineCityMap, cityId)
+          : routes;
+        return list[0]?.id || '';
+      }
+      if (type === 'STOP') {
+        const list = cityFilterEnabled ? stopsOfCity(stops, cityId) : stops;
+        return list[0]?.id || '';
+      }
+      return '';
+    };
+
+    // Editing (or pre-seeding) resolves the city from the stored target so the
+    // preselected resource stays visible inside the scoped list.
+    const resolveInitialCityId = () => {
+      if (!initialData?.targetId) return '';
+      if (initialData.targetType === 'STOP') {
+        const stop = stops.find(
+          (s) => String(s.id) === String(initialData.targetId),
+        );
+        return stop?.cityId ? String(stop.cityId) : '';
+      }
+      if (initialData.targetType === 'ROUTE') {
+        const route = routes.find(
+          (r) => String(r.id) === String(initialData.targetId),
+        );
+        return route
+          ? String(lineCityMap.get(String(route.transportLineId)) || '')
+          : '';
+      }
+      return '';
+    };
+
+    const initialCityId =
+      resolveInitialCityId() ||
+      (cityFilterEnabled && cities.length === 1 ? String(cities[0].id) : '');
+    const initialTargetType = initialData?.targetType || 'ROUTE';
+
+    setFormData({
+      label: initialData?.label || '',
+      targetType: initialTargetType,
+      cityId: initialCityId,
+      targetId:
+        initialData?.targetId ||
+        (initialTargetType === 'ROUTE' || initialTargetType === 'STOP'
+          ? pickDefaultTarget(initialTargetType, initialCityId)
+          : ''),
+      campaignSource: initialData?.campaignSource || '',
+      campaignMedium: initialData?.campaignMedium || 'print',
+      campaignName: initialData?.campaignName || '',
+      operatorId: initialData?.operatorId || '',
+    });
     setErrors({});
-  }, [initialData, open, routes]);
+    initializedRef.current = true;
+  }, [
+    open,
+    initialData,
+    cities,
+    routes,
+    stops,
+    lineCityMap,
+    cityFilterEnabled,
+  ]);
 
   if (!open) return null;
+
+  const handleCityChange = (nextCityId) => {
+    setFormData((prev) => ({
+      ...prev,
+      cityId: nextCityId,
+      targetId:
+        prev.targetType === 'ROUTE'
+          ? routesOfCity(routes, lineCityMap, nextCityId)[0]?.id || ''
+          : prev.targetType === 'STOP'
+            ? stopsOfCity(stops, nextCityId)[0]?.id || ''
+            : '',
+    }));
+  };
+
+  const handleTargetTypeChange = (nextType) => {
+    setFormData((prev) => ({
+      ...prev,
+      targetType: nextType,
+      targetId:
+        nextType === 'ROUTE'
+          ? routesForPicker[0]?.id || ''
+          : nextType === 'STOP'
+            ? stopsForPicker[0]?.id || ''
+            : '',
+    }));
+  };
 
   const validate = () => {
     const errs = {};
     if (!formData.label.trim()) errs.label = 'La etiqueta es obligatoria.';
-    if ((formData.targetType === 'ROUTE' || formData.targetType === 'STOP') && !formData.targetId) {
+    if (requiresTarget && cityFilterEnabled && !formData.cityId) {
+      errs.cityId = 'Seleccione una ciudad para filtrar rutas y paraderos.';
+    }
+    if (requiresTarget && !formData.targetId) {
       errs.targetId = 'Debe seleccionar un recurso de destino.';
     }
     setErrors(errs);
@@ -127,26 +262,54 @@ export function QrFormModal({
                 {errors.label && <p className="mt-1 text-[11px] text-rose-500">{errors.label}</p>}
               </div>
 
+              {/* City scoping — must be chosen before picking a target */}
+              {cityFilterEnabled && (
+                <div>
+                  <label
+                    htmlFor="qr-city"
+                    className="block text-xs font-bold text-slate-700 mb-1"
+                  >
+                    Ciudad{' '}
+                    {requiresTarget && <span className="text-rose-500">*</span>}
+                  </label>
+                  <select
+                    id="qr-city"
+                    value={formData.cityId}
+                    onChange={(e) => handleCityChange(e.target.value)}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                  >
+                    <option value="">Seleccione una ciudad...</option>
+                    {cities.map((city) => (
+                      <option key={city.id} value={city.id}>
+                        {city.name}
+                      </option>
+                    ))}
+                  </select>
+                  {errors.cityId ? (
+                    <p className="mt-1 text-[11px] text-rose-500">
+                      {errors.cityId}
+                    </p>
+                  ) : (
+                    <p className="mt-1 text-[11px] text-slate-400">
+                      Limita las rutas y paraderos disponibles a esa ciudad.
+                    </p>
+                  )}
+                </div>
+              )}
+
               {/* Target Type */}
               <div className="grid grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label
+                    htmlFor="qr-target-type"
+                    className="block text-xs font-bold text-slate-700 mb-1"
+                  >
                     Tipo de Destino <span className="text-rose-500">*</span>
                   </label>
                   <select
+                    id="qr-target-type"
                     value={formData.targetType}
-                    onChange={(e) =>
-                      setFormData({
-                        ...formData,
-                        targetType: e.target.value,
-                        targetId:
-                          e.target.value === 'ROUTE' && routes.length > 0
-                            ? routes[0].id
-                            : e.target.value === 'STOP' && stops.length > 0
-                            ? stops[0].id
-                            : '',
-                      })
-                    }
+                    onChange={(e) => handleTargetTypeChange(e.target.value)}
                     className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
                   >
                     <option value="ROUTE">Ruta específica</option>
@@ -159,46 +322,72 @@ export function QrFormModal({
                 {/* Target Selector */}
                 {formData.targetType === 'ROUTE' && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label
+                      htmlFor="qr-target-route"
+                      className="block text-xs font-bold text-slate-700 mb-1"
+                    >
                       Seleccionar Ruta <span className="text-rose-500">*</span>
                     </label>
                     <select
+                      id="qr-target-route"
                       value={formData.targetId}
+                      disabled={cityFilterEnabled && !formData.cityId}
                       onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     >
                       <option value="">Seleccione una ruta...</option>
-                      {routes.map((r) => (
+                      {routesForPicker.map((r) => (
                         <option key={r.id} value={r.id}>
                           {r.code} - {r.name}
                         </option>
                       ))}
                     </select>
-                    {errors.targetId && (
+                    {errors.targetId ? (
                       <p className="mt-1 text-[11px] text-rose-500">{errors.targetId}</p>
+                    ) : (
+                      cityFilterEnabled &&
+                      formData.cityId &&
+                      routesForPicker.length === 0 && (
+                        <p className="mt-1 text-[11px] text-amber-600">
+                          No hay rutas registradas en esta ciudad.
+                        </p>
+                      )
                     )}
                   </div>
                 )}
 
                 {formData.targetType === 'STOP' && (
                   <div>
-                    <label className="block text-xs font-bold text-slate-700 mb-1">
+                    <label
+                      htmlFor="qr-target-stop"
+                      className="block text-xs font-bold text-slate-700 mb-1"
+                    >
                       Seleccionar Paradero <span className="text-rose-500">*</span>
                     </label>
                     <select
+                      id="qr-target-stop"
                       value={formData.targetId}
+                      disabled={cityFilterEnabled && !formData.cityId}
                       onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     >
                       <option value="">Seleccione un paradero...</option>
-                      {stops.map((s) => (
+                      {stopsForPicker.map((s) => (
                         <option key={s.id} value={s.id}>
                           {s.name}
                         </option>
                       ))}
                     </select>
-                    {errors.targetId && (
+                    {errors.targetId ? (
                       <p className="mt-1 text-[11px] text-rose-500">{errors.targetId}</p>
+                    ) : (
+                      cityFilterEnabled &&
+                      formData.cityId &&
+                      stopsForPicker.length === 0 && (
+                        <p className="mt-1 text-[11px] text-amber-600">
+                          No hay paraderos registrados en esta ciudad.
+                        </p>
+                      )
                     )}
                   </div>
                 )}
@@ -285,7 +474,7 @@ export function QrFormModal({
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-6 flex items-center justify-end gap-2.5 pt-4 border-t border-slate-100">
+          <div className="mt-6 flex items-center justify-center gap-2.5 pt-4 border-t border-slate-100">
             <button
               type="button"
               onClick={onClose}

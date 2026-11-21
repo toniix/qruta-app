@@ -55,7 +55,7 @@ describe('operatorPortalService', () => {
   });
 
   it('loads analytics with the requested date range', async () => {
-    const summary = { lines: [], days: [], routes: [], qrCampaigns: [] };
+    const summary = { lines: [], days: [], routes: [] };
     operatorClient.get.mockResolvedValueOnce({ data: summary });
 
     const result = await operatorPortalService.getAnalyticsSummary('2026-11-01', '2026-11-07');

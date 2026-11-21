@@ -33,7 +33,6 @@ describe('OperatorAnalyticsPage', () => {
           interactions: 45,
         },
       ],
-      qrCampaigns: [{ campaign: 'UNATTRIBUTED', scans: 5 }],
     });
     operatorPortalService.getRouteAnalytics.mockResolvedValue({
       routeId: 'route-1',
@@ -53,7 +52,6 @@ describe('OperatorAnalyticsPage', () => {
       expect.any(String)
     );
     expect(screen.getByText('Ruta 1')).toBeInTheDocument();
-    expect(screen.getByText('Sin campaña')).toBeInTheDocument();
     expect(screen.getByText('2026-11-17')).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: /Ruta 1/ }));

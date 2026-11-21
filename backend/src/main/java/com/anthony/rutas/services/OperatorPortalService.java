@@ -30,7 +30,6 @@ import com.anthony.rutas.mappers.OperatorDtoMapper;
 import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.RouteDailyStatRepository;
-import com.anthony.rutas.repositories.RouteEventRepository;
 import com.anthony.rutas.repositories.RouteRepository;
 import com.anthony.rutas.repositories.StopRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
@@ -68,7 +67,6 @@ public class OperatorPortalService {
 
     private static final Set<String> DISRUPTION_TYPES =
             Set.of("DESVIO", "CORTE", "HORARIO", "PARADERO", "OTRO");
-    private static final String UNATTRIBUTED_CAMPAIGN = "UNATTRIBUTED";
 
     private final OperatorScope operatorScope;
     private final SubscriptionAccessService subscriptionAccessService;
@@ -81,7 +79,6 @@ public class OperatorPortalService {
     private final DisruptionRepository disruptionRepository;
     private final RouteService routeService;
     private final RouteDailyStatRepository routeDailyStatRepository;
-    private final RouteEventRepository routeEventRepository;
     private final RouteAnalyticsService routeAnalyticsService;
     private final GeometryFactory geometryFactory;
 
@@ -154,7 +151,7 @@ public class OperatorPortalService {
         List<TransportLine> lines = transportLineRepository.findByOperatorId(operatorId);
         Set<UUID> lineIds = lines.stream().map(TransportLine::getId).collect(Collectors.toSet());
         if (lineIds.isEmpty()) {
-            return new OperatorAnalyticsSummaryResponse(List.of(), List.of(), List.of(), List.of());
+            return new OperatorAnalyticsSummaryResponse(List.of(), List.of(), List.of());
         }
 
         Map<UUID, UsageTotals> lineTotals = new LinkedHashMap<>();
@@ -210,19 +207,7 @@ public class OperatorPortalService {
                                 Comparator.nullsLast(Comparator.naturalOrder())))
                 .toList();
 
-        List<OperatorAnalyticsSummaryResponse.QrCampaignUsage> qrCampaigns = routeEventRepository
-                .countQrScansByCampaign(
-                        EventCategory.QR_SCAN,
-                        effectiveFrom.atStartOfDay(ZoneOffset.UTC).toInstant(),
-                        effectiveTo.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant(),
-                        lineIds)
-                .stream()
-                .map(row -> new OperatorAnalyticsSummaryResponse.QrCampaignUsage(
-                        campaignLabel(row.getCampaign()),
-                        row.getScans() == null ? 0L : row.getScans()))
-                .toList();
-
-        return new OperatorAnalyticsSummaryResponse(lineUsage, dailyUsage, routeRanking, qrCampaigns);
+        return new OperatorAnalyticsSummaryResponse(lineUsage, dailyUsage, routeRanking);
     }
 
     public RouteAnalyticsSeriesResponse getRouteAnalytics(UUID routeId, LocalDate from, LocalDate to) {
@@ -450,10 +435,6 @@ public class OperatorPortalService {
             throw new BadRequestException("Operator city is required");
         }
         return operator.getCity().getId();
-    }
-
-    private String campaignLabel(String campaign) {
-        return campaign == null || campaign.isBlank() ? UNATTRIBUTED_CAMPAIGN : campaign;
     }
 
     private static final class UsageTotals {

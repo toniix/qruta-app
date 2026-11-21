@@ -43,6 +43,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
@@ -293,6 +294,25 @@ class EndpointAuthorizationTest {
         when(smartQrService.listAll()).thenReturn(List.of());
         mockMvc.perform(get("/api/admin/qr-codes").header("Authorization", "Bearer admin-token"))
                 .andExpect(status().isOk());
+    }
+
+    @Test
+    void adminQrCodeDeleteRequiresAdminRole() throws Exception {
+        String id = java.util.UUID.randomUUID().toString();
+
+        int anonStatus = mockMvc.perform(delete("/api/admin/qr-codes/{id}", id))
+                .andReturn()
+                .getResponse()
+                .getStatus();
+        assertThat(anonStatus).isIn(401, 403);
+
+        stubOperatorToken();
+        mockMvc.perform(delete("/api/admin/qr-codes/{id}", id).header("Authorization", "Bearer operator-token"))
+                .andExpect(status().isForbidden());
+
+        stubAdminToken();
+        mockMvc.perform(delete("/api/admin/qr-codes/{id}", id).header("Authorization", "Bearer admin-token"))
+                .andExpect(status().isNoContent());
     }
 
     @Test

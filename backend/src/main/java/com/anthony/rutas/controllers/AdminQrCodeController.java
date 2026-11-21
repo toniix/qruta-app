@@ -41,6 +41,12 @@ public class AdminQrCodeController {
         return ResponseEntity.ok(smartQrService.updateStatus(id, request));
     }
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable UUID id) {
+        smartQrService.delete(id);
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/{id}/stats")
     public ResponseEntity<QrCodeStatsResponse> stats(@PathVariable UUID id) {
         return ResponseEntity.ok(smartQrService.getStats(id));

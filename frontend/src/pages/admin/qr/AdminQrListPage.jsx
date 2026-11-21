@@ -2,16 +2,15 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import {
   QrCode as QrIcon,
-  Plus,
   Printer,
   Copy,
   Check,
   Pause,
   Play,
-  Ban,
-  ExternalLink,
   BarChart3,
   RefreshCw,
+  Edit2,
+  Trash2,
 } from 'lucide-react';
 import { AdminDataTable } from '../../../components/admin/common/AdminDataTable';
 import { AdminFilterBar } from '../../../components/admin/common/AdminFilterBar';
@@ -23,6 +22,8 @@ import { adminQrCodeService } from '../../../services/qrCodeService';
 import { adminRouteService } from '../../../services/adminRouteService';
 import { adminStopService } from '../../../services/adminStopService';
 import { adminOperatorService } from '../../../services/adminOperatorService';
+import { adminLineService } from '../../../services/adminLineService';
+import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 
 export function AdminQrListPage() {
@@ -31,6 +32,10 @@ export function AdminQrListPage() {
   const [routes, setRoutes] = useState([]);
   const [stops, setStops] = useState([]);
   const [operators, setOperators] = useState([]);
+  // Cities scope the target picker; lines are needed because a route inherits
+  // its city from its transport line (the admin route DTO carries no cityId).
+  const [cities, setCities] = useState([]);
+  const [lines, setLines] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Filters
@@ -40,23 +45,30 @@ export function AdminQrListPage() {
 
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editingQr, setEditingQr] = useState(null);
   const [saving, setSaving] = useState(false);
   const [printModalQr, setPrintModalQr] = useState(null);
-  const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, message }
+  const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, description }
+  const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, label }
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [codes, routesData, stopsData, opsData] = await Promise.all([
-        adminQrCodeService.getAll().catch(() => []),
-        adminRouteService.getAllRoutes().catch(() => []),
-        adminStopService.getAllStops().catch(() => []),
-        adminOperatorService.getAllOperators().catch(() => []),
-      ]);
+      const [codes, routesData, stopsData, opsData, citiesData, linesData] =
+        await Promise.all([
+          adminQrCodeService.getAll().catch(() => []),
+          adminRouteService.getAllRoutes().catch(() => []),
+          adminStopService.getAllStops().catch(() => []),
+          adminOperatorService.getAllOperators().catch(() => []),
+          cityService.getAdminCities().catch(() => []),
+          adminLineService.getAllLines().catch(() => []),
+        ]);
       setQrCodes(Array.isArray(codes) ? codes : []);
       setRoutes(Array.isArray(routesData) ? routesData : []);
       setStops(Array.isArray(stopsData) ? stopsData : []);
       setOperators(Array.isArray(opsData) ? opsData : []);
+      setCities(Array.isArray(citiesData) ? citiesData : []);
+      setLines(Array.isArray(linesData) ? linesData : []);
     } catch (err) {
       console.error('Error cargando códigos QR:', err);
       toast.error('Error al cargar la lista de códigos QR.');
@@ -66,6 +78,7 @@ export function AdminQrListPage() {
   }, [toast]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR list state
     loadData();
   }, [loadData]);
 
@@ -87,12 +100,51 @@ export function AdminQrListPage() {
     setSaving(true);
     try {
       const created = await adminQrCodeService.create(formData);
-      setQrCodes([created, ...qrCodes]);
+      setQrCodes((prev) => [created, ...prev]);
       setCreateModalOpen(false);
+      // Surface the freshly created QR right away so the admin can download or
+      // print it without having to hunt for it in the list.
+      setPrintModalQr(created);
       toast.success('Código QR creado exitosamente.');
     } catch (err) {
       console.error('Error creando QR:', err);
       toast.error(err.response?.data?.message || 'Error al crear el código QR.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleEdit = async (formData) => {
+    const qrId = editingQr?.id;
+    if (!qrId) return;
+
+    setSaving(true);
+    try {
+      const updated = await adminQrCodeService.update(qrId, formData);
+      setQrCodes((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+      setEditingQr(null);
+      toast.success('Código QR actualizado exitosamente.');
+    } catch (err) {
+      console.error('Error actualizando QR:', err);
+      toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleDelete = async () => {
+    const qrId = deleteConfirm?.id;
+    if (!qrId) return;
+
+    setSaving(true);
+    try {
+      await adminQrCodeService.delete(qrId);
+      setQrCodes((prev) => prev.filter((c) => c.id !== qrId));
+      setDeleteConfirm(null);
+      toast.success('Código QR eliminado exitosamente.');
+    } catch (err) {
+      console.error('Error eliminando QR:', err);
+      toast.error(err.response?.data?.message || 'Error al eliminar el código QR.');
     } finally {
       setSaving(false);
     }
@@ -202,7 +254,7 @@ export function AdminQrListPage() {
         <StatusBadge
           status={qr.status}
           activeLabel="Activo"
-          inactiveLabel={qr.status === 'PAUSED' ? 'Pausado' : 'Revocado'}
+          inactiveLabel="Pausado"
         />
       ),
     },
@@ -227,15 +279,24 @@ export function AdminQrListPage() {
           >
             <Printer className="h-4 w-4" />
           </button>
+          <button
+            type="button"
+            onClick={() => setEditingQr(qr)}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-blue-600 transition"
+            title="Editar código QR"
+            aria-label={`Editar código QR ${qr.label}`}
+          >
+            <Edit2 className="h-4 w-4" />
+          </button>
           {qr.status === 'ACTIVE' ? (
             <button
               type="button"
               onClick={() =>
-                setStatusConfirm({
-                  qr,
-                  newStatus: 'PAUSED',
-                  message: `¿Deseas pausar el código QR "${qr.label}"? Los escaneos futuros mostrarán un aviso y no abrirán el destino.`,
-                })
+                  setStatusConfirm({
+                    qr,
+                    newStatus: 'PAUSED',
+                    description: `¿Deseas pausar el código QR "${qr.label}"? Los escaneos futuros mostrarán un aviso y no abrirán el destino.`,
+                  })
               }
               className="rounded-lg p-1.5 text-slate-400 hover:bg-amber-50 hover:text-amber-600 transition"
               title="Pausar código"
@@ -252,22 +313,15 @@ export function AdminQrListPage() {
               <Play className="h-4 w-4" />
             </button>
           ) : null}
-          {qr.status !== 'REVOKED' && (
-            <button
-              type="button"
-              onClick={() =>
-                setStatusConfirm({
-                  qr,
-                  newStatus: 'REVOKED',
-                  message: `¿Estás seguro de revocar permanentemente el código QR "${qr.label}"? Esta acción no se puede deshacer.`,
-                })
-              }
-              className="rounded-lg p-1.5 text-slate-400 hover:bg-rose-50 hover:text-rose-600 transition"
-              title="Revocar permanentemente"
-            >
-              <Ban className="h-4 w-4" />
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={() => setDeleteConfirm({ id: qr.id, label: qr.label })}
+            className="rounded-lg p-1.5 text-slate-400 hover:bg-red-50 hover:text-red-600 transition"
+            title="Eliminar código QR"
+            aria-label={`Eliminar código QR ${qr.label}`}
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
         </div>
       ),
     },
@@ -330,7 +384,6 @@ export function AdminQrListPage() {
           <option value="">Todos los estados</option>
           <option value="ACTIVE">Activos</option>
           <option value="PAUSED">Pausados</option>
-          <option value="REVOKED">Revocados</option>
         </select>
       </AdminFilterBar>
 
@@ -351,6 +404,23 @@ export function AdminQrListPage() {
         routes={routes}
         stops={stops}
         operators={operators}
+        cities={cities}
+        lines={lines}
+        isOperator={false}
+      />
+
+      {/* Edit Modal */}
+      <QrFormModal
+        open={Boolean(editingQr)}
+        initialData={editingQr}
+        onClose={() => setEditingQr(null)}
+        onSave={handleEdit}
+        saving={saving}
+        routes={routes}
+        stops={stops}
+        operators={operators}
+        cities={cities}
+        lines={lines}
         isOperator={false}
       />
 
@@ -364,12 +434,24 @@ export function AdminQrListPage() {
       {/* Confirm Status Dialog */}
       <ConfirmDialog
         open={Boolean(statusConfirm)}
-        title={statusConfirm?.newStatus === 'REVOKED' ? 'Revocar Código QR' : 'Pausar Código QR'}
-        message={statusConfirm?.message}
-        confirmLabel={statusConfirm?.newStatus === 'REVOKED' ? 'Revocar Código' : 'Pausar Código'}
-        confirmVariant={statusConfirm?.newStatus === 'REVOKED' ? 'danger' : 'warning'}
+        title="Pausar Código QR"
+        description={statusConfirm?.description}
+        confirmLabel="Pausar Código"
+        tone="warning"
         onConfirm={() => handleToggleStatus(statusConfirm.qr, statusConfirm.newStatus)}
         onCancel={() => setStatusConfirm(null)}
+      />
+
+      {/* Confirm Delete Dialog */}
+      <ConfirmDialog
+        open={Boolean(deleteConfirm)}
+        title="Eliminar Código QR"
+        description={`¿Eliminar definitivamente el código QR "${deleteConfirm?.label}"? Sus eventos de escaneo se conservarán.`}
+        confirmLabel="Eliminar Código"
+        tone="danger"
+        loading={saving}
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteConfirm(null)}
       />
     </div>
   );

@@ -106,16 +106,13 @@ class OperatorPortalControllerTest {
                         List.of(new OperatorAnalyticsSummaryResponse.LineUsage(
                                 LINE_ID, "Línea 1", 3, 2, 1, 0, 0, 0, 1)),
                         List.of(),
-                        List.of(),
-                        List.of(new OperatorAnalyticsSummaryResponse.QrCampaignUsage("centro", 4))));
+                        List.of()));
 
         mockMvc.perform(get("/api/operator/analytics/summary")
                         .param("from", "2026-11-01")
                         .param("to", "2026-11-07"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.lines[0].lineName").value("Línea 1"))
-                .andExpect(jsonPath("$.qrCampaigns[0].campaign").value("centro"))
-                .andExpect(jsonPath("$.qrCampaigns[0].scans").value(4));
+                .andExpect(jsonPath("$.lines[0].lineName").value("Línea 1"));
 
         verify(operatorPortalService).getAnalyticsSummary(from, to);
     }

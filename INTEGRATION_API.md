@@ -826,7 +826,8 @@ Endpoint público de redirección física inteligente. Genera un evento `qr_scan
 - QR activo con destino `STOP`: `302 Found` -> `https://front.anthonywar.dev/mapa/paradero/{slug}?qr={code}&qrId={id}&utm_...` (utiliza el slug semántico del paradero con fallback a UUID).
 - QR activo sin destino específico: `302 Found` -> `https://front.anthonywar.dev/?qr={code}&qrId={id}&utm_...`
 - QR pausado (`PAUSED`): `302 Found` -> `https://front.anthonywar.dev/?qr_error=inactive` (fallback seguro sin romper la experiencia del pasajero)
-- QR revocado (`REVOKED`) o inexistente: `404 Not Found` o fallback con error
+- QR eliminado o inexistente: `302 Found` -> `https://front.anthonywar.dev/?qr_error=not_found`
+- QR activo con destino `ROUTE` o `STOP` que ya no existe: `302 Found` -> `https://front.anthonywar.dev/?qr_error=target_missing`
 
 ---
 
@@ -855,7 +856,9 @@ Endpoint público para recepción de lotes de telemetría de uso ciudadano.
 
 - `GET /api/admin/qr-codes`: Lista todos los códigos QR del sistema (filtro opcional `?status=&operatorId=`).
 - `POST /api/admin/qr-codes`: Crea un nuevo código QR global o asignado a un operador.
+- `GET /api/admin/qr-codes/{id}`: Detalle de un código QR.
+- `PATCH /api/admin/qr-codes/{id}`: Actualiza `label`, `status` (`ACTIVE`, `PAUSED`), `targetType`, `targetId` y los campos de campaña. El `code` y la URL impresa permanecen inalterados.
+- `DELETE /api/admin/qr-codes/{id}`: Elimina físicamente el código QR (solo `ROLE_ADMIN`). Devuelve `204 No Content`; los `route_events` existentes se conservan como historial con el `qrCodeId` como referencia sin FK.
 - `GET /api/admin/qr-codes/{id}/stats`: Métricas de rendimiento (total scans, vistas efectivas, CTR y serie temporal por día en zona horaria America/Lima).
-- `PATCH /api/admin/qr-codes/{id}/status`: Transición de estado (`ACTIVE`, `PAUSED`, `REVOKED`).
-- `GET/POST/PATCH/stats` en `/api/operator/qr-codes`: Idéntica interfaz funcional pero estrictamente acotada a las líneas y rutas pertenecientes al operador autenticado (`ROLE_OPERATOR`).
+- `GET/POST/PATCH/stats` en `/api/operator/qr-codes`: Idéntica interfaz funcional pero estrictamente acotada a las líneas y rutas pertenecientes al operador autenticado (`ROLE_OPERATOR`). El operador no puede eliminar códigos QR.
 

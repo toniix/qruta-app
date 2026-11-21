@@ -128,6 +128,91 @@ class SmartQrServiceTest {
     }
 
     @Test
+    void updateStatusRetargetsRouteAndKeepsCodeAndCanonicalUrl() {
+        UUID qrId = UUID.randomUUID();
+        UUID oldRouteId = UUID.randomUUID();
+        UUID newRouteId = UUID.randomUUID();
+        QrCode qr = QrCode.builder()
+                .id(qrId)
+                .code("stableCode")
+                .label("Afiche Paradero 1")
+                .status("ACTIVE")
+                .targetType("ROUTE")
+                .targetId(oldRouteId)
+                .build();
+
+        when(qrCodeRepository.findById(qrId)).thenReturn(Optional.of(qr));
+        when(routeRepository.existsById(newRouteId)).thenReturn(true);
+        when(routeRepository.findById(newRouteId)).thenReturn(Optional.of(
+                Route.builder().id(newRouteId).code("L20").name("Línea 20").build()));
+        when(routeEventRepository.countByQrCodeIdAndCategory(qrId, EventCategory.QR_SCAN)).thenReturn(0L);
+        when(qrCodeRepository.save(any(QrCode.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        QrCodeResponse res = service.updateStatus(qrId, UpdateQrCodeRequest.builder()
+                .targetType("ROUTE")
+                .targetId(newRouteId)
+                .build());
+
+        assertThat(res.getCode()).isEqualTo("stableCode");
+        assertThat(res.getTargetId()).isEqualTo(newRouteId);
+        assertThat(res.getCanonicalUrl()).endsWith("/q/stableCode");
+        assertThat(res.getTargetUrl()).contains("/mapa/ruta/L20");
+    }
+
+    @Test
+    void updateStatusRejectsRetargetToMissingRoute() {
+        UUID qrId = UUID.randomUUID();
+        UUID oldRouteId = UUID.randomUUID();
+        UUID missingRouteId = UUID.randomUUID();
+        QrCode qr = QrCode.builder()
+                .id(qrId)
+                .code("stableCode")
+                .label("Afiche Paradero 1")
+                .status("ACTIVE")
+                .targetType("ROUTE")
+                .targetId(oldRouteId)
+                .build();
+
+        when(qrCodeRepository.findById(qrId)).thenReturn(Optional.of(qr));
+        when(routeRepository.existsById(missingRouteId)).thenReturn(false);
+
+        assertThatThrownBy(() -> service.updateStatus(qrId, UpdateQrCodeRequest.builder()
+                .targetType("ROUTE")
+                .targetId(missingRouteId)
+                .build()))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("Route not found");
+
+        verify(qrCodeRepository, never()).save(any(QrCode.class));
+    }
+
+    @Test
+    void deleteRemovesQrFromListingsAndDetailWhileRouteEventsRemain() {
+        UUID qrId = UUID.randomUUID();
+        QrCode qr = QrCode.builder()
+                .id(qrId)
+                .code("deletedCode")
+                .label("Afiche eliminado")
+                .status("ACTIVE")
+                .targetType("HOME")
+                .build();
+
+        when(qrCodeRepository.findById(qrId)).thenReturn(Optional.of(qr));
+        service.delete(qrId);
+
+        verify(qrCodeRepository).delete(qr);
+        verifyNoInteractions(routeEventRepository);
+
+        when(qrCodeRepository.findAllByOrderByCreatedAtDesc()).thenReturn(List.of());
+        assertThat(service.listAll()).isEmpty();
+
+        when(qrCodeRepository.findById(qrId)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> service.getById(qrId))
+                .isInstanceOf(ResourceNotFoundException.class)
+                .hasMessageContaining("QR Code not found");
+    }
+
+    @Test
     void resolveAndTrackLogsScanAndReturnsCanonicalRedirectForActiveQr() {
         UUID routeId = UUID.randomUUID();
         UUID qrId = UUID.randomUUID();
@@ -161,7 +246,7 @@ class SmartQrServiceTest {
     }
 
     @Test
-    void resolveAndTrackRedirectsToFallbackForPausedOrRevokedQr() {
+    void resolveAndTrackRedirectsToFallbackForPausedQr() {
         QrCode qr = QrCode.builder()
                 .id(UUID.randomUUID())
                 .code("pausedCode")
@@ -185,6 +270,53 @@ class SmartQrServiceTest {
     }
 
     @Test
+    void resolveAndTrackReturnsNotFoundForDeletedCode() {
+        when(qrCodeRepository.findByCode("missingCode")).thenReturn(Optional.empty());
+        when(deviceHasher.hash(anyString(), any(Instant.class))).thenReturn("hashed_device_missing");
+
+        SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("missingCode", "10.0.0.2|Chrome");
+
+        assertThat(redirect.active()).isFalse();
+        assertThat(redirect.redirectUrl()).endsWith("/?qr_error=not_found");
+
+        ArgumentCaptor<RouteEvent> eventCaptor = ArgumentCaptor.forClass(RouteEvent.class);
+        verify(routeEventRepository).save(eventCaptor.capture());
+        RouteEvent event = eventCaptor.getValue();
+        assertThat(event.getCategory()).isEqualTo(EventCategory.QR_REDIRECT_FAILED);
+        assertThat(event.getCampaign()).isEqualTo("missingCode");
+        assertThat(event.getQrCodeId()).isNull();
+    }
+
+    @Test
+    void resolveAndTrackReturnsTargetMissingForActiveQrWithMissingRoute() {
+        UUID routeId = UUID.randomUUID();
+        UUID qrId = UUID.randomUUID();
+        QrCode qr = QrCode.builder()
+                .id(qrId)
+                .code("staleRoute")
+                .status("ACTIVE")
+                .targetType("ROUTE")
+                .targetId(routeId)
+                .build();
+
+        when(qrCodeRepository.findByCode("staleRoute")).thenReturn(Optional.of(qr));
+        when(routeRepository.findById(routeId)).thenReturn(Optional.empty());
+        when(deviceHasher.hash(anyString(), any(Instant.class))).thenReturn("hashed_device_stale");
+
+        SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("staleRoute", "10.0.0.3|Safari");
+
+        assertThat(redirect.active()).isFalse();
+        assertThat(redirect.redirectUrl()).endsWith("/?qr_error=target_missing");
+
+        ArgumentCaptor<RouteEvent> eventCaptor = ArgumentCaptor.forClass(RouteEvent.class);
+        verify(routeEventRepository).save(eventCaptor.capture());
+        RouteEvent event = eventCaptor.getValue();
+        assertThat(event.getCategory()).isEqualTo(EventCategory.QR_REDIRECT_FAILED);
+        assertThat(event.getQrCodeId()).isEqualTo(qrId);
+        assertThat(event.getRouteId()).isEqualTo(routeId);
+    }
+
+    @Test
     void resolveAndTrackRedirectsToStopPageForStopQr() {
         UUID stopId = UUID.randomUUID();
         UUID qrId = UUID.randomUUID();
@@ -196,7 +328,9 @@ class SmartQrServiceTest {
                 .targetId(stopId)
                 .build();
 
+        Stop stop = Stop.builder().id(stopId).name("Paradero Central").build();
         when(qrCodeRepository.findByCode("stopCode1")).thenReturn(Optional.of(qr));
+        when(stopRepository.findById(stopId)).thenReturn(Optional.of(stop));
         when(deviceHasher.hash(anyString(), any(Instant.class))).thenReturn("hashed_device_789");
 
         SmartQrService.ResolvedRedirect redirect = service.resolveAndTrack("stopCode1", "127.0.0.1|Chrome");

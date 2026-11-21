@@ -21,6 +21,10 @@ export const adminQrCodeService = {
     return unwrap(await apiClient.patch(`/admin/qr-codes/${id}`, data));
   },
 
+  async delete(id) {
+    await apiClient.delete(`/admin/qr-codes/${id}`);
+  },
+
   async getStats(id) {
     return unwrap(await apiClient.get(`/admin/qr-codes/${id}/stats`));
   },

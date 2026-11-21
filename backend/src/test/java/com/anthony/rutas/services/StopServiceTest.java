@@ -5,8 +5,10 @@ import com.anthony.rutas.dtos.response.StopResponse;
 import com.anthony.rutas.entities.City;
 import com.anthony.rutas.entities.Stop;
 import com.anthony.rutas.exceptions.BadRequestException;
+import com.anthony.rutas.exceptions.ConflictException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.QrCodeRepository;
 import com.anthony.rutas.repositories.RouteStopRepository;
 import com.anthony.rutas.repositories.StopRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -21,6 +23,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -38,6 +41,8 @@ class StopServiceTest {
     private StopRepository stopRepository;
     @Mock
     private CityRepository cityRepository;
+    @Mock
+    private QrCodeRepository qrCodeRepository;
     @Mock
     private RouteStopRepository routeStopRepository;
     @Mock
@@ -307,5 +312,75 @@ class StopServiceTest {
         String uniqueSlug = stopService.generateUniqueSlug("Paradero Mercado", null);
 
         assertEquals("paradero-mercado-2", uniqueSlug);
+    }
+
+    @Test
+    @DisplayName("delete rejects a stop targeted by an active QR")
+    void deleteRejectsActiveQr() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                eq("STOP"), eq(stopId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(1L);
+
+        ConflictException error = assertThrows(ConflictException.class, () -> stopService.delete(stopId));
+
+        assertTrue(error.getMessage().contains("1 QR code"));
+        assertTrue(error.getMessage().contains("Edit or delete those QR codes first"));
+        verify(stopRepository, never()).deleteById(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("delete rejects a stop targeted by a paused QR")
+    void deleteRejectsPausedQr() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                eq("STOP"), eq(stopId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(2L);
+
+        ConflictException error = assertThrows(ConflictException.class, () -> stopService.delete(stopId));
+
+        assertTrue(error.getMessage().contains("2 QR codes"));
+        assertTrue(error.getMessage().contains("Edit or delete those QR codes first"));
+        verify(stopRepository, never()).deleteById(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("delete allows a stop when only deleted QRs targeted it")
+    void deleteAllowsWhenOnlyDeletedQrsExist() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                eq("STOP"), eq(stopId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(0L);
+
+        stopService.delete(stopId);
+
+        verify(stopRepository).deleteById(stopId);
+    }
+
+    @Test
+    @DisplayName("delete allows a stop when reactivatable QRs target other stops")
+    void deleteAllowsWhenQrsTargetOtherStops() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                eq("STOP"), eq(stopId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(0L);
+
+        stopService.delete(stopId);
+
+        verify(qrCodeRepository).countByTargetTypeAndTargetIdAndStatusIn(
+                "STOP", stopId, List.of("ACTIVE", "PAUSED"));
+        verify(stopRepository).deleteById(stopId);
+    }
+
+    @Test
+    @DisplayName("delete rejects a missing stop before checking QRs")
+    void deleteRejectsMissingStop() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(false);
+
+        assertThrows(ResourceNotFoundException.class, () -> stopService.delete(stopId));
+
+        verifyNoInteractions(qrCodeRepository);
+        verify(stopRepository, never()).deleteById(any(UUID.class));
     }
 }
