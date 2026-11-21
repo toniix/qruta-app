@@ -13,6 +13,7 @@ import {
   Plus,
   Share2,
   Bus,
+  ShieldCheck,
 } from "lucide-react";
 import { useRoutes } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
@@ -651,6 +652,12 @@ export function RouteDrawer() {
                       .shortLabel
                   }
                 </span>
+                {communitySummary.latestPost.isOfficial && (
+                  <span className="inline-flex items-center gap-0.5 font-bold px-1.5 py-0.2 rounded border text-[10px] bg-blue-50 text-blue-700 border-blue-200">
+                    <ShieldCheck className="w-2.5 h-2.5 text-blue-600" aria-hidden="true" />
+                    Oficial
+                  </span>
+                )}
                 <span className="font-semibold text-slate-700 truncate">
                   {communitySummary.latestPost.authorAlias}
                 </span>

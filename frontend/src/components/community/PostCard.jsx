@@ -7,6 +7,7 @@ import {
   Send,
   Loader2,
   ArrowRight,
+  ShieldCheck,
 } from 'lucide-react';
 import { formatRelativeTime } from '../../utils/dateUtils';
 
@@ -133,27 +134,41 @@ export const MemoCommentSection = memo(CommentSection);
 
 export function PostCard({
   post,
-  catMeta,
-  CatIcon,
-  commentState,
-  onToggleLike,
-  onToggleComments,
-  onDeletePost,
-  onOpenRoute,
+  catMeta = { label: 'General', badgeClass: 'bg-slate-100 text-slate-700' },
+  CatIcon = MessageSquare,
+  commentState = { open: false, items: [], text: '', loading: false, sending: false },
+  onToggleLike = () => {},
+  onToggleComments = () => {},
+  onDeletePost = () => {},
+  onOpenRoute = () => {},
   commentSectionProps,
 }) {
+  const isOfficial = Boolean(post?.isOfficial);
+
   return (
     <article
       aria-labelledby={`post-author-${post.id}`}
-      className="bg-white rounded-2xl p-4 border border-slate-200/80 shadow-card space-y-3 transition-all hover:border-slate-300"
+      className={`rounded-2xl p-4 shadow-card space-y-3 transition-all ${
+        isOfficial
+          ? 'bg-gradient-to-br from-blue-50/20 via-white to-white border border-blue-200/90 ring-1 ring-blue-500/10 hover:border-blue-300'
+          : 'bg-white border border-slate-200/80 hover:border-slate-300'
+      }`}
     >
       <div className="flex items-start justify-between gap-2">
         <div className="flex items-center gap-2.5 min-w-0">
           <div
             aria-hidden="true"
-            className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 font-bold text-xs flex items-center justify-center shrink-0 border border-slate-200/80"
+            className={`w-9 h-9 rounded-xl font-bold text-xs flex items-center justify-center shrink-0 border ${
+              isOfficial
+                ? 'bg-blue-100/90 text-brand-primary border-blue-200'
+                : 'bg-slate-100 text-slate-700 border-slate-200/80'
+            }`}
           >
-            {getInitials(post.authorAlias)}
+            {isOfficial ? (
+              <ShieldCheck className="w-4 h-4 text-brand-primary" aria-hidden="true" />
+            ) : (
+              getInitials(post.authorAlias)
+            )}
           </div>
           <div className="min-w-0">
             <div className="flex items-center gap-1.5 flex-wrap">
@@ -163,6 +178,12 @@ export function PostCard({
               >
                 {post.authorAlias}
               </span>
+              {isOfficial && (
+                <span className="inline-flex items-center gap-1 text-[11px] font-bold bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full border border-blue-200 shadow-2xs">
+                  <ShieldCheck className="w-3 h-3 text-blue-600" aria-hidden="true" />
+                  Comunicado Oficial
+                </span>
+              )}
               {post.ownedByMe && (
                 <span className="text-[11px] font-bold bg-blue-50 text-brand-primary px-1.5 py-0.5 rounded-md border border-blue-200/60">
                   Tú
@@ -284,6 +305,7 @@ export const MemoPostCard = memo(PostCard, (prev, next) => {
   return (
     a.id === b.id &&
     a.content === b.content &&
+    a.isOfficial === b.isOfficial &&
     a.likesCount === b.likesCount &&
     a.commentsCount === b.commentsCount &&
     a.likedByMe === b.likedByMe &&
