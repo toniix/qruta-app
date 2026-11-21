@@ -7,9 +7,17 @@ import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { operatorPortalService } from '../../services/operatorPortalService';
 
+export const DISRUPTION_TYPES = [
+  { value: 'DESVIO', label: 'Desvío de ruta' },
+  { value: 'CORTE', label: 'Corte de vía / tránsito' },
+  { value: 'HORARIO', label: 'Cambio de horario' },
+  { value: 'PARADERO', label: 'Paradero inhabilitado' },
+  { value: 'OTRO', label: 'Otro comunicado' },
+];
+
 const emptyForm = {
   routeId: '',
-  type: 'OBRA',
+  type: 'DESVIO',
   description: '',
   startsAt: '',
   endsAt: '',
@@ -66,7 +74,7 @@ export function OperatorDisruptionsPage() {
     setEditing(item);
     setForm({
       routeId: item.routeId || '',
-      type: item.type || 'OBRA',
+      type: item.type || 'DESVIO',
       description: item.description || '',
       startsAt: item.startsAt ? String(item.startsAt).slice(0, 16) : '',
       endsAt: item.endsAt ? String(item.endsAt).slice(0, 16) : '',
@@ -172,7 +180,9 @@ export function OperatorDisruptionsPage() {
                     <p className="font-bold text-slate-800">{item.routeName || item.routeCode || 'Ruta'}</p>
                     <p className="text-[10px] text-slate-400">{item.routeCode || ''}</p>
                   </td>
-                  <td className="px-4 py-3 text-slate-600">{item.type}</td>
+                  <td className="px-4 py-3 text-slate-600">
+                    {DISRUPTION_TYPES.find((t) => t.value === item.type)?.label || item.type}
+                  </td>
                   <td className="max-w-xs truncate px-4 py-3 text-slate-600">{item.description}</td>
                   <td className="px-4 py-3 text-slate-600">
                     {formatDateTime(item.startsAt)} → {formatDateTime(item.endsAt)}
@@ -224,8 +234,9 @@ export function OperatorDisruptionsPage() {
       >
         {!editing && (
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">Ruta</label>
+            <label htmlFor="disruption-route" className="mb-1 block text-xs font-semibold text-slate-700">Ruta</label>
             <select
+              id="disruption-route"
               required
               value={form.routeId}
               onChange={(event) => setForm((prev) => ({ ...prev, routeId: event.target.value }))}
@@ -241,18 +252,25 @@ export function OperatorDisruptionsPage() {
           </div>
         )}
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-700">Tipo</label>
-          <input
+          <label htmlFor="disruption-type" className="mb-1 block text-xs font-semibold text-slate-700">Tipo</label>
+          <select
+            id="disruption-type"
             required
             value={form.type}
             onChange={(event) => setForm((prev) => ({ ...prev, type: event.target.value }))}
-            placeholder="Obra, corte, huelga..."
             className="w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/30"
-          />
+          >
+            {DISRUPTION_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
         </div>
         <div>
-          <label className="mb-1 block text-xs font-semibold text-slate-700">Descripción</label>
+          <label htmlFor="disruption-description" className="mb-1 block text-xs font-semibold text-slate-700">Descripción</label>
           <textarea
+            id="disruption-description"
             required
             rows={4}
             value={form.description}
@@ -262,8 +280,9 @@ export function OperatorDisruptionsPage() {
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">Inicio</label>
+            <label htmlFor="disruption-starts-at" className="mb-1 block text-xs font-semibold text-slate-700">Inicio</label>
             <input
+              id="disruption-starts-at"
               type="datetime-local"
               required
               value={form.startsAt}
@@ -272,8 +291,9 @@ export function OperatorDisruptionsPage() {
             />
           </div>
           <div>
-            <label className="mb-1 block text-xs font-semibold text-slate-700">Fin estimado</label>
+            <label htmlFor="disruption-ends-at" className="mb-1 block text-xs font-semibold text-slate-700">Fin estimado</label>
             <input
+              id="disruption-ends-at"
               type="datetime-local"
               value={form.endsAt}
               onChange={(event) => setForm((prev) => ({ ...prev, endsAt: event.target.value }))}
