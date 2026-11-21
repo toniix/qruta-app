@@ -43,6 +43,10 @@ public class Disruption {
     @Builder.Default
     private boolean active = true;
 
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "community_post_id")
+    private CommunityPost communityPost;
+
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
 

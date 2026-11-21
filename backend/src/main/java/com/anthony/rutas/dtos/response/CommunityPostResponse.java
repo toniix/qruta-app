@@ -23,6 +23,9 @@ public class CommunityPostResponse {
     private int commentsCount;
     private boolean likedByMe;
     private boolean ownedByMe;
+    private boolean isOfficial;
+    private UUID operatorId;
+    private String operatorName;
     private LocalDateTime createdAt;
 
     // Optional route context

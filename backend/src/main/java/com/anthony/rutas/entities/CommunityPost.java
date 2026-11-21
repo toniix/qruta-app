@@ -42,6 +42,14 @@ public class CommunityPost {
     @JoinColumn(name = "city_id")
     private City city;
 
+    @Column(name = "is_official", nullable = false)
+    @Builder.Default
+    private boolean isOfficial = false;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "operator_id")
+    private Operator operator;
+
     @Column(name = "likes_count", nullable = false)
     @Builder.Default
     private int likesCount = 0;

@@ -18,8 +18,11 @@ import com.anthony.rutas.dtos.response.OperatorStopResponse;
 import com.anthony.rutas.dtos.response.RouteAnalyticsSeriesResponse;
 import com.anthony.rutas.dtos.response.RouteDetailResponse;
 import com.anthony.rutas.dtos.response.SubscriptionResponse;
+import com.anthony.rutas.entities.City;
+import com.anthony.rutas.entities.CommunityPost;
 import com.anthony.rutas.entities.Disruption;
 import com.anthony.rutas.entities.Operator;
+import com.anthony.rutas.entities.PostCategory;
 import com.anthony.rutas.entities.Route;
 import com.anthony.rutas.entities.RouteDailyStat;
 import com.anthony.rutas.entities.Stop;
@@ -27,6 +30,7 @@ import com.anthony.rutas.entities.TransportLine;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.OperatorDtoMapper;
+import com.anthony.rutas.repositories.CommunityPostRepository;
 import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.RouteDailyStatRepository;
@@ -77,6 +81,7 @@ public class OperatorPortalService {
     private final RouteRepository routeRepository;
     private final StopRepository stopRepository;
     private final DisruptionRepository disruptionRepository;
+    private final CommunityPostRepository communityPostRepository;
     private final RouteService routeService;
     private final RouteDailyStatRepository routeDailyStatRepository;
     private final RouteAnalyticsService routeAnalyticsService;
@@ -333,6 +338,34 @@ public class OperatorPortalService {
         Operator operator = operatorRepository.findById(operatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Operator not found: " + operatorId));
 
+        String authorAlias = (operator.getName() != null && !operator.getName().isBlank())
+                ? operator.getName().trim()
+                : "Empresa Operadora";
+        if (authorAlias.length() > 50) {
+            authorAlias = authorAlias.substring(0, 50);
+        }
+
+        String postContent = "[" + request.getType() + "] " + request.getDescription();
+        if (postContent.length() > 600) {
+            postContent = postContent.substring(0, 600);
+        }
+
+        City postCity = (route.getTransportLine() != null && route.getTransportLine().getCity() != null)
+                ? route.getTransportLine().getCity()
+                : operator.getCity();
+
+        CommunityPost post = CommunityPost.builder()
+                .authorAlias(authorAlias)
+                .authorDeviceId("OPERATOR:" + operatorId)
+                .category(PostCategory.ALERTA)
+                .content(postContent)
+                .route(route)
+                .city(postCity)
+                .isOfficial(true)
+                .operator(operator)
+                .build();
+        CommunityPost savedPost = communityPostRepository.save(post);
+
         Disruption disruption = Disruption.builder()
                 .operator(operator)
                 .route(route)
@@ -341,6 +374,7 @@ public class OperatorPortalService {
                 .startsAt(request.getStartsAt())
                 .endsAt(request.getEndsAt())
                 .active(request.getActive() == null || request.getActive())
+                .communityPost(savedPost)
                 .build();
 
         Disruption saved = disruptionRepository.save(disruption);
@@ -378,6 +412,18 @@ public class OperatorPortalService {
             disruption.setActive(request.getActive());
         }
 
+        if (disruption.getCommunityPost() != null) {
+            CommunityPost post = disruption.getCommunityPost();
+            boolean isInactive = (request.getActive() != null && !request.getActive()) || !disruption.isActive();
+            String prefix = isInactive ? "[FINALIZADO] " : "";
+            String newContent = prefix + "[" + disruption.getType() + "] " + disruption.getDescription();
+            if (newContent.length() > 600) {
+                newContent = newContent.substring(0, 600);
+            }
+            post.setContent(newContent);
+            communityPostRepository.save(post);
+        }
+
         return OperatorDtoMapper.toDisruptionResponse(disruptionRepository.save(disruption));
     }
 
@@ -388,6 +434,12 @@ public class OperatorPortalService {
         Disruption disruption = disruptionRepository.findByIdAndOperatorId(id, operatorId)
                 .orElseThrow(() -> new ResourceNotFoundException("Disruption not found: " + id));
         changeLogService.record("DISRUPTION", id, "deleted", disruption.getType(), null);
+        CommunityPost post = disruption.getCommunityPost();
+        if (post != null) {
+            disruption.setCommunityPost(null);
+            disruptionRepository.save(disruption);
+            communityPostRepository.delete(post);
+        }
         disruptionRepository.delete(disruption);
     }
 

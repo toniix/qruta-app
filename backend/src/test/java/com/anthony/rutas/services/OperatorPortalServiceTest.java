@@ -2,9 +2,12 @@ package com.anthony.rutas.services;
 
 import com.anthony.rutas.billing.BillingService;
 import com.anthony.rutas.billing.SubscriptionAccessService;
+import com.anthony.rutas.dtos.request.CreateDisruptionRequest;
+import com.anthony.rutas.dtos.request.UpdateDisruptionRequest;
 import com.anthony.rutas.dtos.request.UpdateOperatorLineRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.request.UpdateStopRequest;
+import com.anthony.rutas.dtos.response.DisruptionResponse;
 import com.anthony.rutas.dtos.response.OperatorAnalyticsSummaryResponse;
 import com.anthony.rutas.dtos.response.OperatorLineResponse;
 import com.anthony.rutas.dtos.response.OperatorStopResponse;
@@ -12,12 +15,16 @@ import com.anthony.rutas.dtos.response.RouteAnalyticsSeriesResponse;
 import com.anthony.rutas.dtos.response.RouteDetailResponse;
 import com.anthony.rutas.dtos.response.SubscriptionResponse;
 import com.anthony.rutas.entities.City;
+import com.anthony.rutas.entities.CommunityPost;
+import com.anthony.rutas.entities.Disruption;
 import com.anthony.rutas.entities.Operator;
+import com.anthony.rutas.entities.PostCategory;
 import com.anthony.rutas.entities.Route;
 import com.anthony.rutas.entities.RouteDailyStat;
 import com.anthony.rutas.entities.Stop;
 import com.anthony.rutas.entities.TransportLine;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
+import com.anthony.rutas.repositories.CommunityPostRepository;
 import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.RouteDailyStatRepository;
@@ -32,6 +39,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -40,14 +48,19 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.same;
@@ -93,6 +106,9 @@ class OperatorPortalServiceTest {
     private DisruptionRepository disruptionRepository;
 
     @Mock
+    private CommunityPostRepository communityPostRepository;
+
+    @Mock
     private RouteService routeService;
 
     @Mock
@@ -124,6 +140,7 @@ class OperatorPortalServiceTest {
                 routeRepository,
                 stopRepository,
                 disruptionRepository,
+                communityPostRepository,
                 routeService,
                 routeDailyStatRepository,
                 routeAnalyticsService,
@@ -321,6 +338,153 @@ class OperatorPortalServiceTest {
         assertThrows(ResourceNotFoundException.class,
                 () -> service.getRouteAnalytics(ROUTE_ID, from, to));
         verifyNoInteractions(routeAnalyticsService);
+    }
+
+    @Test
+    void createDisruptionPublishesOfficialCommunityPost() {
+        CreateDisruptionRequest request = CreateDisruptionRequest.builder()
+                .routeId(ROUTE_ID.toString())
+                .type("DESVIO")
+                .description("Desvío temporal por fiesta patronal")
+                .startsAt(LocalDateTime.of(2026, 11, 21, 8, 0))
+                .endsAt(LocalDateTime.of(2026, 11, 21, 20, 0))
+                .active(true)
+                .build();
+
+        Route route = Route.builder()
+                .id(ROUTE_ID)
+                .code("R-101")
+                .transportLine(TransportLine.builder().city(City.builder().id(CITY_ID).name("Ica").build()).build())
+                .build();
+        Operator op = operator();
+
+        when(routeRepository.findByIdAndOperatorId(ROUTE_ID, OPERATOR_ID)).thenReturn(Optional.of(route));
+        when(operatorRepository.findById(OPERATOR_ID)).thenReturn(Optional.of(op));
+        when(communityPostRepository.save(any(CommunityPost.class))).thenAnswer(inv -> {
+            CommunityPost p = inv.getArgument(0);
+            p.setId(UUID.randomUUID());
+            return p;
+        });
+        when(disruptionRepository.save(any(Disruption.class))).thenAnswer(inv -> {
+            Disruption d = inv.getArgument(0);
+            d.setId(UUID.randomUUID());
+            return d;
+        });
+
+        DisruptionResponse response = service.createDisruption(request);
+
+        assertNotNull(response);
+        assertEquals("DESVIO", response.getType());
+        assertEquals("Desvío temporal por fiesta patronal", response.getDescription());
+
+        ArgumentCaptor<CommunityPost> postCaptor = ArgumentCaptor.forClass(CommunityPost.class);
+        verify(communityPostRepository).save(postCaptor.capture());
+        CommunityPost savedPost = postCaptor.getValue();
+
+        assertTrue(savedPost.isOfficial());
+        assertEquals("Operador Ica", savedPost.getAuthorAlias());
+        assertEquals("OPERATOR:" + OPERATOR_ID, savedPost.getAuthorDeviceId());
+        assertEquals(PostCategory.ALERTA, savedPost.getCategory());
+        assertEquals("[DESVIO] Desvío temporal por fiesta patronal", savedPost.getContent());
+        assertEquals(route, savedPost.getRoute());
+        assertEquals(op, savedPost.getOperator());
+
+        ArgumentCaptor<Disruption> disruptionCaptor = ArgumentCaptor.forClass(Disruption.class);
+        verify(disruptionRepository).save(disruptionCaptor.capture());
+        Disruption savedDisruption = disruptionCaptor.getValue();
+        assertEquals(savedPost, savedDisruption.getCommunityPost());
+    }
+
+    @Test
+    void updateDisruptionUpdatesCommunityPost() {
+        UUID disruptionId = UUID.randomUUID();
+        CommunityPost linkedPost = CommunityPost.builder()
+                .id(UUID.randomUUID())
+                .isOfficial(true)
+                .content("[DESVIO] Contenido anterior")
+                .build();
+        Disruption disruption = Disruption.builder()
+                .id(disruptionId)
+                .operator(operator())
+                .type("DESVIO")
+                .description("Contenido anterior")
+                .startsAt(LocalDateTime.of(2026, 11, 21, 8, 0))
+                .active(true)
+                .communityPost(linkedPost)
+                .build();
+
+        UpdateDisruptionRequest request = UpdateDisruptionRequest.builder()
+                .type("CORTE")
+                .description("Corte total de vía")
+                .build();
+
+        when(disruptionRepository.findByIdAndOperatorId(disruptionId, OPERATOR_ID)).thenReturn(Optional.of(disruption));
+        when(disruptionRepository.save(any(Disruption.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DisruptionResponse response = service.updateDisruption(disruptionId, request);
+
+        assertEquals("CORTE", response.getType());
+        assertEquals("Corte total de vía", response.getDescription());
+
+        verify(communityPostRepository).save(linkedPost);
+        assertEquals("[CORTE] Corte total de vía", linkedPost.getContent());
+    }
+
+    @Test
+    void updateDisruptionPrependsFinalizadoWhenDeactivated() {
+        UUID disruptionId = UUID.randomUUID();
+        CommunityPost linkedPost = CommunityPost.builder()
+                .id(UUID.randomUUID())
+                .isOfficial(true)
+                .content("[DESVIO] Desvío en ejecución")
+                .build();
+        Disruption disruption = Disruption.builder()
+                .id(disruptionId)
+                .operator(operator())
+                .type("DESVIO")
+                .description("Desvío en ejecución")
+                .startsAt(LocalDateTime.of(2026, 11, 21, 8, 0))
+                .active(true)
+                .communityPost(linkedPost)
+                .build();
+
+        UpdateDisruptionRequest request = UpdateDisruptionRequest.builder()
+                .active(false)
+                .build();
+
+        when(disruptionRepository.findByIdAndOperatorId(disruptionId, OPERATOR_ID)).thenReturn(Optional.of(disruption));
+        when(disruptionRepository.save(any(Disruption.class))).thenAnswer(inv -> inv.getArgument(0));
+
+        DisruptionResponse response = service.updateDisruption(disruptionId, request);
+
+        assertFalse(response.isActive());
+        verify(communityPostRepository).save(linkedPost);
+        assertEquals("[FINALIZADO] [DESVIO] Desvío en ejecución", linkedPost.getContent());
+    }
+
+    @Test
+    void deleteDisruptionRemovesCommunityPost() {
+        UUID disruptionId = UUID.randomUUID();
+        CommunityPost linkedPost = CommunityPost.builder()
+                .id(UUID.randomUUID())
+                .isOfficial(true)
+                .build();
+        Disruption disruption = Disruption.builder()
+                .id(disruptionId)
+                .operator(operator())
+                .type("DESVIO")
+                .description("Desvío")
+                .communityPost(linkedPost)
+                .build();
+
+        when(disruptionRepository.findByIdAndOperatorId(disruptionId, OPERATOR_ID)).thenReturn(Optional.of(disruption));
+
+        service.deleteDisruption(disruptionId);
+
+        assertNull(disruption.getCommunityPost());
+        verify(disruptionRepository).save(disruption);
+        verify(communityPostRepository).delete(linkedPost);
+        verify(disruptionRepository).delete(disruption);
     }
 
     private RouteDailyStat dailyStat(UUID lineId, LocalDate date, int views, int searches, int qrScans) {
