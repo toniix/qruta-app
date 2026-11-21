@@ -43,6 +43,7 @@ public class CommunityPost {
     private City city;
 
     @Column(name = "is_official", nullable = false)
+    @org.hibernate.annotations.ColumnDefault("false")
     @Builder.Default
     private boolean isOfficial = false;
 
