@@ -35,7 +35,7 @@ describe('PostCard Component', () => {
     expect(screen.queryByText('Comunicado Oficial')).not.toBeInTheDocument();
   });
 
-  it('renders official announcement badge and styling when isOfficial is true', () => {
+  it('renders official announcement badge and gradient styling when isOfficial or official is true', () => {
     const officialPost = {
       ...basePost,
       id: 'post-official-1',
@@ -53,13 +53,33 @@ describe('PostCard Component', () => {
     );
 
     expect(screen.getByText('Empresa San Jerónimo')).toBeInTheDocument();
-    const badge = screen.getByText('Comunicado Oficial');
-    expect(badge).toBeInTheDocument();
-    expect(badge.closest('span')).toHaveClass('text-blue-700');
+    expect(screen.getByText('Comunicado Oficial')).toBeInTheDocument();
+    expect(screen.getByText('Empresa Verificada')).toBeInTheDocument();
 
     const article = container.querySelector('article');
-    expect(article).toHaveClass('border-blue-200/90');
-    expect(article).toHaveClass('ring-1');
+    expect(article).toHaveClass('border-blue-400/80');
+    expect(article).toHaveClass('bg-gradient-to-br');
+  });
+
+  it('renders official announcement badge when post has official property (Jackson fallback)', () => {
+    const officialFallbackPost = {
+      ...basePost,
+      id: 'post-official-2',
+      authorAlias: 'Empresa Santa Rosa',
+      official: true,
+      content: 'Corte temporal de vía.',
+    };
+
+    render(
+      <PostCard
+        post={officialFallbackPost}
+        catMeta={defaultCatMeta}
+        commentState={{ open: false, items: [], text: '', loading: false, sending: false }}
+      />
+    );
+
+    expect(screen.getByText('Empresa Santa Rosa')).toBeInTheDocument();
+    expect(screen.getByText('Comunicado Oficial')).toBeInTheDocument();
   });
 
   it('triggers onToggleLike callback when clicking the useful/like button', async () => {
