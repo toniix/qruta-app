@@ -500,7 +500,7 @@ export function CommunityModerationPage() {
           <option value="">Todas las líneas</option>
           {availableLines.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.code ? `${l.code} - ${l.name}` : l.name}
+              {l.company}
             </option>
           ))}
         </select>

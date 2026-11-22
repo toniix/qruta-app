@@ -428,7 +428,7 @@ export function RouteCreateWizard({ open, onClose, lines = [], cities = [], onCr
                   <option value="">Selecciona una línea...</option>
                   {filteredLines.map((l) => (
                     <option key={l.id} value={l.id}>
-                      {l.name} {l.code ? `(${l.code})` : ''}
+                      {l.company}
                     </option>
                   ))}
                 </select>
