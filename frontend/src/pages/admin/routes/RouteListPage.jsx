@@ -48,7 +48,7 @@ export function RouteListPage() {
     try {
       const [routesData, linesData, citiesData] = await Promise.all([
         adminRouteService.getAllRoutes(),
-        adminLineService.getAllLines(),
+        adminLineService.getAllLines().catch(() => []),
         cityService.getAdminCities().catch(() => []),
       ]);
       setRoutes(Array.isArray(routesData) ? routesData : []);
@@ -68,7 +68,7 @@ export function RouteListPage() {
       try {
         const [routesData, linesData, citiesData] = await Promise.all([
           adminRouteService.getAllRoutes(),
-          adminLineService.getAllLines(),
+          adminLineService.getAllLines().catch(() => []),
           cityService.getAdminCities().catch(() => []),
         ]);
         if (isMounted) {
@@ -351,7 +351,7 @@ export function RouteListPage() {
           <option value="">Todas las líneas</option>
           {cityScopedLines.map((l) => (
             <option key={l.id} value={l.id}>
-              {l.name}
+              {l.company}
             </option>
           ))}
         </select>

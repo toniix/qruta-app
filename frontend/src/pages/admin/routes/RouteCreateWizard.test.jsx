@@ -10,7 +10,11 @@ vi.mock('../../../services/apiClient', () => ({
 }));
 
 const CITY = { id: '11111111-1111-4111-8111-111111111111', name: 'Ica', department: 'Ica' };
-const LINE = { id: '22222222-2222-4222-8222-222222222222', name: 'Línea 1', code: 'L01', cityId: CITY.id };
+const LINE = {
+  id: '22222222-2222-4222-8222-222222222222',
+  company: 'Línea 1',
+  cityId: CITY.id,
+};
 const STOP = {
   id: '33333333-3333-4333-8333-333333333333',
   name: 'Paradero Mercado',
@@ -41,6 +45,11 @@ describe('RouteCreateWizard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiClient.get.mockResolvedValue({ data: [STOP, FOREIGN_STOP] });
+  });
+
+  it('labels line options with company, the field the backend DTO actually sends', () => {
+    renderWizard();
+    expect(screen.getByRole('option', { name: /línea 1/i })).toBeInTheDocument();
   });
 
   it('blocks step 1 with validation errors and advances once basics are valid', async () => {
