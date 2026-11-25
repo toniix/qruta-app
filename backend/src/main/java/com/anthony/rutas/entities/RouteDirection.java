@@ -70,6 +70,7 @@ public class RouteDirection {
 
     @OneToMany(mappedBy = "direction", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("pointOrder ASC")
+    @org.hibernate.annotations.BatchSize(size = 25)
     @Builder.Default
     private List<RoutePoint> routePoints = new ArrayList<>();
 }

@@ -204,4 +204,28 @@ class DtoMapperTest {
         var lineResp = DtoMapper.toTransportLineResponse(line);
         assertEquals("Empresa Santa Rosa S.A.", lineResp.getCompany());
     }
+
+    @Test
+    @DisplayName("toRouteDirectionResponse handles null routeStops and skips orphan RouteStop entries")
+    void shouldHandleNullRouteStopsSafely() {
+        var dirWithNullStops = com.anthony.rutas.entities.RouteDirection.builder()
+                .id(UUID.randomUUID())
+                .direction("IDA")
+                .routeStops(null)
+                .routePoints(null)
+                .build();
+
+        var mappedNull = DtoMapper.toRouteDirectionResponse(dirWithNullStops);
+        assertTrue(mappedNull.getStops().isEmpty());
+        assertTrue(mappedNull.getRoutePoints().isEmpty());
+
+        var dirWithOrphanStop = com.anthony.rutas.entities.RouteDirection.builder()
+                .id(UUID.randomUUID())
+                .direction("IDA")
+                .routeStops(java.util.List.of(com.anthony.rutas.entities.RouteStop.builder().stop(null).build()))
+                .build();
+
+        var mappedOrphan = DtoMapper.toRouteDirectionResponse(dirWithOrphanStop);
+        assertTrue(mappedOrphan.getStops().isEmpty());
+    }
 }

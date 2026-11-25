@@ -292,7 +292,8 @@ public class RouteService {
 
     @Transactional
     public RouteDetailResponse create(CreateRouteRequest request) {
-        TransportLine transportLine = transportLineRepository.findById(UUID.fromString(request.getTransportLineId()))
+        TransportLine transportLine = transportLineRepository
+                .findById(parseRequiredUuid(request.getTransportLineId(), "transport line id"))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Transport line not found with id: " + request.getTransportLineId()));
 
@@ -472,7 +473,7 @@ public class RouteService {
 
             if (dirReq.getStops() != null) {
                 for (UpdateRouteDirectionsRequest.StopUpdateRequest stopReq : dirReq.getStops()) {
-                    Stop stop = stopRepository.findById(UUID.fromString(stopReq.getStopId()))
+                    Stop stop = stopRepository.findById(parseStopId(stopReq.getStopId()))
                             .orElseThrow(() -> new ResourceNotFoundException(
                                     "Stop not found with id: " + stopReq.getStopId()));
                     RouteStop routeStop = RouteStop.builder()
@@ -535,13 +536,17 @@ public class RouteService {
     }
 
     private UUID parseStopId(String value) {
+        return parseRequiredUuid(value, "stop id");
+    }
+
+    private UUID parseRequiredUuid(String value, String label) {
         if (value == null || value.isBlank()) {
-            throw new BadRequestException("Stop id is required");
+            throw new BadRequestException("Invalid " + label + ": value is required");
         }
         try {
-            return UUID.fromString(value);
+            return UUID.fromString(value.trim());
         } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid stop id: " + value);
+            throw new BadRequestException("Invalid " + label + ": " + value);
         }
     }
 

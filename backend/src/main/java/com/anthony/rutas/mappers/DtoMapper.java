@@ -150,8 +150,11 @@ public class DtoMapper {
         }
 
         public static RouteDirectionResponse toRouteDirectionResponse(RouteDirection direction) {
-                List<DirectionStopResponse> stops = direction.getRouteStops().stream()
+                List<DirectionStopResponse> stops = direction.getRouteStops() == null
+                                ? List.of()
+                                : direction.getRouteStops().stream()
                                 .map(DtoMapper::toDirectionStopResponse)
+                                .filter(java.util.Objects::nonNull)
                                 .collect(Collectors.toList());
 
                 List<List<Double>> points = direction.getRoutePoints() == null

@@ -700,6 +700,12 @@ Procesamiento en memoria del backend (lo que recibe el cliente es la imagen ya o
 **Response:** `AdminRouteSummaryResponse` (resumen admin — *no* la tarjeta pública con paraderos clave).
 
 **PUT `/api/admin/routes/{id}/directions` — Request:** direcciones completas (replaces). Para cada dirección existente puede ir `id`; para nueva, `id` ausente. **Response:** `RouteDetailResponse`.
+- `direction` solo acepta `"IDA"` o `"VUELTA"` y no puede repetirse en la misma ruta.
+- En `stops`: `stopId` y `stopOrder` son únicos dentro de cada sentido (`stopOrder > 0`).
+- En `routePoints` (semántica tri-estado):
+  - `null` o campo ausente: conserva la geometría almacenada en el servidor.
+  - `[]` (lista vacía): elimina toda la geometría almacenada de ese sentido.
+  - lista no vacía: reemplaza la geometría almacenada exactamente con los puntos enviados (`pointOrder > 0` único, latitud `[-90, 90]`, longitud `[-180, 180]`).
 
 ### Comunidad — Moderación
 

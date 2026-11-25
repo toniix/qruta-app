@@ -15,10 +15,11 @@
 -- expected single value. Exit non-zero on any unexpected result in CI.
 -- =============================================================================
 
--- 1. No legacy direction values remain.
+-- 1. No legacy or null direction values remain.
 SELECT DISTINCT direction
 FROM public.route_directions
-WHERE direction NOT IN ('IDA', 'VUELTA');
+WHERE direction IS NULL
+   OR direction NOT IN ('IDA', 'VUELTA');
 -- EXPECTED: 0 rows
 
 -- 2. Direction values are unique per route (also enforced by UNIQUE).
@@ -28,11 +29,13 @@ GROUP BY route_id, direction
 HAVING COUNT(*) > 1;
 -- EXPECTED: 0 rows
 
--- 3. Point order is contiguous and unique inside every direction.
-SELECT direction_id, point_order, COUNT(*)
+-- 3. Point order is contiguous (1..N) and unique inside every direction.
+SELECT direction_id, COUNT(*) AS point_count, MIN(point_order) AS min_order, MAX(point_order) AS max_order
 FROM public.route_points
-GROUP BY direction_id, point_order
-HAVING COUNT(*) > 1;
+GROUP BY direction_id
+HAVING COUNT(*) <> COUNT(DISTINCT point_order)
+    OR MIN(point_order) <> 1
+    OR MAX(point_order) <> COUNT(*);
 -- EXPECTED: 0 rows
 
 -- 4. Stop order is unique inside every direction.

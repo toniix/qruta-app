@@ -8,9 +8,9 @@
 -- Order matters:
 --   1. preflight (abort on data that cannot be fixed automatically)
 --   2. normalize OUTBOUND/INBOUND -> IDA/VUELTA
---   3. renumber duplicate orders
---   4. backfill route_points only for directions that have none
---   5. drop points without geometry
+--   3. drop points without geometry
+--   4. renumber duplicate/gapped orders (only before unique order constraints exist)
+--   5. backfill route_points only for directions that have none
 --   6. add constraints, CHECK and index
 -- =============================================================================
 
@@ -56,40 +56,53 @@ END $$;
 UPDATE public.route_directions SET direction = 'IDA'    WHERE direction = 'OUTBOUND';
 UPDATE public.route_directions SET direction = 'VUELTA' WHERE direction = 'INBOUND';
 
--- 3. Renumber duplicate order values ----------------------------------------
-WITH ranked AS (
-    SELECT id,
-           ROW_NUMBER() OVER (
-               PARTITION BY direction_id
-               ORDER BY stop_order NULLS LAST, created_at, id
-           ) AS rn
-    FROM public.route_stops
-)
-UPDATE public.route_stops rs
-SET stop_order = ranked.rn
-FROM ranked
-WHERE rs.id = ranked.id
-  AND rs.stop_order IS DISTINCT FROM ranked.rn;
+-- 3. Drop unusable points before renumbering and backfill --------------------
+DELETE FROM public.route_points WHERE location IS NULL;
 
-WITH ranked AS (
-    SELECT id,
-           ROW_NUMBER() OVER (
-               PARTITION BY direction_id
-               ORDER BY point_order NULLS LAST, created_at, id
-           ) AS rn
-    FROM public.route_points
-)
-UPDATE public.route_points rp
-SET point_order = ranked.rn
-FROM ranked
-WHERE rp.id = ranked.id
-  AND rp.point_order IS DISTINCT FROM ranked.rn;
+-- 4. Renumber duplicate or gapped order values -------------------------------
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uk_route_stops_direction_order') THEN
+        WITH ranked AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY direction_id
+                       ORDER BY stop_order NULLS LAST, created_at, id
+                   ) AS rn
+            FROM public.route_stops
+        )
+        UPDATE public.route_stops rs
+        SET stop_order = ranked.rn
+        FROM ranked
+        WHERE rs.id = ranked.id
+          AND rs.stop_order IS DISTINCT FROM ranked.rn;
+    END IF;
 
--- 4. Backfill geometry for directions without points ------------------------
+    IF NOT EXISTS (SELECT 1 FROM pg_constraint WHERE conname = 'uk_route_points_direction_order') THEN
+        WITH ranked AS (
+            SELECT id,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY direction_id
+                       ORDER BY point_order NULLS LAST, created_at, id
+                   ) AS rn
+            FROM public.route_points
+        )
+        UPDATE public.route_points rp
+        SET point_order = ranked.rn
+        FROM ranked
+        WHERE rp.id = ranked.id
+          AND rp.point_order IS DISTINCT FROM ranked.rn;
+    END IF;
+END $$;
+
+-- 5. Backfill geometry for directions without points ------------------------
 INSERT INTO public.route_points (id, direction_id, point_order, location, created_at)
 SELECT gen_random_uuid(),
        rs.direction_id,
-       rs.stop_order,
+       ROW_NUMBER() OVER (
+           PARTITION BY rs.direction_id
+           ORDER BY rs.stop_order, rs.id
+       ),
        s.location,
        NOW()
 FROM public.route_stops rs
@@ -101,9 +114,6 @@ WHERE s.location IS NOT NULL
       SELECT 1 FROM public.route_points existing
       WHERE existing.direction_id = rs.direction_id
   );
-
--- 5. Drop unusable points ----------------------------------------------------
-DELETE FROM public.route_points WHERE location IS NULL;
 
 -- 6. Integrity rules ---------------------------------------------------------
 DO $$

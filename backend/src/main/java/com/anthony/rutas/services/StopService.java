@@ -149,8 +149,8 @@ public class StopService {
     }
 
     private String resolveDirectionLabel(List<String> directions) {
-        boolean hasIda = directions.contains("IDA");
-        boolean hasVuelta = directions.contains("VUELTA");
+        boolean hasIda = directions.contains("IDA") || directions.contains("OUTBOUND");
+        boolean hasVuelta = directions.contains("VUELTA") || directions.contains("INBOUND");
         if (hasIda && hasVuelta) {
             return "IDA Y VUELTA";
         }

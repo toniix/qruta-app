@@ -13,6 +13,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -101,5 +102,35 @@ class UpdateRouteDirectionsRequestValidationTest {
         DirectionUpdateRequest emptyPoints = direction();
         emptyPoints.setRoutePoints(List.of());
         assertTrue(paths(request(emptyPoints)).isEmpty());
+    }
+
+    @Test
+    @DisplayName("Duplicate stop order in one direction is rejected")
+    void rejectsDuplicateStopOrder() {
+        DirectionUpdateRequest direction = direction();
+        direction.setStops(List.of(
+                StopUpdateRequest.builder().stopId(stopId).stopOrder(1).build(),
+                StopUpdateRequest.builder().stopId(UUID.randomUUID().toString()).stopOrder(1).build()));
+        assertTrue(paths(request(direction)).contains("directions[0].stopOrderUnique"));
+    }
+
+    @Test
+    @DisplayName("Case-insensitive duplicate stopId in one direction is rejected")
+    void rejectsCaseInsensitiveDuplicateStopId() {
+        DirectionUpdateRequest direction = direction();
+        direction.setStops(List.of(
+                StopUpdateRequest.builder().stopId(stopId.toLowerCase()).stopOrder(1).build(),
+                StopUpdateRequest.builder().stopId(stopId.toUpperCase()).stopOrder(2).build()));
+        assertTrue(paths(request(direction)).contains("directions[0].stopIdUnique"));
+    }
+
+    @Test
+    @DisplayName("Null elements in stops or routePoints fail validation without NPE")
+    void rejectsNullElementsSafely() {
+        DirectionUpdateRequest direction = direction();
+        List<StopUpdateRequest> stops = new ArrayList<>();
+        stops.add(null);
+        direction.setStops(stops);
+        assertTrue(paths(request(direction)).stream().anyMatch(p -> p.startsWith("directions[0].stops")));
     }
 }

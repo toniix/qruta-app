@@ -13,6 +13,7 @@ import jakarta.validation.constraints.Positive;
 import lombok.*;
 
 import java.util.List;
+import java.util.Objects;
 
 @Getter
 @Setter
@@ -22,14 +23,17 @@ import java.util.List;
 public class UpdateRouteDirectionsRequest {
     @Valid
     @NotEmpty(message = "Directions cannot be empty")
-    private List<@Valid DirectionUpdateRequest> directions;
+    private List<@NotNull(message = "Direction item cannot be null") @Valid DirectionUpdateRequest> directions;
 
     @AssertTrue(message = "A route cannot have two directions with the same value")
     @JsonIgnore
     public boolean isDirectionValuesUnique() {
         if (directions == null) return true;
         return RouteRequestValidation.uniqueDirections(
-                directions.stream().map(DirectionUpdateRequest::getDirection).toList());
+                directions.stream()
+                        .filter(Objects::nonNull)
+                        .map(DirectionUpdateRequest::getDirection)
+                        .toList());
     }
 
     @Getter
@@ -47,7 +51,7 @@ public class UpdateRouteDirectionsRequest {
         private Double totalDistanceKm;
         private Integer estimatedMinutes;
         @Valid
-        private List<@Valid StopUpdateRequest> stops;
+        private List<@NotNull(message = "Stop item cannot be null") @Valid StopUpdateRequest> stops;
         /**
          * Authoritative geometry for this direction.
          * <ul>
@@ -57,12 +61,18 @@ public class UpdateRouteDirectionsRequest {
          * </ul>
          */
         @Valid
-        private List<@Valid PointUpdateRequest> routePoints;
+        private List<@NotNull(message = "Route point item cannot be null") @Valid PointUpdateRequest> routePoints;
 
         @AssertTrue(message = "Point order must be unique within a direction")
         @JsonIgnore
         public boolean isPointOrderUnique() {
             return RouteRequestValidation.uniquePointOrders(routePoints);
+        }
+
+        @AssertTrue(message = "Stop order must be unique within a direction")
+        @JsonIgnore
+        public boolean isStopOrderUnique() {
+            return RouteRequestValidation.uniqueStopOrders(stops);
         }
 
         @AssertTrue(message = "A stop cannot appear twice in the same direction")
@@ -77,7 +87,7 @@ public class UpdateRouteDirectionsRequest {
     @NoArgsConstructor
     @AllArgsConstructor
     @Builder
-    public static class StopUpdateRequest implements RouteRequestValidation.StopId {
+    public static class StopUpdateRequest implements RouteRequestValidation.StopId, RouteRequestValidation.StopOrder {
         private String id;
         @NotBlank(message = "Stop ID is required")
         private String stopId;

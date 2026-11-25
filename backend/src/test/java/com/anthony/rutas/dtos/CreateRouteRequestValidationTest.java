@@ -8,10 +8,12 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +39,13 @@ class CreateRouteRequestValidationTest {
     static void setUp() {
         factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
+    }
+
+    @AfterAll
+    static void tearDown() {
+        if (factory != null) {
+            factory.close();
+        }
     }
 
     private Set<String> violatedPaths(CreateRouteRequest request) {
@@ -166,5 +175,28 @@ class CreateRouteRequestValidationTest {
                 RouteDirectionRequest.builder().direction("IDA").build()));
 
         assertTrue(violatedPaths(request).contains("directionValuesUnique"));
+    }
+
+    @Test
+    @DisplayName("Should reject duplicate stop order inside a direction")
+    void shouldRejectDuplicateStopOrder() {
+        CreateRouteRequest request = validRequest();
+        RouteDirectionRequest direction = request.getDirections().get(0);
+        direction.setStops(List.of(
+                direction.getStops().get(0),
+                RouteStopItemRequest.builder().stopId(UUID.randomUUID().toString()).stopOrder(1).build()));
+
+        assertTrue(violatedPaths(request).contains("directions[0].stopOrderUnique"));
+    }
+
+    @Test
+    @DisplayName("Should reject null list elements without throwing NPE")
+    void shouldRejectNullListElementsSafely() {
+        CreateRouteRequest request = validRequest();
+        List<RouteDirectionRequest> directions = new ArrayList<>();
+        directions.add(null);
+        request.setDirections(directions);
+
+        assertFalse(validator.validate(request).isEmpty());
     }
 }
