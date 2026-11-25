@@ -10,9 +10,11 @@ import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -47,7 +49,7 @@ public class RouteService {
     private final RoutePointRepository routePointRepository;
     private final TransportLineRepository transportLineRepository;
     private final StopRepository stopRepository;
-    private final GeometryFactory geometryFactory = new GeometryFactory();
+    private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     /**
      * Flat route list for the admin panel. Uses a single {@code JOIN FETCH} query
@@ -323,7 +325,19 @@ public class RouteService {
                         .estimatedMinutes(dirReq.getEstimatedMinutes())
                         .build();
 
-                direction = routeDirectionRepository.save(direction);
+                RouteDirection savedDirection = routeDirectionRepository.save(direction);
+                if (savedDirection != null) {
+                    direction = savedDirection;
+                }
+                if (direction.getRouteStops() == null) {
+                    direction.setRouteStops(new ArrayList<>());
+                }
+                if (direction.getRoutePoints() == null) {
+                    direction.setRoutePoints(new ArrayList<>());
+                }
+                if (route.getDirections() != null && Hibernate.isInitialized(route.getDirections())) {
+                    route.getDirections().add(direction);
+                }
 
                 if (dirReq.getStops() != null) {
                     for (CreateRouteRequest.RouteStopItemRequest stopReq : dirReq.getStops()) {
@@ -336,8 +350,11 @@ public class RouteService {
                                 .stopOrder(stopReq.getStopOrder())
                                 .distanceFromStart(stopReq.getDistanceFromStart())
                                 .build();
-                        routeStopRepository.save(routeStop);
+                        RouteStop savedStop = routeStopRepository.save(routeStop);
+                        direction.getRouteStops().add(savedStop != null ? savedStop : routeStop);
                     }
+                    direction.getRouteStops().sort(Comparator.comparing(RouteStop::getStopOrder,
+                            Comparator.nullsLast(Integer::compareTo)));
                 }
 
                 if (dirReq.getRoutePoints() != null) {
@@ -349,8 +366,11 @@ public class RouteService {
                                 .pointOrder(pointReq.getPointOrder())
                                 .location(location)
                                 .build();
-                        routePointRepository.save(routePoint);
+                        RoutePoint savedPoint = routePointRepository.save(routePoint);
+                        direction.getRoutePoints().add(savedPoint != null ? savedPoint : routePoint);
                     }
+                    direction.getRoutePoints().sort(Comparator.comparing(RoutePoint::getPointOrder,
+                            Comparator.nullsLast(Integer::compareTo)));
                 }
             }
         }
@@ -414,6 +434,11 @@ public class RouteService {
             routePointRepository.deleteAll(dir.getRoutePoints());
             routeStopRepository.deleteAll(dir.getRouteStops());
         }
+        // Detach deleted directions from Route.directions if already initialized
+        // (e.g. OperatorPortalService) so cascade/orphanRemoval does not re-save deleted entities.
+        if (route.getDirections() != null && Hibernate.isInitialized(route.getDirections())) {
+            route.getDirections().clear();
+        }
         routeDirectionRepository.deleteAll(existingDirections);
 
         // Hibernate executes INSERTs before DELETEs on flush. Without this flush
@@ -431,7 +456,19 @@ public class RouteService {
                     .estimatedMinutes(dirReq.getEstimatedMinutes())
                     .build();
 
-            direction = routeDirectionRepository.save(direction);
+            RouteDirection savedDirection = routeDirectionRepository.save(direction);
+            if (savedDirection != null) {
+                direction = savedDirection;
+            }
+            if (direction.getRouteStops() == null) {
+                direction.setRouteStops(new ArrayList<>());
+            }
+            if (direction.getRoutePoints() == null) {
+                direction.setRoutePoints(new ArrayList<>());
+            }
+            if (route.getDirections() != null && Hibernate.isInitialized(route.getDirections())) {
+                route.getDirections().add(direction);
+            }
 
             if (dirReq.getStops() != null) {
                 for (UpdateRouteDirectionsRequest.StopUpdateRequest stopReq : dirReq.getStops()) {
@@ -444,20 +481,27 @@ public class RouteService {
                             .stopOrder(stopReq.getStopOrder())
                             .distanceFromStart(stopReq.getDistanceFromStart())
                             .build();
-                    routeStopRepository.save(routeStop);
+                    RouteStop savedStop = routeStopRepository.save(routeStop);
+                    direction.getRouteStops().add(savedStop != null ? savedStop : routeStop);
                 }
+                direction.getRouteStops().sort(Comparator.comparing(RouteStop::getStopOrder,
+                        Comparator.nullsLast(Integer::compareTo)));
             }
 
             List<GeometryPoint> geometry = resolveGeometry(dirReq,
                     geometryByDirectionId, geometryByDirectionValue);
             for (GeometryPoint point : geometry) {
                 if (point.location() == null) continue;
-                routePointRepository.save(RoutePoint.builder()
+                RoutePoint routePoint = RoutePoint.builder()
                         .direction(direction)
                         .pointOrder(point.order())
                         .location(point.location())
-                        .build());
+                        .build();
+                RoutePoint savedPoint = routePointRepository.save(routePoint);
+                direction.getRoutePoints().add(savedPoint != null ? savedPoint : routePoint);
             }
+            direction.getRoutePoints().sort(Comparator.comparing(RoutePoint::getPointOrder,
+                    Comparator.nullsLast(Integer::compareTo)));
         }
 
         return findById(routeId);

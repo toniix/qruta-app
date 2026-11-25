@@ -1,6 +1,8 @@
 package com.anthony.rutas.services;
 
+import com.anthony.rutas.dtos.request.CreateRouteRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
+import com.anthony.rutas.dtos.response.RouteDetailResponse;
 import com.anthony.rutas.entities.City;
 import com.anthony.rutas.entities.Operator;
 import com.anthony.rutas.entities.QrCode;
@@ -21,6 +23,9 @@ import jakarta.persistence.EntityManagerFactory;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.orm.jpa.LocalContainerEntityManagerFactoryBean;
 import org.springframework.orm.jpa.persistenceunit.PersistenceManagedTypes;
@@ -42,7 +47,9 @@ class RouteDirectionsUpdateIntegrationTest {
     private EntityManagerFactory entityManagerFactory;
     private EntityManager entityManager;
     private RouteService routeService;
+    private RouteRepository routeRepository;
     private RouteDirectionRepository directionRepository;
+    private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     @BeforeEach
     void setUp() {
@@ -78,7 +85,7 @@ class RouteDirectionsUpdateIntegrationTest {
         entityManager = entityManagerFactory.createEntityManager();
 
         var factory = new org.springframework.data.jpa.repository.support.JpaRepositoryFactory(entityManager);
-        RouteRepository routeRepository = factory.getRepository(RouteRepository.class);
+        routeRepository = factory.getRepository(RouteRepository.class);
         directionRepository = factory.getRepository(RouteDirectionRepository.class);
         RouteStopRepository stopLinkRepository = factory.getRepository(RouteStopRepository.class);
         RoutePointRepository pointRepository = factory.getRepository(RoutePointRepository.class);
@@ -123,6 +130,110 @@ class RouteDirectionsUpdateIntegrationTest {
         entityManager.flush();
 
         assertEquals(1, directionRepository.findByRouteId(route.getId()).size());
+        entityManager.getTransaction().rollback();
+    }
+
+    @Test
+    void createReturnsPopulatedStopsAndRoutePointsInSameTransaction() {
+        entityManager.getTransaction().begin();
+        City city = City.builder().name("Ica").department("Ica").country("PE").build();
+        entityManager.persist(city);
+        TransportLine line = TransportLine.builder().city(city).company("Linea 1").status("ACTIVE").build();
+        entityManager.persist(line);
+        Stop stop = Stop.builder()
+                .city(city)
+                .name("Terminal")
+                .slug("terminal-ica")
+                .location(geometryFactory.createPoint(new Coordinate(-75.72, -14.06)))
+                .build();
+        entityManager.persist(stop);
+        entityManager.flush();
+
+        CreateRouteRequest request = CreateRouteRequest.builder()
+                .transportLineId(line.getId().toString())
+                .code("R-CREATE")
+                .name("Ruta Create")
+                .directions(List.of(CreateRouteRequest.RouteDirectionRequest.builder()
+                        .direction("IDA")
+                        .originName("A")
+                        .destinationName("B")
+                        .stops(List.of(CreateRouteRequest.RouteStopItemRequest.builder()
+                                .stopId(stop.getId().toString())
+                                .stopOrder(1)
+                                .distanceFromStart(0.0)
+                                .build()))
+                        .routePoints(List.of(
+                                CreateRouteRequest.RoutePointItemRequest.builder()
+                                        .pointOrder(1).latitude(-14.06).longitude(-75.72).build(),
+                                CreateRouteRequest.RoutePointItemRequest.builder()
+                                        .pointOrder(2).latitude(-14.07).longitude(-75.73).build()))
+                        .build()))
+                .build();
+
+        RouteDetailResponse response = routeService.create(request);
+        entityManager.flush();
+
+        assertEquals(1, response.getDirections().size());
+        assertEquals(1, response.getDirections().get(0).getStops().size());
+        assertEquals(2, response.getDirections().get(0).getRoutePoints().size());
+        assertEquals(List.of(-14.06, -75.72), response.getDirections().get(0).getRoutePoints().get(0));
+        assertEquals(List.of(-14.07, -75.73), response.getDirections().get(0).getRoutePoints().get(1));
+        entityManager.getTransaction().rollback();
+    }
+
+    @Test
+    void updateDirectionsWithInitializedRouteDirectionsDoesNotFailOnFlushAndReturnsGeometry() {
+        entityManager.getTransaction().begin();
+        City city = City.builder().name("Ica").department("Ica").country("PE").build();
+        entityManager.persist(city);
+        TransportLine line = TransportLine.builder().city(city).company("Linea 1").status("ACTIVE").build();
+        entityManager.persist(line);
+        Stop stop = Stop.builder()
+                .city(city)
+                .name("Plaza")
+                .slug("plaza-ica")
+                .location(geometryFactory.createPoint(new Coordinate(-75.72, -14.06)))
+                .build();
+        entityManager.persist(stop);
+        Route route = Route.builder().transportLine(line).code("R-OP").name("Ruta Op")
+                .status("ACTIVE").category("MICRO").build();
+        entityManager.persist(route);
+        RouteDirection existing = RouteDirection.builder().route(route).direction("IDA").build();
+        entityManager.persist(existing);
+        RoutePoint existingPoint = RoutePoint.builder()
+                .direction(existing)
+                .pointOrder(1)
+                .location(geometryFactory.createPoint(new Coordinate(-75.70, -14.05)))
+                .build();
+        entityManager.persist(existingPoint);
+        entityManager.flush();
+        entityManager.clear();
+
+        // Simulate OperatorPortalService: load Route and initialize route.getDirections()
+        Route loadedRoute = routeRepository.findById(route.getId()).orElseThrow();
+        assertEquals(1, loadedRoute.getDirections().size());
+
+        // Omit routePoints (null) to preserve stored geometry while adding a stop
+        UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                        .id(existing.getId().toString())
+                        .direction("IDA")
+                        .stops(List.of(UpdateRouteDirectionsRequest.StopUpdateRequest.builder()
+                                .stopId(stop.getId().toString())
+                                .stopOrder(1)
+                                .distanceFromStart(0.0)
+                                .build()))
+                        .routePoints(null)
+                        .build()))
+                .build();
+
+        RouteDetailResponse response = routeService.updateDirections(route.getId(), request);
+        entityManager.flush();
+
+        assertEquals(1, response.getDirections().size());
+        assertEquals(1, response.getDirections().get(0).getStops().size());
+        assertEquals(1, response.getDirections().get(0).getRoutePoints().size());
+        assertEquals(List.of(-14.05, -75.70), response.getDirections().get(0).getRoutePoints().get(0));
         entityManager.getTransaction().rollback();
     }
 }
