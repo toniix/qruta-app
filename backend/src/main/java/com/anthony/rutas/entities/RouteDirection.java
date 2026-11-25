@@ -9,7 +9,9 @@ import java.util.List;
 import java.util.UUID;
 
 @Entity
-@Table(name = "route_directions")
+@Table(name = "route_directions", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_route_directions_route_direction", columnNames = {"route_id", "direction"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -26,7 +28,7 @@ public class RouteDirection {
     private Route route;
 
     /**
-     * Direction of travel. Typical values: "OUTBOUND" (ida) / "INBOUND" (vuelta).
+     * Direction of travel. Canonical values: "IDA" / "VUELTA".
      */
     @Column(nullable = false)
     private String direction;

@@ -112,7 +112,7 @@ public class StopService {
 
     /**
      * Returns all routes that pass through the given stop, grouped by route.
-     * Each entry includes the distinct directions served (OUTBOUND/INBOUND)
+     * Each entry includes the distinct directions served (IDA/VUELTA)
      * and a derived label (IDA / VUELTA / IDA Y VUELTA) computed here, never
      * persisted.
      */
@@ -149,12 +149,12 @@ public class StopService {
     }
 
     private String resolveDirectionLabel(List<String> directions) {
-        boolean hasOutbound = directions.contains("OUTBOUND");
-        boolean hasInbound = directions.contains("INBOUND");
-        if (hasOutbound && hasInbound) {
+        boolean hasIda = directions.contains("IDA");
+        boolean hasVuelta = directions.contains("VUELTA");
+        if (hasIda && hasVuelta) {
             return "IDA Y VUELTA";
         }
-        return hasOutbound ? "IDA" : "VUELTA";
+        return hasIda ? "IDA" : "VUELTA";
     }
 
     @Transactional(readOnly = true)

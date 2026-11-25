@@ -7,7 +7,10 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "route_stops")
+@Table(name = "route_stops", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_route_stops_direction_stop", columnNames = {"direction_id", "stop_id"}),
+        @UniqueConstraint(name = "uk_route_stops_direction_order", columnNames = {"direction_id", "stop_order"})
+})
 @Getter
 @Setter
 @NoArgsConstructor

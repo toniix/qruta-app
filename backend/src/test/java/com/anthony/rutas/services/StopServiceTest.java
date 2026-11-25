@@ -3,6 +3,9 @@ package com.anthony.rutas.services;
 import com.anthony.rutas.dtos.request.CreateStopRequest;
 import com.anthony.rutas.dtos.response.StopResponse;
 import com.anthony.rutas.entities.City;
+import com.anthony.rutas.entities.Route;
+import com.anthony.rutas.entities.RouteDirection;
+import com.anthony.rutas.entities.RouteStop;
 import com.anthony.rutas.entities.Stop;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ConflictException;
@@ -69,6 +72,53 @@ class StopServiceTest {
                 .name("Paradero")
                 .location(GEOMETRY_FACTORY.createPoint(new Coordinate(-75.72, -14.06)))
                 .build();
+    }
+
+    private void mockRoutesForStop(UUID stopId, Stop stop, String... directionValues) {
+        Route route = Route.builder().id(UUID.randomUUID()).code("R1").name("Ruta 1").build();
+        List<RouteStop> routeStops = java.util.Arrays.stream(directionValues)
+                .map(value -> RouteStop.builder()
+                        .direction(RouteDirection.builder().route(route).direction(value).build())
+                        .stop(stop)
+                        .stopOrder(1)
+                        .build())
+                .toList();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(routeStopRepository.findWithDirectionAndRouteByStopId(stopId)).thenReturn(routeStops);
+    }
+
+    @Test
+    @DisplayName("Derives IDA label for a one-way outbound route")
+    void shouldDeriveIdaLabel() {
+        UUID stopId = UUID.randomUUID();
+        mockRoutesForStop(stopId, stopWithLocation(stopId), "IDA");
+
+        var result = stopService.findRoutesByStop(stopId);
+
+        assertEquals(1, result.size());
+        assertEquals("IDA", result.get(0).getDirectionLabel());
+    }
+
+    @Test
+    @DisplayName("Derives VUELTA label for a one-way inbound route")
+    void shouldDeriveVueltaLabel() {
+        UUID stopId = UUID.randomUUID();
+        mockRoutesForStop(stopId, stopWithLocation(stopId), "VUELTA");
+
+        var result = stopService.findRoutesByStop(stopId);
+
+        assertEquals("VUELTA", result.get(0).getDirectionLabel());
+    }
+
+    @Test
+    @DisplayName("Derives IDA Y VUELTA when both directions serve the stop")
+    void shouldDeriveBothLabel() {
+        UUID stopId = UUID.randomUUID();
+        mockRoutesForStop(stopId, stopWithLocation(stopId), "IDA", "VUELTA");
+
+        var result = stopService.findRoutesByStop(stopId);
+
+        assertEquals("IDA Y VUELTA", result.get(0).getDirectionLabel());
     }
 
     @Test

@@ -154,7 +154,10 @@ public class DtoMapper {
                                 .map(DtoMapper::toDirectionStopResponse)
                                 .collect(Collectors.toList());
 
-                List<List<Double>> points = direction.getRoutePoints().stream()
+                List<List<Double>> points = direction.getRoutePoints() == null
+                                ? List.of()
+                                : direction.getRoutePoints().stream()
+                                .filter(rp -> rp.getLocation() != null)
                                 .map(rp -> List.of(rp.getLocation().getY(), rp.getLocation().getX()))
                                 .collect(Collectors.toList());
 

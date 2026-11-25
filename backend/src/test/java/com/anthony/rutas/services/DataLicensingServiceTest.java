@@ -132,7 +132,7 @@ class DataLicensingServiceTest {
         direction = RouteDirection.builder()
                 .id(UUID.randomUUID())
                 .route(route)
-                .direction("OUTBOUND")
+                .direction("IDA")
                 .build();
     }
 

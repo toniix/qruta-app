@@ -12,6 +12,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
@@ -98,7 +100,7 @@ class RouteServiceTest {
         return RouteDirection.builder()
                 .id(id)
                 .route(route)
-                .direction("OUTBOUND")
+                .direction("IDA")
                 .originName("Origen")
                 .destinationName("Destino")
                 .totalDistanceKm(5.0)
@@ -130,7 +132,7 @@ class RouteServiceTest {
                 .build();
 
         CreateRouteRequest.RouteDirectionRequest direction = CreateRouteRequest.RouteDirectionRequest.builder()
-                .direction("OUTBOUND")
+                .direction("IDA")
                 .originName("Origen")
                 .destinationName("Destino")
                 .totalDistanceKm(5.0)
@@ -723,6 +725,25 @@ class RouteServiceTest {
         }
 
         @Test
+        @DisplayName("Should persist submitted custom geometry verbatim")
+        void shouldPersistSubmittedGeometry() {
+            CreateRouteRequest request = createRouteRequest();
+            when(transportLineRepository.findById(transportLineId)).thenReturn(Optional.of(transportLine));
+            when(routeRepository.save(any(Route.class))).thenReturn(route);
+            when(stopRepository.findById(stopId)).thenReturn(Optional.of(stop));
+            when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
+
+            routeService.create(request);
+
+            ArgumentCaptor<RoutePoint> captor = ArgumentCaptor.forClass(RoutePoint.class);
+            verify(routePointRepository).save(captor.capture());
+            assertEquals(1, captor.getValue().getPointOrder());
+            assertEquals(-57.9545, captor.getValue().getLocation().getX(), 1e-9);
+            assertEquals(-34.9215, captor.getValue().getLocation().getY(), 1e-9);
+        }
+
+        @Test
         @DisplayName("Should normalize category and default to MICRO when empty")
         void shouldNormalizeCategory() {
             CreateRouteRequest requestCombi = CreateRouteRequest.builder()
@@ -794,6 +815,86 @@ class RouteServiceTest {
 
             assertNotNull(result);
             verify(routeDirectionRepository).deleteAll(anyList());
+        }
+
+        private RouteDirection existingDirection() {
+            GeometryFactory factory = new GeometryFactory();
+            return RouteDirection.builder()
+                    .id(UUID.randomUUID())
+                    .route(route)
+                    .direction("IDA")
+                    .routePoints(List.of(
+                            RoutePoint.builder().pointOrder(1)
+                                    .location(factory.createPoint(new Coordinate(-75.70, -14.05))).build(),
+                            RoutePoint.builder().pointOrder(2)
+                                    .location(factory.createPoint(new Coordinate(-75.71, -14.06))).build()))
+                    .build();
+        }
+
+        private void mockExisting(RouteDirection existing) {
+            when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteId(routeId)).thenReturn(List.of(existing));
+            when(routeDirectionRepository.save(any(RouteDirection.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
+        }
+
+        @Test
+        @DisplayName("Omitting routePoints preserves the stored geometry")
+        void shouldPreserveGeometryWhenPointsOmitted() {
+            RouteDirection existing = existingDirection();
+            mockExisting(existing);
+            UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                    .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                            .id(existing.getId().toString())
+                            .direction("IDA")
+                            .stops(List.of())
+                            .build()))
+                    .build();
+
+            routeService.updateDirections(routeId, request);
+
+            ArgumentCaptor<RoutePoint> captor = ArgumentCaptor.forClass(RoutePoint.class);
+            verify(routePointRepository, times(2)).save(captor.capture());
+            assertEquals(-75.70, captor.getAllValues().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-75.71, captor.getAllValues().get(1).getLocation().getX(), 1e-9);
+        }
+
+        @Test
+        @DisplayName("An empty points list clears the geometry")
+        void shouldClearGeometryWhenPointsEmpty() {
+            mockExisting(existingDirection());
+            UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                    .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                            .id(UUID.randomUUID().toString())
+                            .direction("IDA")
+                            .routePoints(List.of())
+                            .build()))
+                    .build();
+
+            routeService.updateDirections(routeId, request);
+
+            verify(routePointRepository, never()).save(any(RoutePoint.class));
+        }
+
+        @Test
+        @DisplayName("A non-empty points list replaces the geometry exactly")
+        void shouldReplaceGeometryWhenSubmitted() {
+            mockExisting(existingDirection());
+            UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                    .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                            .direction("IDA")
+                            .routePoints(List.of(UpdateRouteDirectionsRequest.PointUpdateRequest.builder()
+                                    .pointOrder(1).latitude(-14.20).longitude(-75.90).build()))
+                            .build()))
+                    .build();
+
+            routeService.updateDirections(routeId, request);
+
+            ArgumentCaptor<RoutePoint> captor = ArgumentCaptor.forClass(RoutePoint.class);
+            verify(routePointRepository).save(captor.capture());
+            assertEquals(-75.90, captor.getValue().getLocation().getX(), 1e-9);
+            assertEquals(-14.20, captor.getValue().getLocation().getY(), 1e-9);
         }
     }
 

@@ -8,7 +8,9 @@ import java.time.LocalDateTime;
 import java.util.UUID;
 
 @Entity
-@Table(name = "route_points")
+@Table(name = "route_points", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_route_points_direction_order", columnNames = {"direction_id", "point_order"})
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -27,7 +29,7 @@ public class RoutePoint {
     @Column(name = "point_order", nullable = false)
     private Integer pointOrder;
 
-    @Column(columnDefinition = "geometry(Point, 4326)")
+    @Column(name = "location", columnDefinition = "geometry(Point, 4326)", nullable = false)
     private Point location;
 
     @Column(name = "created_at", nullable = false, updatable = false)

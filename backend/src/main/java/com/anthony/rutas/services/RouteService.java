@@ -5,6 +5,7 @@ import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
+import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
@@ -17,6 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -323,7 +327,7 @@ public class RouteService {
 
                 if (dirReq.getStops() != null) {
                     for (CreateRouteRequest.RouteStopItemRequest stopReq : dirReq.getStops()) {
-                        Stop stop = stopRepository.findById(UUID.fromString(stopReq.getStopId()))
+                        Stop stop = stopRepository.findById(parseStopId(stopReq.getStopId()))
                                 .orElseThrow(() -> new ResourceNotFoundException(
                                         "Stop not found with id: " + stopReq.getStopId()));
                         RouteStop routeStop = RouteStop.builder()
@@ -388,15 +392,35 @@ public class RouteService {
         Route route = routeRepository.findById(routeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + routeId));
 
-        // Delete existing directions and their stops/points
+        // Snapshot geometry before deleting, so a stops-only edit never destroys it.
         List<RouteDirection> existingDirections = routeDirectionRepository.findByRouteId(routeId);
+        Map<UUID, List<GeometryPoint>> geometryByDirectionId = new HashMap<>();
+        Map<String, List<GeometryPoint>> geometryByDirectionValue = new HashMap<>();
+        for (RouteDirection dir : existingDirections) {
+            List<GeometryPoint> geometry = dir.getRoutePoints().stream()
+                    .sorted(Comparator.comparing(RoutePoint::getPointOrder,
+                            Comparator.nullsLast(Integer::compareTo)))
+                    .map(point -> new GeometryPoint(point.getPointOrder(), point.getLocation()))
+                    .toList();
+            if (dir.getId() != null) {
+                geometryByDirectionId.put(dir.getId(), geometry);
+            }
+            if (dir.getDirection() != null) {
+                geometryByDirectionValue.put(dir.getDirection(), geometry);
+            }
+        }
+
         for (RouteDirection dir : existingDirections) {
             routePointRepository.deleteAll(dir.getRoutePoints());
             routeStopRepository.deleteAll(dir.getRouteStops());
         }
         routeDirectionRepository.deleteAll(existingDirections);
 
-        // Create new directions
+        // Hibernate executes INSERTs before DELETEs on flush. Without this flush
+        // the new direction collides with UNIQUE(route_id, direction) while the
+        // old one is still present, producing a 500 on replace.
+        routeDirectionRepository.flush();
+
         for (UpdateRouteDirectionsRequest.DirectionUpdateRequest dirReq : request.getDirections()) {
             RouteDirection direction = RouteDirection.builder()
                     .route(route)
@@ -424,21 +448,69 @@ public class RouteService {
                 }
             }
 
-            if (dirReq.getRoutePoints() != null) {
-                for (UpdateRouteDirectionsRequest.PointUpdateRequest pointReq : dirReq.getRoutePoints()) {
-                    Point location = geometryFactory
-                            .createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
-                    RoutePoint routePoint = RoutePoint.builder()
-                            .direction(direction)
-                            .pointOrder(pointReq.getPointOrder())
-                            .location(location)
-                            .build();
-                    routePointRepository.save(routePoint);
-                }
+            List<GeometryPoint> geometry = resolveGeometry(dirReq,
+                    geometryByDirectionId, geometryByDirectionValue);
+            for (GeometryPoint point : geometry) {
+                if (point.location() == null) continue;
+                routePointRepository.save(RoutePoint.builder()
+                        .direction(direction)
+                        .pointOrder(point.order())
+                        .location(point.location())
+                        .build());
             }
         }
 
         return findById(routeId);
+    }
+
+    /**
+     * {@code null} routePoints keeps the stored geometry, an empty list clears it,
+     * a non-empty list replaces it exactly as submitted.
+     */
+    private List<GeometryPoint> resolveGeometry(
+            UpdateRouteDirectionsRequest.DirectionUpdateRequest dirReq,
+            Map<UUID, List<GeometryPoint>> geometryByDirectionId,
+            Map<String, List<GeometryPoint>> geometryByDirectionValue) {
+        if (dirReq.getRoutePoints() != null) {
+            List<GeometryPoint> submitted = new ArrayList<>();
+            for (UpdateRouteDirectionsRequest.PointUpdateRequest pointReq : dirReq.getRoutePoints()) {
+                submitted.add(new GeometryPoint(pointReq.getPointOrder(),
+                        geometryFactory.createPoint(
+                                new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()))));
+            }
+            return submitted;
+        }
+
+        UUID directionId = parseUuid(dirReq.getId());
+        List<GeometryPoint> preserved = directionId == null
+                ? null : geometryByDirectionId.get(directionId);
+        if (preserved == null) {
+            preserved = geometryByDirectionValue.get(dirReq.getDirection());
+        }
+        return preserved == null ? List.of() : preserved;
+    }
+
+    private UUID parseStopId(String value) {
+        if (value == null || value.isBlank()) {
+            throw new BadRequestException("Stop id is required");
+        }
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            throw new BadRequestException("Invalid stop id: " + value);
+        }
+    }
+
+    private UUID parseUuid(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return UUID.fromString(value);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private record GeometryPoint(Integer order, Point location) {
     }
 
     @Transactional

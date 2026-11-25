@@ -95,7 +95,7 @@ class GtfsServiceTest {
         direction = RouteDirection.builder()
                 .id(UUID.randomUUID())
                 .route(route)
-                .direction("OUTBOUND")
+                .direction("IDA")
                 .destinationName("Centro")
                 .estimatedMinutes(20)
                 .build();
@@ -141,6 +141,24 @@ class GtfsServiceTest {
         assertEquals(2, rows.length);
         assertEquals("0.0", rows[0].split(",")[4]);
         assertTrue(Double.parseDouble(rows[1].split(",")[4]) > 0);
+    }
+
+    @Test
+    void shapesUseCustomGeometryInPointOrder() {
+        when(routePointRepository.findByDirectionIdOrderByPointOrderAsc(direction.getId()))
+                .thenReturn(List.of(
+                        routePoint(-12.0300, -77.0100, 1),
+                        routePoint(-12.0500, -77.0300, 2)));
+
+        Map<String, String> files = readZip(service.buildFeed("Lima"));
+        String[] rows = files.get("shapes.txt").lines().skip(1).toArray(String[]::new);
+
+        assertEquals(2, rows.length);
+        assertEquals(-12.03, Double.parseDouble(rows[0].split(",")[1]), 1e-6);
+        assertEquals(-77.01, Double.parseDouble(rows[0].split(",")[2]), 1e-6);
+        assertEquals(1, Integer.parseInt(rows[0].split(",")[3]));
+        assertEquals(-12.05, Double.parseDouble(rows[1].split(",")[1]), 1e-6);
+        assertEquals(2, Integer.parseInt(rows[1].split(",")[3]));
     }
 
     @Test
