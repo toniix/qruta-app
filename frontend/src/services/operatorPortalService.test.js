@@ -89,6 +89,9 @@ describe('operatorPortalService', () => {
 
     await expect(operatorPortalService.getRoutes()).resolves.toEqual([{ id: 'route-1' }]);
     await expect(operatorPortalService.getStops()).resolves.toEqual([{ id: 'stop-1' }]);
+
+    operatorClient.get.mockResolvedValueOnce({ data: { items: [{ id: 'stop-2' }] } });
+    await expect(operatorPortalService.getAllStops()).resolves.toEqual([{ id: 'stop-2' }]);
   });
 
   it('loads the operator subscription', async () => {

@@ -156,6 +156,17 @@ describe('RouteDirectionEditorModal service injection', () => {
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(adminRouteService.updateRouteDirections).not.toHaveBeenCalled();
   });
+
+  it('falls back to getStops when stopService omits getAllStops', async () => {
+    const stopService = {
+      getStops: vi.fn().mockResolvedValue([{ id: 's-op', name: 'Paradero Operador' }]),
+    };
+
+    renderEditor({ stopService });
+
+    await waitFor(() => expect(stopService.getStops).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/Paradero Operador/)).toBeInTheDocument();
+  });
 });
 
 describe('RouteDirectionEditorModal geometry editor', () => {

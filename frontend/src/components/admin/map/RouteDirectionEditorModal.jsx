@@ -173,9 +173,12 @@ export function RouteDirectionEditorModal({
     (async () => {
       setLoading(true);
       try {
+        const fetchStops = stopService.getAllStops
+          ? () => stopService.getAllStops()
+          : () => stopService.getStops();
         const [routeDetail, stopsList] = await Promise.all([
           routeService.getRouteById(route.id),
-          stopService.getAllStops(),
+          fetchStops(),
         ]);
 
         if (!isMounted) return;
