@@ -1,11 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import {
-  escapeHtml,
-  createNumberedStopIcon,
-  RouteDirectionEditorModal,
-} from './RouteDirectionEditorModal';
+import { RouteDirectionEditorModal } from './RouteDirectionEditorModal';
+import { escapeHtml, createNumberedStopIcon } from './routeGeometryUtils';
 import { ToastProvider } from '../common/ToastContext';
 import { adminRouteService } from '../../../services/adminRouteService';
 import { adminStopService } from '../../../services/adminStopService';
