@@ -170,6 +170,25 @@ class GtfsServiceTest {
         assertFalse(first.equals(service.catalogVersion("Lima")));
     }
 
+    @Test
+    void tripsMapIdaToZeroAndVueltaToOne() {
+        RouteDirection vuelta = RouteDirection.builder()
+                .id(UUID.randomUUID())
+                .route(route)
+                .direction("VUELTA")
+                .destinationName("Origen")
+                .estimatedMinutes(20)
+                .build();
+        when(routeDirectionRepository.findByRouteIdWithStops(route.getId())).thenReturn(List.of(direction, vuelta));
+
+        Map<String, String> files = readZip(service.buildFeed("Lima"));
+        String[] rows = files.get("trips.txt").lines().skip(1).toArray(String[]::new);
+
+        assertEquals(2, rows.length);
+        assertEquals("0", rows[0].split(",")[4]);
+        assertEquals("1", rows[1].split(",")[4]);
+    }
+
     private static Stop stop(String name, double latitude, double longitude) {
         return Stop.builder()
                 .id(UUID.randomUUID())

@@ -690,7 +690,7 @@ class RouteServiceTest {
             CreateRouteRequest request = createRouteRequest();
             when(transportLineRepository.findById(transportLineId)).thenReturn(Optional.of(transportLine));
             when(routeRepository.save(any(Route.class))).thenReturn(route);
-            when(stopRepository.findById(stopId)).thenReturn(Optional.of(stop));
+            when(stopRepository.findAllById(any())).thenReturn(List.of(stop));
             when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
             when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
 
@@ -699,8 +699,8 @@ class RouteServiceTest {
             assertNotNull(result);
             verify(routeRepository).save(any(Route.class));
             verify(routeDirectionRepository).save(any(RouteDirection.class));
-            verify(routeStopRepository).save(any(RouteStop.class));
-            verify(routePointRepository).save(any(RoutePoint.class));
+            verify(routeStopRepository).saveAll(anyList());
+            verify(routePointRepository).saveAll(anyList());
         }
 
         @Test
@@ -730,17 +730,19 @@ class RouteServiceTest {
             CreateRouteRequest request = createRouteRequest();
             when(transportLineRepository.findById(transportLineId)).thenReturn(Optional.of(transportLine));
             when(routeRepository.save(any(Route.class))).thenReturn(route);
-            when(stopRepository.findById(stopId)).thenReturn(Optional.of(stop));
+            when(stopRepository.findAllById(any())).thenReturn(List.of(stop));
             when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
             when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
 
             routeService.create(request);
 
-            ArgumentCaptor<RoutePoint> captor = ArgumentCaptor.forClass(RoutePoint.class);
-            verify(routePointRepository).save(captor.capture());
-            assertEquals(1, captor.getValue().getPointOrder());
-            assertEquals(-57.9545, captor.getValue().getLocation().getX(), 1e-9);
-            assertEquals(-34.9215, captor.getValue().getLocation().getY(), 1e-9);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<RoutePoint>> captor = ArgumentCaptor.forClass(List.class);
+            verify(routePointRepository).saveAll(captor.capture());
+            assertEquals(1, captor.getValue().size());
+            assertEquals(1, captor.getValue().get(0).getPointOrder());
+            assertEquals(-57.9545, captor.getValue().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-34.9215, captor.getValue().get(0).getLocation().getY(), 1e-9);
         }
 
         @Test
@@ -854,10 +856,12 @@ class RouteServiceTest {
 
             routeService.updateDirections(routeId, request);
 
-            ArgumentCaptor<RoutePoint> captor = ArgumentCaptor.forClass(RoutePoint.class);
-            verify(routePointRepository, times(2)).save(captor.capture());
-            assertEquals(-75.70, captor.getAllValues().get(0).getLocation().getX(), 1e-9);
-            assertEquals(-75.71, captor.getAllValues().get(1).getLocation().getX(), 1e-9);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<RoutePoint>> captor = ArgumentCaptor.forClass(List.class);
+            verify(routePointRepository).saveAll(captor.capture());
+            assertEquals(2, captor.getValue().size());
+            assertEquals(-75.70, captor.getValue().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-75.71, captor.getValue().get(1).getLocation().getX(), 1e-9);
         }
 
         @Test
@@ -874,7 +878,7 @@ class RouteServiceTest {
 
             routeService.updateDirections(routeId, request);
 
-            verify(routePointRepository, never()).save(any(RoutePoint.class));
+            verify(routePointRepository, never()).saveAll(anyList());
         }
 
         @Test
@@ -891,10 +895,12 @@ class RouteServiceTest {
 
             routeService.updateDirections(routeId, request);
 
-            ArgumentCaptor<RoutePoint> captor = ArgumentCaptor.forClass(RoutePoint.class);
-            verify(routePointRepository).save(captor.capture());
-            assertEquals(-75.90, captor.getValue().getLocation().getX(), 1e-9);
-            assertEquals(-14.20, captor.getValue().getLocation().getY(), 1e-9);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<RoutePoint>> captor = ArgumentCaptor.forClass(List.class);
+            verify(routePointRepository).saveAll(captor.capture());
+            assertEquals(1, captor.getValue().size());
+            assertEquals(-75.90, captor.getValue().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-14.20, captor.getValue().get(0).getLocation().getY(), 1e-9);
         }
     }
 
