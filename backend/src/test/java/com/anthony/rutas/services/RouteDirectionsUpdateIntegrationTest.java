@@ -93,7 +93,7 @@ class RouteDirectionsUpdateIntegrationTest {
         StopRepository stopRepository = factory.getRepository(StopRepository.class);
 
         routeService = new RouteService(routeRepository, directionRepository, stopLinkRepository,
-                pointRepository, lineRepository, stopRepository);
+                pointRepository, lineRepository, stopRepository, geometryFactory);
     }
 
     @AfterEach

@@ -154,6 +154,7 @@ class DataLicensingServiceTest {
     @Test
     void coverageReturnsCityAggregatesAndRegistersUsage() {
         when(apiKeyRepository.findByKeyHash(hash(RAW_KEY))).thenReturn(Optional.of(apiKey));
+        when(apiKeyRepository.consumeQuotaAtomically(any(), any(), any())).thenReturn(1);
         Stop first = stop(-12.0100, -77.0200);
         Stop second = stop(-12.0464, -77.0428);
         when(cityRepository.findAll()).thenReturn(List.of(city));
@@ -175,8 +176,18 @@ class DataLicensingServiceTest {
     }
 
     @Test
+    void rejectsWhenAtomicQuotaConsumptionFailsDueToConcurrency() {
+        when(apiKeyRepository.findByKeyHash(hash(RAW_KEY))).thenReturn(Optional.of(apiKey));
+        when(cityRepository.findAll()).thenReturn(List.of(city));
+        when(apiKeyRepository.consumeQuotaAtomically(any(), any(), any())).thenReturn(0);
+
+        assertThrows(QuotaExceededException.class, () -> service.coverage(RAW_KEY, "Lima"));
+    }
+
+    @Test
     void odMatrixSuppressesLowCountsAndReturnsOnlyAggregates() {
         when(apiKeyRepository.findByKeyHash(hash(RAW_KEY))).thenReturn(Optional.of(apiKey));
+        when(apiKeyRepository.consumeQuotaAtomically(any(), any(), any())).thenReturn(1);
         Stop first = stop(-12.0100, -77.0200);
         Stop second = stop(-12.0464, -77.0428);
         when(cityRepository.findAll()).thenReturn(List.of(city));

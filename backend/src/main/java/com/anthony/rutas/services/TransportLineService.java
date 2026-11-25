@@ -10,6 +10,7 @@ import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
+import com.anthony.rutas.utils.UuidUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,7 +44,8 @@ public class TransportLineService {
 
     @Transactional
     public TransportLineResponse create(CreateTransportLineRequest request) {
-        City city = cityRepository.findById(UUID.fromString(request.getCityId()))
+        UUID cityId = UuidUtils.parseRequired(request.getCityId(), "city id");
+        City city = cityRepository.findById(cityId)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
         validateUniqueCompany(city.getId(), request.getCompany(), null);
@@ -118,7 +120,7 @@ public class TransportLineService {
         if (!StringUtils.hasText(operatorId)) {
             return null;
         }
-        UUID targetId = UUID.fromString(operatorId.trim());
+        UUID targetId = UuidUtils.parseRequired(operatorId, "operator id");
         if (currentOperatorId != null && targetId.equals(currentOperatorId)) {
             return currentOperator;
         }

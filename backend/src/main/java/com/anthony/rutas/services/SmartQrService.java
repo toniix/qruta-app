@@ -422,6 +422,16 @@ public class SmartQrService {
                     || !operatorId.equals(route.getTransportLine().getOperator().getId())) {
                 throw new AccessDeniedException("Route does not belong to this operator");
             }
+        } else if ("STOP".equalsIgnoreCase(targetType) && targetId != null) {
+            Operator operator = operatorRepository.findById(operatorId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Operator not found: " + operatorId));
+            Stop stop = stopRepository.findById(targetId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Stop not found: " + targetId));
+            UUID operatorCityId = operator.getCity() != null ? operator.getCity().getId() : null;
+            UUID stopCityId = stop.getCity() != null ? stop.getCity().getId() : null;
+            if (operatorCityId == null || !operatorCityId.equals(stopCityId)) {
+                throw new AccessDeniedException("Stop does not belong to this operator's city");
+            }
         }
     }
 

@@ -290,4 +290,25 @@ class AdminOperatorServiceTest {
         assertThatThrownBy(() -> service.findUsers(unknownOperatorId))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    @Test
+    @DisplayName("resetPassword rejects a user that belongs to another operator")
+    void rejectsCrossOperatorUserMutation() {
+        Operator otherOperator = Operator.builder().id(UUID.randomUUID()).name("Otro").build();
+        OperatorUser foreignUser = OperatorUser.builder()
+                .id(UUID.randomUUID())
+                .operator(otherOperator)
+                .email("other@expreso.pe")
+                .fullName("Other User")
+                .role("EDITOR")
+                .active(true)
+                .build();
+        when(operatorRepository.findById(OPERATOR_ID)).thenReturn(Optional.of(operator()));
+        when(operatorUserRepository.findById(foreignUser.getId())).thenReturn(Optional.of(foreignUser));
+
+        assertThatThrownBy(() -> service.resetPassword(
+                OPERATOR_ID, foreignUser.getId(), ResetPasswordRequest.builder().password("nuevo").build()))
+                .isInstanceOf(ResourceNotFoundException.class);
+        verify(operatorUserRepository, never()).save(any());
+    }
 }

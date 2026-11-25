@@ -54,6 +54,17 @@ class BillingWebhookVerifierTest {
         assertThrows(ResponseStatusException.class, () -> verifier.verify("{}", "  "));
     }
 
+    @Test
+    void failsClearlyWhenWebhookSecretIsMissing() {
+        BillingProperties empty = new BillingProperties();
+        BillingWebhookVerifier unconfigured = new BillingWebhookVerifier(empty);
+
+        IllegalStateException ex = assertThrows(
+                IllegalStateException.class,
+                () -> unconfigured.verify("{}", "sha256=abc"));
+        assertThat(ex.getMessage()).contains("not configured");
+    }
+
     private String sign(String value) {
         try {
             Mac mac = Mac.getInstance("HmacSHA256");

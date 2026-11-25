@@ -9,12 +9,12 @@ import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
+import com.anthony.rutas.utils.UuidUtils;
 import lombok.RequiredArgsConstructor;
 import org.hibernate.Hibernate;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
-import org.locationtech.jts.geom.PrecisionModel;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -49,7 +49,7 @@ public class RouteService {
     private final RoutePointRepository routePointRepository;
     private final TransportLineRepository transportLineRepository;
     private final StopRepository stopRepository;
-    private final GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
+    private final GeometryFactory geometryFactory;
 
     /**
      * Flat route list for the admin panel. Uses a single {@code JOIN FETCH} query
@@ -293,7 +293,7 @@ public class RouteService {
     @Transactional
     public RouteDetailResponse create(CreateRouteRequest request) {
         TransportLine transportLine = transportLineRepository
-                .findById(parseRequiredUuid(request.getTransportLineId(), "transport line id"))
+                .findById(UuidUtils.parseRequired(request.getTransportLineId(), "transport line id"))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Transport line not found with id: " + request.getTransportLineId()));
 
@@ -554,7 +554,7 @@ public class RouteService {
                     UpdateRouteDirectionsRequest.PointUpdateRequest::getLongitude);
         }
 
-        UUID directionId = parseUuid(dirReq.getId());
+        UUID directionId = UuidUtils.parseOptional(dirReq.getId());
         List<GeometryPoint> preserved = directionId == null
                 ? null : geometryByDirectionId.get(directionId);
         if (preserved == null) {
@@ -564,27 +564,7 @@ public class RouteService {
     }
 
     private UUID parseStopId(String value) {
-        return parseRequiredUuid(value, "stop id");
-    }
-
-    private UUID parseRequiredUuid(String value, String label) {
-        if (value == null || value.isBlank()) {
-            throw new BadRequestException("Invalid " + label + ": value is required");
-        }
-        try {
-            return UUID.fromString(value.trim());
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid " + label + ": " + value);
-        }
-    }
-
-    private UUID parseUuid(String value) {
-        if (value == null || value.isBlank()) return null;
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException ex) {
-            return null;
-        }
+        return UuidUtils.parseRequired(value, "stop id");
     }
 
     private record StopSpec(UUID stopId, Integer stopOrder, Double distanceFromStart) {

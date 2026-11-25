@@ -44,7 +44,7 @@ public class StopService {
     private final RouteStopRepository routeStopRepository;
     private final SupabaseStorageService storageService;
     private final ImageProcessingService imageProcessingService;
-    private final GeometryFactory geometryFactory = new GeometryFactory();
+    private final GeometryFactory geometryFactory;
 
     @Transactional(readOnly = true)
     public List<StopResponse> findAll() {
@@ -164,7 +164,8 @@ public class StopService {
 
     @Transactional
     public StopResponse create(CreateStopRequest request) {
-        City city = cityRepository.findById(UUID.fromString(request.getCityId()))
+        UUID cityId = com.anthony.rutas.utils.UuidUtils.parseRequired(request.getCityId(), "city id");
+        City city = cityRepository.findById(cityId)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
         Point location = geometryFactory.createPoint(new Coordinate(request.getLongitude(), request.getLatitude()));

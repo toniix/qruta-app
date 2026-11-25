@@ -154,20 +154,28 @@ public class DataLicensingService {
             throw new InvalidApiKeyException("License is not valid");
         }
         LocalDate currentPeriod = YearMonth.now(ZoneOffset.UTC).atDay(1);
-        if (apiKey.getPeriodStart() == null || apiKey.getPeriodStart().isBefore(currentPeriod)) {
-            apiKey.setPeriodStart(currentPeriod);
-            apiKey.setUsedThisPeriod(0);
-        }
-        if (apiKey.getUsedThisPeriod() >= apiKey.getMonthlyQuota()) {
+        if (apiKey.getPeriodStart() != null
+                && !apiKey.getPeriodStart().isBefore(currentPeriod)
+                && apiKey.getUsedThisPeriod() >= apiKey.getMonthlyQuota()) {
             throw new QuotaExceededException("Monthly quota exhausted");
         }
         return apiKey;
     }
 
     private void consume(DataApiKey apiKey, String endpoint, String citySlug) {
-        apiKey.setUsedThisPeriod(apiKey.getUsedThisPeriod() + 1);
-        apiKey.setLastUsedAt(LocalDateTime.now(ZoneOffset.UTC));
-        apiKeyRepository.save(apiKey);
+        LocalDate currentPeriod = YearMonth.now(ZoneOffset.UTC).atDay(1);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        int updated = apiKeyRepository.consumeQuotaAtomically(apiKey.getId(), currentPeriod, now);
+        if (updated == 0) {
+            throw new QuotaExceededException("Monthly quota exhausted");
+        }
+        if (apiKey.getPeriodStart() == null || apiKey.getPeriodStart().isBefore(currentPeriod)) {
+            apiKey.setPeriodStart(currentPeriod);
+            apiKey.setUsedThisPeriod(1);
+        } else {
+            apiKey.setUsedThisPeriod(apiKey.getUsedThisPeriod() + 1);
+        }
+        apiKey.setLastUsedAt(now);
         accessLogRepository.save(DataAccessLog.builder()
                 .apiKey(apiKey)
                 .endpoint(endpoint)

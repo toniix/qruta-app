@@ -20,9 +20,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -38,7 +40,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class StopServiceTest {
 
-    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Mock
     private StopRepository stopRepository;
@@ -52,6 +54,8 @@ class StopServiceTest {
     private SupabaseStorageService storageService;
     @Mock
     private ImageProcessingService imageProcessingService;
+    @Spy
+    private GeometryFactory geometryFactory = GEOMETRY_FACTORY;
 
     @InjectMocks
     private StopService stopService;
