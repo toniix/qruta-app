@@ -207,13 +207,13 @@ export function RouteDrawer() {
   const directions = selectedRoute.directions || [];
   const loading = Boolean(loadingRouteDetail);
 
-  const outbound =
-    directions.find((d) => d.direction === "OUTBOUND") || directions[0];
-  const inbound = directions.find((d) => d.direction === "INBOUND");
-  const hasVuelta = Boolean(inbound);
+  const idaDirection =
+    directions.find((d) => d.direction === "IDA") || directions[0];
+  const vueltaDirection = directions.find((d) => d.direction === "VUELTA");
+  const hasVuelta = Boolean(vueltaDirection);
 
   const activeDir =
-    activeDirection === "INBOUND" && inbound ? inbound : outbound;
+    activeDirection === "VUELTA" && vueltaDirection ? vueltaDirection : idaDirection;
 
   const stops = [...(activeDir?.stops || [])].sort(
     (a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0),
@@ -252,7 +252,7 @@ export function RouteDrawer() {
       : "Micro";
 
   const handleDirectionChange = (dir) => {
-    if (dir === "INBOUND" && !inbound) return;
+    if (dir === "VUELTA" && !vueltaDirection) return;
     setActiveDirection(dir);
     selectStop(null); // Clear selected stop when changing direction
     focusStop(null);
@@ -390,9 +390,9 @@ export function RouteDrawer() {
         <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center justify-between text-xs font-semibold">
           <button
             type="button"
-            onClick={() => handleDirectionChange("OUTBOUND")}
+            onClick={() => handleDirectionChange("IDA")}
             className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
-              activeDirection === "OUTBOUND"
+              activeDirection === "IDA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
                 : "text-slate-500 hover:text-slate-800"
             }`}
@@ -401,10 +401,10 @@ export function RouteDrawer() {
           </button>
           <button
             type="button"
-            onClick={() => handleDirectionChange("INBOUND")}
+            onClick={() => handleDirectionChange("VUELTA")}
             disabled={!hasVuelta}
             className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
-              activeDirection === "INBOUND"
+              activeDirection === "VUELTA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
                 : "text-slate-500"
             } ${!hasVuelta ? "opacity-40 cursor-not-allowed" : "hover:text-slate-800"}`}

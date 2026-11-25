@@ -558,7 +558,7 @@ function InteractiveMapComponent({
   onMapClick,
   mapCenter = [-14.0678, -75.7286],
   mapZoom = 14,
-  activeDirection = "OUTBOUND",
+  activeDirection = "IDA",
   recenterTrigger = 0,
   loadingRouteDetail = false,
   userAddress = null,
@@ -955,17 +955,17 @@ function InteractiveMapComponent({
 
                 const hasBoth =
                   selectedRoute.directions.some(
-                    (d) => d.direction === "OUTBOUND",
+                    (d) => d.direction === "IDA",
                   ) &&
                   selectedRoute.directions.some(
-                    (d) => d.direction === "INBOUND",
+                    (d) => d.direction === "VUELTA",
                   );
                 const isOutbound =
-                  dir.direction === "OUTBOUND" ||
-                  (!hasBoth && dir.direction !== "INBOUND");
+                  dir.direction === "IDA" ||
+                  (!hasBoth && dir.direction !== "VUELTA");
                 const isActive =
                   dir.direction === activeDirection ||
-                  (!hasBoth && dir.direction !== "INBOUND");
+                  (!hasBoth && dir.direction !== "VUELTA");
                 const baseColor = selectedRoute.color || DEFAULT_ROUTE_COLOR;
 
                 return (

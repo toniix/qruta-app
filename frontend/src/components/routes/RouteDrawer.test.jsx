@@ -35,7 +35,7 @@ describe('RouteDrawer Share Feature', () => {
     transportLine: { company: 'Empresa San Jerónimo' },
     directions: [
       {
-        direction: 'OUTBOUND',
+        direction: 'IDA',
         originName: 'Miraflores',
         destinationName: 'San Isidro',
         stops: [{ id: 's1', name: 'Paradero 1', stopOrder: 1 }],
@@ -54,7 +54,7 @@ describe('RouteDrawer Share Feature', () => {
       focusedStop: null,
       selectStop: vi.fn(),
       focusStop: vi.fn(),
-      activeDirection: 'OUTBOUND',
+      activeDirection: 'IDA',
       setActiveDirection: vi.fn(),
       loadingRouteDetail: false,
     });
@@ -106,7 +106,7 @@ describe('RouteDrawer Share Feature', () => {
       focusedStop: null,
       selectStop: vi.fn(),
       focusStop: vi.fn(),
-      activeDirection: 'OUTBOUND',
+      activeDirection: 'IDA',
       setActiveDirection: vi.fn(),
       loadingRouteDetail: false,
     });

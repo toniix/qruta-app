@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import {
   escapeHtml,
@@ -10,6 +10,8 @@ import { ToastProvider } from '../common/ToastContext';
 import { adminRouteService } from '../../../services/adminRouteService';
 import { adminStopService } from '../../../services/adminStopService';
 
+const mapEvents = vi.hoisted(() => ({ handlers: {} }));
+
 vi.mock('react-leaflet', () => ({
   MapContainer: ({ children }) => children,
   TileLayer: () => null,
@@ -17,6 +19,9 @@ vi.mock('react-leaflet', () => ({
   Polyline: () => null,
   Popup: ({ children }) => children,
   useMap: () => ({ fitBounds: () => {}, setView: () => {} }),
+  useMapEvents: (handlers) => {
+    mapEvents.handlers = handlers;
+  },
 }));
 
 vi.mock('../../../services/adminRouteService', () => ({
@@ -150,5 +155,125 @@ describe('RouteDirectionEditorModal service injection', () => {
     );
     expect(onSaved).toHaveBeenCalledTimes(1);
     expect(adminRouteService.updateRouteDirections).not.toHaveBeenCalled();
+  });
+});
+
+describe('RouteDirectionEditorModal geometry editor', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    mapEvents.handlers = {};
+  });
+
+  const detailWith = (routePoints, stops = [{ id: 's1', stopOrder: 1, latitude: -14.01, longitude: -75.70 }]) => ({
+    directions: [{ id: 'd1', direction: 'IDA', stops, routePoints }],
+  });
+
+  it('draws stored geometry instead of falling back to stops', async () => {
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(
+        detailWith([[-14.10, -75.80], [-14.11, -75.81]])
+      ),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+
+    renderEditor({ routeService });
+
+    await waitFor(() => expect(screen.getByText(/2 puntos de trazado/)).toBeInTheDocument());
+    expect(screen.queryByText(/fallback de paraderos/)).not.toBeInTheDocument();
+  });
+
+  it('adds a custom point when the map is clicked in edit mode', async () => {
+    const user = userEvent.setup();
+    const { routeService } = renderEditor();
+
+    await waitFor(() => expect(screen.getByRole('button', { name: /Editar trazado/i })).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Editar trazado/i }));
+    await act(async () => {
+      mapEvents.handlers.click({ latlng: { lat: -14.2, lng: -75.9 } });
+    });
+
+    expect(screen.getByText(/1 puntos de trazado/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Guardar Sentidos y Trazado/i }));
+    await waitFor(() => expect(routeService.updateRouteDirections).toHaveBeenCalledTimes(1));
+    expect(routeService.updateRouteDirections.mock.calls[0][1].directions[0].routePoints).toEqual([
+      { pointOrder: 1, latitude: -14.2, longitude: -75.9 },
+    ]);
+  });
+
+  it('initializes geometry from stops only when there are no points', async () => {
+    const user = userEvent.setup();
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(detailWith([])),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+
+    renderEditor({ routeService });
+
+    await waitFor(() => expect(screen.getByText(/fallback de paraderos/)).toBeInTheDocument());
+    const initButton = screen.getByRole('button', { name: /Inicializar desde paradas/i });
+    expect(initButton).not.toBeDisabled();
+    await user.click(initButton);
+    expect(screen.getByText(/1 puntos de trazado/)).toBeInTheDocument();
+    expect(initButton).toBeDisabled();
+  });
+
+  it('saves the edited geometry and never regenerates it from stops', async () => {
+    const user = userEvent.setup();
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(detailWith([[-14.30, -76.00]])),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+
+    renderEditor({ routeService });
+    await waitFor(() => expect(screen.getByText(/1 puntos de trazado/)).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Guardar Sentidos y Trazado/i }));
+
+    await waitFor(() => expect(routeService.updateRouteDirections).toHaveBeenCalledTimes(1));
+    expect(routeService.updateRouteDirections.mock.calls[0][1].directions[0].routePoints).toEqual([
+      { pointOrder: 1, latitude: -14.30, longitude: -76.00 },
+    ]);
+  });
+
+  it('locks a point that belongs to a stop', async () => {
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(detailWith([[-14.01, -75.70]])),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+
+    renderEditor({ routeService });
+
+    await waitFor(() => expect(screen.getByText(/1 puntos de trazado/)).toBeInTheDocument());
+    expect(screen.getByText('paradero')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Eliminar punto/i })).toBeDisabled();
+  });
+
+  it('removes the linked point when its stop is removed', async () => {
+    const user = userEvent.setup();
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(detailWith([[-14.01, -75.70]])),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+
+    renderEditor({ routeService });
+    await waitFor(() => expect(screen.getByText(/1 puntos de trazado/)).toBeInTheDocument());
+    await user.click(screen.getByRole('button', { name: /Eliminar paradero/i }));
+
+    expect(screen.getByText(/0 puntos de trazado/)).toBeInTheDocument();
+    expect(screen.getByText(/No hay paraderos agregados/i)).toBeInTheDocument();
+  });
+
+  it('keeps custom points deletable', async () => {
+    const user = userEvent.setup();
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(detailWith([[-14.55, -76.45]])),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+
+    renderEditor({ routeService });
+    await waitFor(() => expect(screen.getByText(/1 puntos de trazado/)).toBeInTheDocument());
+    const deleteButton = screen.getByRole('button', { name: /Eliminar punto/i });
+    expect(deleteButton).not.toBeDisabled();
+    await user.click(deleteButton);
+    expect(screen.getByText(/0 puntos de trazado/)).toBeInTheDocument();
   });
 });

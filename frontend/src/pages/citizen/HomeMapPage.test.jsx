@@ -61,7 +61,7 @@ const BASE_STATE = {
   onlyNearby: false,
   loading: false,
   error: null,
-  activeDirection: 'OUTBOUND',
+  activeDirection: 'IDA',
   selectRoute: vi.fn(),
   selectStop: vi.fn(),
   focusStop: vi.fn(),

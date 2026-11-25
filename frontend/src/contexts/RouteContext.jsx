@@ -32,7 +32,7 @@ export function RouteProvider({ children }) {
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
   const [focusedStop, setFocusedStop] = useState(null);
-  const [activeDirection, setActiveDirection] = useState("OUTBOUND");
+  const [activeDirection, setActiveDirection] = useState("IDA");
   const [searchedLocation, setSearchedLocation] = useState(null);
   const [nearestMatchInfo, setNearestMatchInfo] = useState(null);
   const [searchQuery, setSearchQuery] = useState("");
@@ -492,7 +492,7 @@ export function RouteProvider({ children }) {
       setSelectedStop(null);
       setFocusedStop(null);
     }
-    setActiveDirection("OUTBOUND");
+    setActiveDirection("IDA");
 
     if (hasDirections || !identifier) {
       setLoadingRouteDetail(false);
@@ -530,7 +530,7 @@ export function RouteProvider({ children }) {
     setSelectedRoute(null);
     setSelectedStop(null);
     setFocusedStop(null);
-    setActiveDirection("OUTBOUND");
+    setActiveDirection("IDA");
     setSearchedLocation(null);
     setNearestMatchInfo(null);
     setPendingNearbyAfterGps(false);
@@ -541,7 +541,7 @@ export function RouteProvider({ children }) {
   const clearSelectedRoute = useCallback(() => {
     setSelectedRoute(null);
     setFocusedStop(null);
-    setActiveDirection("OUTBOUND");
+    setActiveDirection("IDA");
     setLoadingRouteDetail(false);
   }, []);
 

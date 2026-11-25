@@ -1,8 +1,16 @@
-import { useState, useEffect, useMemo } from 'react';
-import { createPortal } from 'react-dom';
-import 'leaflet/dist/leaflet.css';
-import { MapContainer, TileLayer, Marker, Polyline, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
+import "leaflet/dist/leaflet.css";
+import {
+  MapContainer,
+  TileLayer,
+  Marker,
+  Polyline,
+  Popup,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
+import L from "leaflet";
 import {
   Route as RouteIcon,
   X,
@@ -15,26 +23,26 @@ import {
   MapPin,
   Clock,
   Compass,
-} from 'lucide-react';
-import { adminRouteService } from '../../../services/adminRouteService';
-import { adminStopService } from '../../../services/adminStopService';
-import { StopQuickCreateModal } from './StopQuickCreateModal';
-import { useAdminToast } from '../../../hooks/useAdminToast';
+} from "lucide-react";
+import { adminRouteService } from "../../../services/adminRouteService";
+import { adminStopService } from "../../../services/adminStopService";
+import { StopQuickCreateModal } from "./StopQuickCreateModal";
+import { useAdminToast } from "../../../hooks/useAdminToast";
 
 const DEFAULT_CENTER = [-14.0678, -75.7286]; // Ica
 
 export const escapeHtml = (value) =>
-  String(value ?? '')
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
+  String(value ?? "")
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
 
 export function createNumberedStopIcon(order, name) {
   const safeName = escapeHtml(name);
   return L.divIcon({
-    className: '!bg-transparent !border-none',
+    className: "!bg-transparent !border-none",
     html: `
       <div class="flex flex-col items-center -translate-x-1/2 -translate-y-1/2 group pointer-events-auto">
         <div class="flex h-7 w-7 items-center justify-center rounded-full bg-blue-600 text-white font-extrabold text-[11px] shadow-md border-2 border-white ring-2 ring-blue-500/20">
@@ -48,6 +56,73 @@ export function createNumberedStopIcon(order, name) {
     iconSize: [30, 40],
     iconAnchor: [0, 0],
   });
+}
+
+const COORD_EPSILON = 1e-6;
+
+/**
+ * Links a stored point to the stop it was generated from. The API stores plain
+ * coordinates, so the link is reconstructed by matching coordinates when the
+ * editor loads. Custom points placed by hand do not match any stop.
+ */
+export function findStopIdForPoint(point, stops) {
+  const latitude = Array.isArray(point) ? point[0] : point?.latitude;
+  const longitude = Array.isArray(point) ? point[1] : point?.longitude;
+  if (latitude == null || longitude == null) return null;
+
+  const match = (stops || []).find(
+    (stop) =>
+      stop.latitude != null &&
+      stop.longitude != null &&
+      Math.abs(Number(stop.latitude) - Number(latitude)) < COORD_EPSILON &&
+      Math.abs(Number(stop.longitude) - Number(longitude)) < COORD_EPSILON
+  );
+  return match?.stopId ?? null;
+}
+
+/**
+ * Keeps a stop-derived geometry consistent when a new stop is added: if the
+ * direction already has points linked to stops, the new stop gets its point.
+ * Freely traced geometries are left untouched.
+ */
+export function appendPointForStop(routePoints, stop) {
+  const points = routePoints || [];
+  if (!points.some((point) => point.stopId)) return points;
+  if (stop.latitude == null || stop.longitude == null) return points;
+  return [
+    ...points,
+    {
+      pointOrder: points.length + 1,
+      latitude: Number(stop.latitude),
+      longitude: Number(stop.longitude),
+      stopId: stop.stopId,
+    },
+  ];
+}
+
+export function createGeometryPointIcon(order) {
+  return L.divIcon({
+    className: "!bg-transparent !border-none",
+    html: `
+      <div class="flex items-center justify-center -translate-x-1/2 -translate-y-1/2">
+        <div class="flex h-6 w-6 items-center justify-center rounded-full bg-emerald-600 text-white font-extrabold text-[10px] shadow-md border-2 border-white ring-2 ring-emerald-500/20">
+          ${order}
+        </div>
+      </div>
+    `,
+    iconSize: [26, 26],
+    iconAnchor: [0, 0],
+  });
+}
+
+function MapClickHandler({ enabled, onClick }) {
+  useMapEvents({
+    click(event) {
+      if (!enabled) return;
+      onClick({ latitude: event.latlng.lat, longitude: event.latlng.lng });
+    },
+  });
+  return null;
 }
 
 function MapBoundsController({ points }) {
@@ -68,7 +143,7 @@ export function RouteDirectionEditorModal({
   onClose,
   route,
   cities = [],
-  cityId = '',
+  cityId = "",
   onSaved,
   routeService = adminRouteService,
   stopService = adminStopService,
@@ -85,9 +160,10 @@ export function RouteDirectionEditorModal({
   // Directions state: array of { id, direction, originName, destinationName, totalDistanceKm, estimatedMinutes, stops: [{ stopId, stopOrder, stopName, lat, lng, distanceFromStart }] }
   const [directions, setDirections] = useState([]);
   const [activeDirIndex, setActiveDirIndex] = useState(0);
+  const [editingGeometry, setEditingGeometry] = useState(false);
 
   // Selected stop to add
-  const [selectedStopToAdd, setSelectedStopToAdd] = useState('');
+  const [selectedStopToAdd, setSelectedStopToAdd] = useState("");
 
   // Load route detail with directions and all system stops
   useEffect(() => {
@@ -110,22 +186,25 @@ export function RouteDirectionEditorModal({
         if (routeDetail.directions && routeDetail.directions.length > 0) {
           const parsedDirs = routeDetail.directions.map((d) => {
             const mappedStops = (d.stops || []).map((s, idx) => {
-              const fullStop = stopLookup.get(s.id) || stopLookup.get(s.stopId) || {};
+              const fullStop =
+                stopLookup.get(s.id) || stopLookup.get(s.stopId) || {};
               return {
                 stopId: s.id || s.stopId || fullStop.id,
                 stopOrder: s.stopOrder ?? idx + 1,
                 name: fullStop.name || s.name || `Paradero #${idx + 1}`,
-                latitude: fullStop.latitude ?? s.location?.latitude ?? s.latitude,
-                longitude: fullStop.longitude ?? s.location?.longitude ?? s.longitude,
+                latitude:
+                  fullStop.latitude ?? s.location?.latitude ?? s.latitude,
+                longitude:
+                  fullStop.longitude ?? s.location?.longitude ?? s.longitude,
                 distanceFromStart: s.distanceFromStart ?? 0,
               };
             });
 
             return {
               id: d.id,
-              direction: d.direction || 'IDA',
-              originName: d.originName || '',
-              destinationName: d.destinationName || '',
+              direction: d.direction || "IDA",
+              originName: d.originName || "",
+              destinationName: d.destinationName || "",
               totalDistanceKm: d.totalDistanceKm || 0,
               estimatedMinutes: d.estimatedMinutes || 30,
               stops: mappedStops,
@@ -133,6 +212,7 @@ export function RouteDirectionEditorModal({
                 pointOrder: idx + 1,
                 latitude: Array.isArray(p) ? p[0] : p.latitude,
                 longitude: Array.isArray(p) ? p[1] : p.longitude,
+                stopId: findStopIdForPoint(p, mappedStops),
               })),
             };
           });
@@ -140,12 +220,12 @@ export function RouteDirectionEditorModal({
           setDirections(parsedDirs);
           setActiveDirIndex(0);
         } else {
-          // Default empty Inbound (IDA) direction
+          // Default empty IDA direction
           setDirections([
             {
-              direction: 'IDA',
-              originName: 'Origen Principal',
-              destinationName: 'Destino Final',
+              direction: "IDA",
+              originName: "Origen Principal",
+              destinationName: "Destino Final",
               totalDistanceKm: 10,
               estimatedMinutes: 30,
               stops: [],
@@ -155,8 +235,8 @@ export function RouteDirectionEditorModal({
           setActiveDirIndex(0);
         }
       } catch (err) {
-        console.error('Error cargando direcciones de ruta:', err);
-        toast.error('No se pudieron cargar los datos de las direcciones.');
+        console.error("Error cargando direcciones de ruta:", err);
+        toast.error("No se pudieron cargar los datos de las direcciones.");
       } finally {
         if (isMounted) setLoading(false);
       }
@@ -171,7 +251,7 @@ export function RouteDirectionEditorModal({
 
   const routeCity = useMemo(
     () => cities.find((c) => String(c.id) === String(cityId)),
-    [cities, cityId]
+    [cities, cityId],
   );
 
   // Stops scoped to the route's city. Stops without cityId (legacy data)
@@ -179,23 +259,23 @@ export function RouteDirectionEditorModal({
   const cityStops = useMemo(() => {
     if (!cityId) return allStops;
     return allStops.filter(
-      (s) => !s.cityId || String(s.cityId) === String(cityId)
+      (s) => !s.cityId || String(s.cityId) === String(cityId),
     );
   }, [allStops, cityId]);
 
   const updateActiveDirection = (patch) => {
     setDirections((prev) =>
-      prev.map((d, idx) => (idx === activeDirIndex ? { ...d, ...patch } : d))
+      prev.map((d, idx) => (idx === activeDirIndex ? { ...d, ...patch } : d)),
     );
   };
 
   const handleAddDirection = () => {
-    const isFirstIda = directions.some((d) => d.direction === 'IDA');
-    const newDirType = isFirstIda ? 'VUELTA' : 'IDA';
+    const isFirstIda = directions.some((d) => d.direction === "IDA");
+    const newDirType = isFirstIda ? "VUELTA" : "IDA";
     const newDir = {
       direction: newDirType,
-      originName: activeDirection?.destinationName || 'Origen',
-      destinationName: activeDirection?.originName || 'Destino',
+      originName: activeDirection?.destinationName || "Origen",
+      destinationName: activeDirection?.originName || "Destino",
       totalDistanceKm: activeDirection?.totalDistanceKm || 10,
       estimatedMinutes: activeDirection?.estimatedMinutes || 30,
       stops: [],
@@ -207,7 +287,7 @@ export function RouteDirectionEditorModal({
 
   const handleRemoveDirection = (indexToRemove) => {
     if (directions.length <= 1) {
-      toast.warning('Debe existir al menos un sentido para la ruta.');
+      toast.warning("Debe existir al menos un sentido para la ruta.");
       return;
     }
     setDirections((prev) => prev.filter((_, idx) => idx !== indexToRemove));
@@ -230,26 +310,26 @@ export function RouteDirectionEditorModal({
 
     updateActiveDirection({
       stops: [...(activeDirection.stops || []), newStop],
+      routePoints: appendPointForStop(activeDirection.routePoints, newStop),
     });
-    setSelectedStopToAdd('');
+    setSelectedStopToAdd("");
   };
 
   const handleQuickStopCreated = (created) => {
     setAllStops((prev) => [...prev, created]);
     // Add it straight into the active direction sequence.
     if (activeDirection) {
+      const newStop = {
+        stopId: created.id,
+        stopOrder: (activeDirection.stops || []).length + 1,
+        name: created.name,
+        latitude: created.latitude,
+        longitude: created.longitude,
+        distanceFromStart: 0,
+      };
       updateActiveDirection({
-        stops: [
-          ...(activeDirection.stops || []),
-          {
-            stopId: created.id,
-            stopOrder: (activeDirection.stops || []).length + 1,
-            name: created.name,
-            latitude: created.latitude,
-            longitude: created.longitude,
-            distanceFromStart: 0,
-          },
-        ],
+        stops: [...(activeDirection.stops || []), newStop],
+        routePoints: appendPointForStop(activeDirection.routePoints, newStop),
       });
     }
   };
@@ -257,7 +337,7 @@ export function RouteDirectionEditorModal({
   const handleMoveStop = (index, direction) => {
     if (!activeDirection) return;
     const stopsList = [...activeDirection.stops];
-    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    const targetIndex = direction === "up" ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= stopsList.length) return;
 
     const [moved] = stopsList.splice(index, 1);
@@ -274,17 +354,100 @@ export function RouteDirectionEditorModal({
 
   const handleRemoveStop = (index) => {
     if (!activeDirection) return;
+    const removedStopId = activeDirection.stops[index]?.stopId;
     const stopsList = activeDirection.stops.filter((_, idx) => idx !== index);
     const reordered = stopsList.map((s, idx) => ({
       ...s,
       stopOrder: idx + 1,
     }));
-    updateActiveDirection({ stops: reordered });
+
+    // A point generated from a stop belongs to that stop: removing the stop
+    // removes its point too. Custom points are never touched.
+    const remainingPoints = (activeDirection.routePoints || [])
+      .filter((point) => !removedStopId || !point.stopId || point.stopId !== removedStopId)
+      .map((point, idx) => ({ ...point, pointOrder: idx + 1 }));
+
+    updateActiveDirection({ stops: reordered, routePoints: remainingPoints });
+  };
+
+  // ── Custom geometry (street-by-street tracing) ───────────────────────────
+  const handleAddPoint = ({ latitude, longitude }) => {
+    if (!activeDirection) return;
+    const points = activeDirection.routePoints || [];
+    updateActiveDirection({
+      routePoints: [
+        ...points,
+        { pointOrder: points.length + 1, latitude, longitude },
+      ],
+    });
+  };
+
+  const handleMovePoint = (index, move) => {
+    if (!activeDirection) return;
+    const points = [...(activeDirection.routePoints || [])];
+    const target = move === "up" ? index - 1 : index + 1;
+    if (target < 0 || target >= points.length) return;
+    const [moved] = points.splice(index, 1);
+    points.splice(target, 0, moved);
+    updateActiveDirection({
+      routePoints: points.map((point, idx) => ({
+        ...point,
+        pointOrder: idx + 1,
+      })),
+    });
+  };
+
+  const handleRemovePoint = (index) => {
+    if (!activeDirection) return;
+    if (activeDirection.routePoints?.[index]?.stopId) {
+      toast.warning("Este punto pertenece a un paradero. Eliminá el paradero para quitarlo.");
+      return;
+    }
+    const points = (activeDirection.routePoints || []).filter(
+      (_, idx) => idx !== index,
+    );
+    updateActiveDirection({
+      routePoints: points.map((point, idx) => ({
+        ...point,
+        pointOrder: idx + 1,
+      })),
+    });
+  };
+
+  const handleDragPoint = (index, event) => {
+    if (!activeDirection) return;
+    const latlng = event.target.getLatLng();
+    updateActiveDirection({
+      routePoints: (activeDirection.routePoints || []).map((point, idx) =>
+        idx === index
+          ? { ...point, latitude: latlng.lat, longitude: latlng.lng }
+          : point,
+      ),
+    });
+  };
+
+  const handleInitializeFromStops = () => {
+    if (!activeDirection || (activeDirection.routePoints || []).length > 0)
+      return;
+    const points = (activeDirection.stops || [])
+      .filter((stop) => stop.latitude != null && stop.longitude != null)
+      .map((stop, idx) => ({
+        pointOrder: idx + 1,
+        latitude: Number(stop.latitude),
+        longitude: Number(stop.longitude),
+        stopId: stop.stopId,
+      }));
+    if (points.length === 0) {
+      toast.warning("Los paraderos de este sentido no tienen coordenadas.");
+      return;
+    }
+    updateActiveDirection({ routePoints: points });
+    toast.success("Trazado inicial generado desde los paraderos.");
   };
 
   const handleSave = async () => {
     if (directions.length === 0) {
-      toast.warning('Debes configurar al menos una dirección.');
+      toast.warning("Debes configurar al menos una dirección.");
       return;
     }
 
@@ -293,9 +456,9 @@ export function RouteDirectionEditorModal({
       const payload = {
         directions: directions.map((d) => ({
           id: d.id,
-          direction: d.direction || 'IDA',
-          originName: d.originName?.trim() || 'Origen',
-          destinationName: d.destinationName?.trim() || 'Destino',
+          direction: d.direction || "IDA",
+          originName: d.originName?.trim() || "Origen",
+          destinationName: d.destinationName?.trim() || "Destino",
           totalDistanceKm: Number(d.totalDistanceKm) || 1.0,
           estimatedMinutes: Number(d.estimatedMinutes) || 15,
           stops: (d.stops || []).map((s, idx) => ({
@@ -303,35 +466,45 @@ export function RouteDirectionEditorModal({
             stopOrder: idx + 1,
             distanceFromStart: Number(s.distanceFromStart) || 0.0,
           })),
-          routePoints: (d.stops || [])
-            .filter((s) => s.latitude != null && s.longitude != null)
-            .map((s, idx) => ({
-              pointOrder: idx + 1,
-              latitude: Number(s.latitude),
-              longitude: Number(s.longitude),
-            })),
+          // Authoritative geometry: never regenerate it from the stops list.
+          routePoints: (d.routePoints || []).map((point, idx) => ({
+            pointOrder: idx + 1,
+            latitude: Number(point.latitude),
+            longitude: Number(point.longitude),
+          })),
         })),
       };
 
+      console.log("Saving route directions payload:", payload);
       await routeService.updateRouteDirections(route.id, payload);
-      toast.success('Sentidos y paraderos de la ruta guardados con éxito.');
+      toast.success("Sentidos y paraderos de la ruta guardados con éxito.");
       onSaved?.();
       onClose();
     } catch (err) {
-      console.error('Error guardando direcciones:', err);
-      toast.error(err.response?.data?.message || 'Error al guardar los sentidos de la ruta.');
+      console.error("Error guardando direcciones:", err);
+      toast.error(
+        err.response?.data?.message ||
+          "Error al guardar los sentidos de la ruta.",
+      );
     } finally {
       setSaving(false);
     }
   };
 
-  // Derive points for polyline preview from stops sequence
+  // Stored geometry is authoritative; stops are only a fallback when empty.
   const activePolylinePoints = useMemo(() => {
-    if (!activeDirection?.stops) return [];
-    return activeDirection.stops
+    const points = activeDirection?.routePoints || [];
+    if (points.length > 0) {
+      return points
+        .filter((p) => p.latitude != null && p.longitude != null)
+        .map((p) => [Number(p.latitude), Number(p.longitude)]);
+    }
+    return (activeDirection?.stops || [])
       .filter((s) => s.latitude != null && s.longitude != null)
       .map((s) => [Number(s.latitude), Number(s.longitude)]);
   }, [activeDirection]);
+
+  const usingStopFallback = (activeDirection?.routePoints || []).length === 0;
 
   if (!open) return null;
 
@@ -359,15 +532,19 @@ export function RouteDirectionEditorModal({
             </span>
             <div>
               <div className="flex items-center gap-2">
-                <h2 id="route-dir-title" className="text-base font-bold text-slate-900">
+                <h2
+                  id="route-dir-title"
+                  className="text-base font-bold text-slate-900"
+                >
                   Gestor de Sentidos y Paraderos
                 </h2>
                 <span className="rounded-md bg-blue-100 px-2 py-0.5 text-xs font-bold text-blue-700">
-                  {route?.code || 'Ruta'}
+                  {route?.code || "Ruta"}
                 </span>
               </div>
               <p className="text-xs text-slate-500">
-                {route?.name} — Configura el trayecto de ida/vuelta y la secuencia de paraderos
+                {route?.name} — Configura el trayecto de ida/vuelta y la
+                secuencia de paraderos
               </p>
             </div>
           </div>
@@ -395,21 +572,23 @@ export function RouteDirectionEditorModal({
                     onClick={() => setActiveDirIndex(index)}
                     className={`flex items-center gap-2 rounded-xl px-3.5 py-1.5 text-xs font-bold transition-all ${
                       isActive
-                        ? 'bg-blue-600 text-white shadow-xs'
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? "bg-blue-600 text-white shadow-xs"
+                        : "bg-slate-100 text-slate-600 hover:bg-slate-200"
                     }`}
                   >
                     <Compass className="h-3.5 w-3.5" />
                     <span>
-                      {d.direction === 'IDA'
-                        ? 'Sentido Ida'
-                        : d.direction === 'VUELTA'
-                        ? 'Sentido Vuelta'
-                        : d.direction}
+                      {d.direction === "IDA"
+                        ? "Sentido Ida"
+                        : d.direction === "VUELTA"
+                          ? "Sentido Vuelta"
+                          : d.direction}
                     </span>
                     <span
                       className={`rounded-full px-1.5 py-0.2 text-[10px] ${
-                        isActive ? 'bg-white/20 text-white' : 'bg-slate-200 text-slate-600'
+                        isActive
+                          ? "bg-white/20 text-white"
+                          : "bg-slate-200 text-slate-600"
                       }`}
                     >
                       {d.stops?.length || 0}
@@ -466,8 +645,10 @@ export function RouteDirectionEditorModal({
                       </label>
                       <input
                         type="text"
-                        value={activeDirection.originName || ''}
-                        onChange={(e) => updateActiveDirection({ originName: e.target.value })}
+                        value={activeDirection.originName || ""}
+                        onChange={(e) =>
+                          updateActiveDirection({ originName: e.target.value })
+                        }
                         placeholder="Ej. Terminal Norte"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
@@ -479,8 +660,12 @@ export function RouteDirectionEditorModal({
                       </label>
                       <input
                         type="text"
-                        value={activeDirection.destinationName || ''}
-                        onChange={(e) => updateActiveDirection({ destinationName: e.target.value })}
+                        value={activeDirection.destinationName || ""}
+                        onChange={(e) =>
+                          updateActiveDirection({
+                            destinationName: e.target.value,
+                          })
+                        }
                         placeholder="Ej. Plaza de Armas"
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
@@ -495,9 +680,11 @@ export function RouteDirectionEditorModal({
                         <input
                           type="number"
                           min="1"
-                          value={activeDirection.estimatedMinutes || ''}
+                          value={activeDirection.estimatedMinutes || ""}
                           onChange={(e) =>
-                            updateActiveDirection({ estimatedMinutes: Number(e.target.value) })
+                            updateActiveDirection({
+                              estimatedMinutes: Number(e.target.value),
+                            })
                           }
                           className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
                         />
@@ -512,9 +699,11 @@ export function RouteDirectionEditorModal({
                         type="number"
                         step="0.1"
                         min="0"
-                        value={activeDirection.totalDistanceKm || ''}
+                        value={activeDirection.totalDistanceKm || ""}
                         onChange={(e) =>
-                          updateActiveDirection({ totalDistanceKm: Number(e.target.value) })
+                          updateActiveDirection({
+                            totalDistanceKm: Number(e.target.value),
+                          })
                         }
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
                       />
@@ -526,7 +715,8 @@ export function RouteDirectionEditorModal({
                 <div className="rounded-xl border border-slate-200 bg-white p-3.5 shadow-card space-y-2">
                   <div className="flex items-center justify-between gap-2">
                     <h4 className="text-xs font-bold text-slate-900">
-                      Secuencia de Paraderos ({activeDirection.stops?.length || 0})
+                      Secuencia de Paraderos (
+                      {activeDirection.stops?.length || 0})
                     </h4>
                     {routeCity && (
                       <span className="inline-flex items-center gap-1 rounded-md bg-slate-100 px-2 py-0.5 text-[10px] font-bold text-slate-600">
@@ -544,12 +734,13 @@ export function RouteDirectionEditorModal({
                     >
                       <option value="">
                         {cityStops.length === 0
-                          ? 'No hay paraderos en esta ciudad...'
-                          : 'Seleccionar un paradero del sistema...'}
+                          ? "No hay paraderos en esta ciudad..."
+                          : "Seleccionar un paradero del sistema..."}
                       </option>
                       {cityStops.map((stop) => (
                         <option key={stop.id} value={stop.id}>
-                          {stop.name} {stop.reference ? `(${stop.reference})` : ''}
+                          {stop.name}{" "}
+                          {stop.reference ? `(${stop.reference})` : ""}
                         </option>
                       ))}
                     </select>
@@ -572,27 +763,140 @@ export function RouteDirectionEditorModal({
                       disabled={!cityId}
                       title={
                         cityId
-                          ? 'Crear un paradero nuevo en esta ciudad sin salir del editor'
-                          : 'La ciudad de la ruta no está disponible'
+                          ? "Crear un paradero nuevo en esta ciudad sin salir del editor"
+                          : "La ciudad de la ruta no está disponible"
                       }
                       className="inline-flex w-full items-center justify-center gap-1.5 rounded-xl border border-dashed border-slate-300 px-3 py-2 text-xs font-semibold text-slate-600 transition hover:border-blue-500 hover:text-blue-600 disabled:opacity-40"
                     >
                       <Plus className="h-3.5 w-3.5" />
                       <span>
                         {cityStops.length === 0
-                          ? 'Crear el primer paradero de esta ciudad'
-                          : 'Nuevo paradero en esta ciudad'}
+                          ? "Crear el primer paradero de esta ciudad"
+                          : "Nuevo paradero en esta ciudad"}
                       </span>
                     </button>
                   )}
                 </div>
 
+                {/* Geometry editor: street-by-street tracing */}
+                <div className="rounded-xl border border-emerald-200 bg-emerald-50/50 p-3.5 space-y-2">
+                  <div className="flex items-center justify-between gap-2">
+                    <h4 className="text-xs font-bold text-emerald-900">
+                      Trazado del recorrido (
+                      {(activeDirection.routePoints || []).length} puntos)
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={() => setEditingGeometry((prev) => !prev)}
+                      aria-pressed={editingGeometry}
+                      className={`rounded-lg px-2.5 py-1 text-[11px] font-bold transition ${
+                        editingGeometry
+                          ? "bg-emerald-600 text-white"
+                          : "bg-white text-emerald-700 border border-emerald-300 hover:bg-emerald-100"
+                      }`}
+                    >
+                      {editingGeometry ? "Edición activa" : "Editar trazado"}
+                    </button>
+                  </div>
+
+                  {usingStopFallback && (
+                    <p className="text-[10px] text-slate-500">
+                      El trazado actual son líneas rectas entre paraderos.
+                      Agregá puntos en el mapa para seguir las calles.
+                    </p>
+                  )}
+
+                  <div className="flex flex-wrap gap-1.5">
+                    <button
+                      type="button"
+                      onClick={handleInitializeFromStops}
+                      disabled={(activeDirection.routePoints || []).length > 0}
+                      className="rounded-lg border border-emerald-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 hover:bg-emerald-100 disabled:opacity-40"
+                    >
+                      Inicializar desde paradas
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setEditingGeometry(false)}
+                      disabled={!editingGeometry}
+                      className="rounded-lg border border-slate-300 bg-white px-2.5 py-1 text-[11px] font-semibold text-slate-600 hover:bg-slate-100 disabled:opacity-40"
+                    >
+                      Dejar de agregar puntos
+                    </button>
+                  </div>
+
+                  {(activeDirection.routePoints || []).length > 0 && (
+                    <div className="space-y-1 max-h-32 overflow-y-auto">
+                      {activeDirection.routePoints.map((point, index) => (
+                        <div
+                          key={`geometry-${index}`}
+                          className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 bg-white px-2 py-1"
+                        >
+                          <span className="flex min-w-0 items-center gap-1">
+                            <span className="text-[10px] font-mono text-slate-600">
+                              #{point.pointOrder} ·{" "}
+                              {Number(point.latitude).toFixed(5)},{" "}
+                              {Number(point.longitude).toFixed(5)}
+                            </span>
+                            {point.stopId && (
+                              <span
+                                title="Punto vinculado a un paradero: se elimina junto al paradero"
+                                className="shrink-0 rounded bg-blue-50 px-1 py-0.5 text-[9px] font-bold text-blue-600"
+                              >
+                                paradero
+                              </span>
+                            )}
+                          </span>
+                          <div className="flex items-center gap-0.5">
+                            <button
+                              type="button"
+                              onClick={() => handleMovePoint(index, "up")}
+                              disabled={index === 0}
+                              aria-label="Subir punto"
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-20"
+                            >
+                              <ArrowUp className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleMovePoint(index, "down")}
+                              disabled={
+                                index === activeDirection.routePoints.length - 1
+                              }
+                              aria-label="Bajar punto"
+                              className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-20"
+                            >
+                              <ArrowDown className="h-3 w-3" />
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleRemovePoint(index)}
+                              disabled={Boolean(point.stopId)}
+                              title={
+                                point.stopId
+                                  ? "Este punto pertenece a un paradero: eliminá el paradero para quitarlo"
+                                  : "Eliminar punto del trazado"
+                              }
+                              aria-label="Eliminar punto"
+                              className="rounded p-1 text-slate-400 hover:bg-rose-50 hover:text-rose-600 disabled:cursor-not-allowed disabled:opacity-20 disabled:hover:bg-transparent"
+                            >
+                              <Trash2 className="h-3 w-3" />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
                 {/* Stops Sequencer List */}
                 <div className="space-y-1.5 min-h-[160px]">
-                  {(!activeDirection.stops || activeDirection.stops.length === 0) ? (
+                  {!activeDirection.stops ||
+                  activeDirection.stops.length === 0 ? (
                     <div className="rounded-xl border border-dashed border-slate-200 p-8 text-center text-xs text-slate-400">
                       <MapPin className="mx-auto h-6 w-6 text-slate-300 mb-1.5" />
-                      No hay paraderos agregados a este sentido. Selecciona uno en el menú superior para comenzar.
+                      No hay paraderos agregados a este sentido. Selecciona uno
+                      en el menú superior para comenzar.
                     </div>
                   ) : (
                     activeDirection.stops.map((stopItem, index) => {
@@ -613,8 +917,8 @@ export function RouteDirectionEditorModal({
                                 {stopItem.name}
                               </p>
                               <p className="text-[10px] text-slate-400 truncate">
-                                Lat: {Number(stopItem.latitude).toFixed(4)}, Lng:{' '}
-                                {Number(stopItem.longitude).toFixed(4)}
+                                Lat: {Number(stopItem.latitude).toFixed(4)},
+                                Lng: {Number(stopItem.longitude).toFixed(4)}
                               </p>
                             </div>
                           </div>
@@ -622,7 +926,7 @@ export function RouteDirectionEditorModal({
                           <div className="flex items-center gap-1 shrink-0">
                             <button
                               type="button"
-                              onClick={() => handleMoveStop(index, 'up')}
+                              onClick={() => handleMoveStop(index, "up")}
                               disabled={isFirst}
                               aria-label="Subir paradero"
                               className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-20"
@@ -631,7 +935,7 @@ export function RouteDirectionEditorModal({
                             </button>
                             <button
                               type="button"
-                              onClick={() => handleMoveStop(index, 'down')}
+                              onClick={() => handleMoveStop(index, "down")}
                               disabled={isLast}
                               aria-label="Bajar paradero"
                               className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-700 disabled:opacity-20"
@@ -670,24 +974,58 @@ export function RouteDirectionEditorModal({
                 maxZoom={19}
               />
               <MapBoundsController points={activePolylinePoints} />
+              <MapClickHandler
+                enabled={editingGeometry}
+                onClick={handleAddPoint}
+              />
 
-              {/* Connected stops polyline */}
+              {/* Connected geometry polyline */}
               {activePolylinePoints.length > 1 && (
                 <Polyline
                   positions={activePolylinePoints}
                   pathOptions={{
-                    color: route?.color || '#2563eb',
+                    color: route?.color || "#2563eb",
                     weight: 5,
                     opacity: 0.85,
-                    lineCap: 'round',
-                    lineJoin: 'round',
+                    lineCap: "round",
+                    lineJoin: "round",
                   }}
                 />
               )}
 
+              {/* Custom geometry markers */}
+              {(activeDirection?.routePoints || []).map((point, pIdx) => {
+                if (point.latitude == null || point.longitude == null)
+                  return null;
+                return (
+                  <Marker
+                    key={`geometry-${pIdx}`}
+                    position={[Number(point.latitude), Number(point.longitude)]}
+                    icon={createGeometryPointIcon(point.pointOrder ?? pIdx + 1)}
+                    draggable={editingGeometry}
+                    eventHandlers={{
+                      dragend: (event) => handleDragPoint(pIdx, event),
+                    }}
+                  >
+                    <Popup>
+                      <div className="text-xs">
+                        <strong className="block text-slate-900 font-bold">
+                          Punto #{point.pointOrder ?? pIdx + 1}
+                        </strong>
+                        <span className="text-slate-500 font-mono">
+                          {Number(point.latitude).toFixed(5)},{" "}
+                          {Number(point.longitude).toFixed(5)}
+                        </span>
+                      </div>
+                    </Popup>
+                  </Marker>
+                );
+              })}
+
               {/* Stop Markers */}
               {(activeDirection?.stops || []).map((stop, sIdx) => {
-                if (stop.latitude == null || stop.longitude == null) return null;
+                if (stop.latitude == null || stop.longitude == null)
+                  return null;
                 const icon = createNumberedStopIcon(sIdx + 1, stop.name);
                 return (
                   <Marker
@@ -701,7 +1039,8 @@ export function RouteDirectionEditorModal({
                           #{sIdx + 1} {stop.name}
                         </strong>
                         <span className="text-slate-500 font-mono">
-                          {Number(stop.latitude).toFixed(5)}, {Number(stop.longitude).toFixed(5)}
+                          {Number(stop.latitude).toFixed(5)},{" "}
+                          {Number(stop.longitude).toFixed(5)}
                         </span>
                       </div>
                     </Popup>
@@ -712,7 +1051,11 @@ export function RouteDirectionEditorModal({
 
             {/* Map Info Badge */}
             <div className="absolute top-3 right-3 z-[1000] rounded-xl bg-white/95 px-3 py-1.5 shadow-md border border-slate-200 text-xs font-semibold text-slate-700 backdrop-blur-md">
-              <span>{activePolylinePoints.length} paraderos en trazado</span>
+              <span>
+                {(activeDirection?.routePoints || []).length} puntos de trazado
+                {usingStopFallback ? " · (fallback de paraderos)" : ""}
+                {editingGeometry ? " · clic para agregar" : ""}
+              </span>
             </div>
           </div>
         </div>
@@ -720,7 +1063,8 @@ export function RouteDirectionEditorModal({
         {/* Footer */}
         <div className="flex items-center justify-between border-t border-slate-200/80 bg-slate-50/70 px-6 py-4">
           <p className="text-xs text-slate-500">
-            Los cambios en el orden y paraderos se guardarán directamente en el servidor.
+            Los cambios en paraderos y en el trazado se guardan directamente en
+            el servidor.
           </p>
 
           <div className="flex items-center gap-2.5">
@@ -762,6 +1106,6 @@ export function RouteDirectionEditorModal({
         />
       )}
     </div>,
-    document.body
+    document.body,
   );
 }

@@ -55,7 +55,7 @@ export function normalizeRouteDirection(raw) {
 
   return {
     id: raw.id,
-    direction: raw.direction || "OUTBOUND",
+    direction: raw.direction || "IDA",
     originName: raw.originName || stops[0]?.name || "Origen",
     destinationName: raw.destinationName || stops[stops.length - 1]?.name || "Destino",
     totalDistanceKm: raw.totalDistanceKm != null ? Number(raw.totalDistanceKm) : null,

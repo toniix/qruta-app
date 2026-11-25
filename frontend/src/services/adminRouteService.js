@@ -1,8 +1,8 @@
-import { apiClient } from './apiClient';
+import { apiClient } from "./apiClient";
 
 export const adminRouteService = {
   async getAllRoutes() {
-    const response = await apiClient.get('/admin/routes');
+    const response = await apiClient.get("/admin/routes");
     return response.data;
   },
 
@@ -12,7 +12,7 @@ export const adminRouteService = {
   },
 
   async createRoute(data) {
-    const response = await apiClient.post('/admin/routes', data);
+    const response = await apiClient.post("/admin/routes", data);
     return response.data;
   },
 
@@ -22,7 +22,12 @@ export const adminRouteService = {
   },
 
   async updateRouteDirections(id, data) {
-    const response = await apiClient.put(`/admin/routes/${id}/directions`, data);
+    console.log("Updating route directions:", id, data);
+    const response = await apiClient.put(
+      `/admin/routes/${id}/directions`,
+      data,
+    );
+    console.log("Response from updateRouteDirections:", response.data);
     return response.data;
   },
 
