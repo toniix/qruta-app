@@ -107,8 +107,12 @@ export function normalizeRoute(raw) {
     status: raw.status || "ACTIVE",
     schedule: typeof raw.schedule === "string" ? raw.schedule : raw.schedule?.hours || "",
     frequency: typeof raw.frequency === "string" ? raw.frequency : raw.schedule?.frequency || "",
-    transportLineId: raw.transportLineId || null,
-    transportLineName: raw.transportLineName || raw.transportLine?.company || "",
+    transportLineId: raw.transportLineId || raw.transportLine?.id || null,
+    transportLineName:
+      raw.transportLineName ||
+      raw.transportLine?.name ||
+      raw.transportLine?.company ||
+      "",
     cityId: raw.cityId || null,
     cityName: raw.cityName || "",
     keyStops,

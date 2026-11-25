@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { createPortal } from "react-dom";
 import "leaflet/dist/leaflet.css";
 import {
@@ -28,8 +28,14 @@ import { adminRouteService } from "../../../services/adminRouteService";
 import { adminStopService } from "../../../services/adminStopService";
 import { StopQuickCreateModal } from "./StopQuickCreateModal";
 import { useAdminToast } from "../../../hooks/useAdminToast";
+import { updateRouteDirectionsSchema, validateWith } from "../../../schemas";
 
 const DEFAULT_CENTER = [-14.0678, -75.7286]; // Ica
+
+const formatCoord = (value, decimals = 5) =>
+  value != null && Number.isFinite(Number(value))
+    ? Number(value).toFixed(decimals)
+    : "—";
 
 export const escapeHtml = (value) =>
   String(value ?? "")
@@ -125,16 +131,23 @@ function MapClickHandler({ enabled, onClick }) {
   return null;
 }
 
-function MapBoundsController({ points }) {
+function MapBoundsController({ points, fitKey }) {
   const map = useMap();
+  const lastFittedKeyRef = useRef(null);
+
   useEffect(() => {
-    if (points && points.length > 1) {
+    if (!points || points.length === 0) return;
+    if (lastFittedKeyRef.current === fitKey) return;
+    lastFittedKeyRef.current = fitKey;
+
+    if (points.length > 1) {
       const bounds = L.latLngBounds(points);
       map.fitBounds(bounds, { padding: [50, 50], maxZoom: 16 });
-    } else if (points && points.length === 1) {
+    } else {
       map.setView(points[0], 15);
     }
-  }, [points, map]);
+  }, [points, fitKey, map]);
+
   return null;
 }
 
@@ -167,9 +180,23 @@ export function RouteDirectionEditorModal({
 
   // Load route detail with directions and all system stops
   useEffect(() => {
-    if (!open || !route?.id) return;
+    if (!open) {
+      setEditingGeometry(false);
+      setSelectedStopToAdd("");
+      setQuickCreateOpen(false);
+      setDirections([]);
+      setActiveDirIndex(0);
+      return;
+    }
+    if (!route?.id) return;
 
     let isMounted = true;
+    setEditingGeometry(false);
+    setSelectedStopToAdd("");
+    setQuickCreateOpen(false);
+    setDirections([]);
+    setActiveDirIndex(0);
+
     (async () => {
       setLoading(true);
       try {
@@ -250,6 +277,17 @@ export function RouteDirectionEditorModal({
     };
   }, [open, route?.id, routeService, stopService, toast]);
 
+  useEffect(() => {
+    if (!open) return;
+    const handleKeyDown = (event) => {
+      if (event.key === "Escape" && !saving && !quickCreateOpen) {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [open, saving, quickCreateOpen, onClose]);
+
   const activeDirection = directions[activeDirIndex] || null;
 
   const routeCity = useMemo(
@@ -299,6 +337,14 @@ export function RouteDirectionEditorModal({
 
   const handleAddStopToDirection = () => {
     if (!selectedStopToAdd || !activeDirection) return;
+    if (
+      (activeDirection.stops || []).some(
+        (s) => String(s.stopId) === String(selectedStopToAdd),
+      )
+    ) {
+      toast.warning("Este paradero ya está en la secuencia de este sentido.");
+      return;
+    }
     const stopObj = allStops.find((s) => s.id === selectedStopToAdd);
     if (!stopObj) return;
 
@@ -352,7 +398,21 @@ export function RouteDirectionEditorModal({
       stopOrder: idx + 1,
     }));
 
-    updateActiveDirection({ stops: reordered });
+    const currentPoints = activeDirection.routePoints || [];
+    const allStopLinked =
+      currentPoints.length > 0 && currentPoints.every((point) => Boolean(point.stopId));
+    const reorderedPoints = allStopLinked
+      ? reordered
+          .filter((s) => s.latitude != null && s.longitude != null)
+          .map((s, idx) => ({
+            pointOrder: idx + 1,
+            latitude: Number(s.latitude),
+            longitude: Number(s.longitude),
+            stopId: s.stopId,
+          }))
+      : currentPoints;
+
+    updateActiveDirection({ stops: reordered, routePoints: reorderedPoints });
   };
 
   const handleRemoveStop = (index) => {
@@ -423,7 +483,13 @@ export function RouteDirectionEditorModal({
     updateActiveDirection({
       routePoints: (activeDirection.routePoints || []).map((point, idx) =>
         idx === index
-          ? { ...point, latitude: latlng.lat, longitude: latlng.lng }
+          ? {
+              ...point,
+              latitude: latlng.lat,
+              longitude: latlng.lng,
+              // Once moved off its stop, treat as a custom traced vertex.
+              stopId: null,
+            }
           : point,
       ),
     });
@@ -454,39 +520,69 @@ export function RouteDirectionEditorModal({
       return;
     }
 
-    setSaving(true);
-    try {
-      const payload = {
-        directions: directions.map((d) => ({
-          id: d.id,
-          direction: d.direction || "IDA",
-          originName: d.originName?.trim() || "Origen",
-          destinationName: d.destinationName?.trim() || "Destino",
-          totalDistanceKm: Number(d.totalDistanceKm) || 1.0,
-          estimatedMinutes: Number(d.estimatedMinutes) || 15,
-          stops: (d.stops || []).map((s, idx) => ({
-            stopId: s.stopId,
-            stopOrder: idx + 1,
-            distanceFromStart: Number(s.distanceFromStart) || 0.0,
-          })),
-          // Authoritative geometry: never regenerate it from the stops list.
-          routePoints: (d.routePoints || []).map((point, idx) => ({
+    const payload = {
+      directions: directions.map((d) => ({
+        id: d.id,
+        direction: d.direction || "IDA",
+        originName: d.originName?.trim() || "Origen",
+        destinationName: d.destinationName?.trim() || "Destino",
+        totalDistanceKm:
+          d.totalDistanceKm !== undefined &&
+          d.totalDistanceKm !== null &&
+          d.totalDistanceKm !== ""
+            ? Number(d.totalDistanceKm)
+            : 0,
+        estimatedMinutes:
+          d.estimatedMinutes !== undefined &&
+          d.estimatedMinutes !== null &&
+          d.estimatedMinutes !== ""
+            ? Math.round(Number(d.estimatedMinutes))
+            : 15,
+        stops: (d.stops || []).map((s, idx) => ({
+          stopId: s.stopId,
+          stopOrder: idx + 1,
+          distanceFromStart: Number(s.distanceFromStart) || 0.0,
+        })),
+        // Authoritative geometry: never regenerate it from the stops list.
+        routePoints: (d.routePoints || [])
+          .filter(
+            (point) =>
+              point.latitude != null &&
+              point.longitude != null &&
+              Number.isFinite(Number(point.latitude)) &&
+              Number.isFinite(Number(point.longitude)),
+          )
+          .map((point, idx) => ({
             pointOrder: idx + 1,
             latitude: Number(point.latitude),
             longitude: Number(point.longitude),
           })),
-        })),
-      };
+      })),
+    };
 
-      console.log("Saving route directions payload:", payload);
+    const validation = validateWith(updateRouteDirectionsSchema, payload);
+    if (!validation.ok) {
+      const firstError = Object.values(validation.fieldErrors)[0];
+      toast.warning(firstError || "Revisá los datos de los sentidos antes de guardar.");
+      return;
+    }
+
+    setSaving(true);
+    try {
       await routeService.updateRouteDirections(route.id, payload);
       toast.success("Sentidos y paraderos de la ruta guardados con éxito.");
       onSaved?.();
       onClose();
     } catch (err) {
       console.error("Error guardando direcciones:", err);
+      const data = err.response?.data;
+      const firstFieldError =
+        data?.errors && typeof data.errors === "object"
+          ? Object.values(data.errors)[0]
+          : null;
       toast.error(
-        err.response?.data?.message ||
+        data?.message ||
+          firstFieldError ||
           "Error al guardar los sentidos de la ruta.",
       );
     } finally {
@@ -619,7 +715,11 @@ export function RouteDirectionEditorModal({
                 className="inline-flex items-center gap-1 rounded-xl border border-dashed border-slate-300 px-3 py-1.5 text-xs font-semibold text-slate-600 hover:border-blue-500 hover:text-blue-600 transition"
               >
                 <Plus className="h-3.5 w-3.5" />
-                <span>+ Agregar Vuelta</span>
+                <span>
+                  {directions.some((d) => d.direction === "IDA")
+                    ? "+ Agregar Vuelta"
+                    : "+ Agregar Ida"}
+                </span>
               </button>
             )}
           </div>
@@ -643,10 +743,14 @@ export function RouteDirectionEditorModal({
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      <label
+                        htmlFor="dir-origin-name"
+                        className="block text-[11px] font-semibold text-slate-600 mb-1"
+                      >
                         Origen
                       </label>
                       <input
+                        id="dir-origin-name"
                         type="text"
                         value={activeDirection.originName || ""}
                         onChange={(e) =>
@@ -658,10 +762,14 @@ export function RouteDirectionEditorModal({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      <label
+                        htmlFor="dir-destination-name"
+                        className="block text-[11px] font-semibold text-slate-600 mb-1"
+                      >
                         Destino
                       </label>
                       <input
+                        id="dir-destination-name"
                         type="text"
                         value={activeDirection.destinationName || ""}
                         onChange={(e) =>
@@ -675,18 +783,22 @@ export function RouteDirectionEditorModal({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      <label
+                        htmlFor="dir-estimated-minutes"
+                        className="block text-[11px] font-semibold text-slate-600 mb-1"
+                      >
                         Tiempo estimado (min)
                       </label>
                       <div className="relative flex items-center">
                         <Clock className="absolute left-3 h-3.5 w-3.5 text-slate-400" />
                         <input
+                          id="dir-estimated-minutes"
                           type="number"
                           min="1"
-                          value={activeDirection.estimatedMinutes || ""}
+                          value={activeDirection.estimatedMinutes ?? ""}
                           onChange={(e) =>
                             updateActiveDirection({
-                              estimatedMinutes: Number(e.target.value),
+                              estimatedMinutes: e.target.value === "" ? "" : Number(e.target.value),
                             })
                           }
                           className="w-full rounded-xl border border-slate-200 bg-white pl-9 pr-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -695,17 +807,21 @@ export function RouteDirectionEditorModal({
                     </div>
 
                     <div>
-                      <label className="block text-[11px] font-semibold text-slate-600 mb-1">
+                      <label
+                        htmlFor="dir-total-distance"
+                        className="block text-[11px] font-semibold text-slate-600 mb-1"
+                      >
                         Distancia total (km)
                       </label>
                       <input
+                        id="dir-total-distance"
                         type="number"
                         step="0.1"
                         min="0"
-                        value={activeDirection.totalDistanceKm || ""}
+                        value={activeDirection.totalDistanceKm ?? ""}
                         onChange={(e) =>
                           updateActiveDirection({
-                            totalDistanceKm: Number(e.target.value),
+                            totalDistanceKm: e.target.value === "" ? "" : Number(e.target.value),
                           })
                         }
                         className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-800 focus:outline-none focus:ring-1 focus:ring-blue-500"
@@ -740,12 +856,22 @@ export function RouteDirectionEditorModal({
                           ? "No hay paraderos en esta ciudad..."
                           : "Seleccionar un paradero del sistema..."}
                       </option>
-                      {cityStops.map((stop) => (
-                        <option key={stop.id} value={stop.id}>
-                          {stop.name}{" "}
-                          {stop.reference ? `(${stop.reference})` : ""}
-                        </option>
-                      ))}
+                      {cityStops.map((stop) => {
+                        const alreadyAdded = (activeDirection.stops || []).some(
+                          (s) => String(s.stopId) === String(stop.id),
+                        );
+                        return (
+                          <option
+                            key={stop.id}
+                            value={stop.id}
+                            disabled={alreadyAdded}
+                          >
+                            {stop.name}{" "}
+                            {stop.reference ? `(${stop.reference})` : ""}
+                            {alreadyAdded ? " — Ya agregado" : ""}
+                          </option>
+                        );
+                      })}
                     </select>
 
                     <button
@@ -838,8 +964,8 @@ export function RouteDirectionEditorModal({
                           <span className="flex min-w-0 items-center gap-1">
                             <span className="text-[10px] font-mono text-slate-600">
                               #{point.pointOrder} ·{" "}
-                              {Number(point.latitude).toFixed(5)},{" "}
-                              {Number(point.longitude).toFixed(5)}
+                              {formatCoord(point.latitude, 5)},{" "}
+                              {formatCoord(point.longitude, 5)}
                             </span>
                             {point.stopId && (
                               <span
@@ -920,8 +1046,8 @@ export function RouteDirectionEditorModal({
                                 {stopItem.name}
                               </p>
                               <p className="text-[10px] text-slate-400 truncate">
-                                Lat: {Number(stopItem.latitude).toFixed(4)},
-                                Lng: {Number(stopItem.longitude).toFixed(4)}
+                                Lat: {formatCoord(stopItem.latitude, 4)},
+                                Lng: {formatCoord(stopItem.longitude, 4)}
                               </p>
                             </div>
                           </div>
@@ -976,7 +1102,10 @@ export function RouteDirectionEditorModal({
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 maxZoom={19}
               />
-              <MapBoundsController points={activePolylinePoints} />
+              <MapBoundsController
+                points={activePolylinePoints}
+                fitKey={`${route?.id ?? ""}:${activeDirIndex}`}
+              />
               <MapClickHandler
                 enabled={editingGeometry}
                 onClick={handleAddPoint}
@@ -1002,10 +1131,11 @@ export function RouteDirectionEditorModal({
                   return null;
                 return (
                   <Marker
-                    key={`geometry-${pIdx}`}
+                    key={`geometry-${point.pointOrder ?? pIdx}-${pIdx}`}
                     position={[Number(point.latitude), Number(point.longitude)]}
                     icon={createGeometryPointIcon(point.pointOrder ?? pIdx + 1)}
                     draggable={editingGeometry}
+                    zIndexOffset={editingGeometry ? 500 : 0}
                     eventHandlers={{
                       dragend: (event) => handleDragPoint(pIdx, event),
                     }}
@@ -1016,8 +1146,8 @@ export function RouteDirectionEditorModal({
                           Punto #{point.pointOrder ?? pIdx + 1}
                         </strong>
                         <span className="text-slate-500 font-mono">
-                          {Number(point.latitude).toFixed(5)},{" "}
-                          {Number(point.longitude).toFixed(5)}
+                          {formatCoord(point.latitude, 5)},{" "}
+                          {formatCoord(point.longitude, 5)}
                         </span>
                       </div>
                     </Popup>
@@ -1032,9 +1162,10 @@ export function RouteDirectionEditorModal({
                 const icon = createNumberedStopIcon(sIdx + 1, stop.name);
                 return (
                   <Marker
-                    key={`${stop.stopId}-${sIdx}`}
+                    key={`${stop.stopId}`}
                     position={[Number(stop.latitude), Number(stop.longitude)]}
                     icon={icon}
+                    interactive={!editingGeometry}
                   >
                     <Popup>
                       <div className="text-xs">
@@ -1042,8 +1173,8 @@ export function RouteDirectionEditorModal({
                           #{sIdx + 1} {stop.name}
                         </strong>
                         <span className="text-slate-500 font-mono">
-                          {Number(stop.latitude).toFixed(5)},{" "}
-                          {Number(stop.longitude).toFixed(5)}
+                          {formatCoord(stop.latitude, 5)},{" "}
+                          {formatCoord(stop.longitude, 5)}
                         </span>
                       </div>
                     </Popup>

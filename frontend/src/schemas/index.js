@@ -203,6 +203,55 @@ export const routePayloadSchema = routeBasicsSchema.extend({
     .min(1, "Agregá al menos un sentido."),
 });
 
+export const updateRouteDirectionsSchema = z.object({
+  directions: z
+    .array(
+      routeDirectionSchema
+        .extend({
+          id: z.string().optional(),
+          totalDistanceKm: z.coerce
+            .number("Distancia inválida.")
+            .min(0, "La distancia no puede ser negativa.")
+            .max(10000, "Distancia poco realista."),
+          stops: z.array(
+            routeStopItemSchema.extend({
+              stopId: z.string().trim().min(1, "Paradero inválido."),
+            }),
+          ),
+        })
+        .superRefine((dir, ctx) => {
+          const seenStops = new Set();
+          for (const stop of dir.stops || []) {
+            const key = String(stop.stopId || "").trim().toLowerCase();
+            if (seenStops.has(key)) {
+              ctx.addIssue({
+                code: "custom",
+                message: "No se puede repetir un paradero en el mismo sentido.",
+                path: ["stops"],
+              });
+              break;
+            }
+            seenStops.add(key);
+          }
+        }),
+    )
+    .min(1, "Configurá al menos un sentido.")
+    .superRefine((dirs, ctx) => {
+      const seen = new Set();
+      for (const dir of dirs) {
+        if (seen.has(dir.direction)) {
+          ctx.addIssue({
+            code: "custom",
+            message: "No puede haber dos sentidos iguales (IDA o VUELTA).",
+            path: ["directions"],
+          });
+          break;
+        }
+        seen.add(dir.direction);
+      }
+    }),
+});
+
 // ── Auth ──────────────────────────────────────────────────────────────────
 export const loginSchema = z.object({
   email: z

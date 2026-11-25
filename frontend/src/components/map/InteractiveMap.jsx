@@ -949,8 +949,16 @@ function InteractiveMapComponent({
           (selectedRoute.directions?.length > 0
             ? selectedRoute.directions.map((dir) => {
                 const dirKey = `${selectedRoute.id}:${dir.direction || dir.id}`;
+                const stopFallback = (dir.stops || [])
+                  .map((s) => {
+                    const lat = s.latitude ?? s.location?.latitude;
+                    const lng = s.longitude ?? s.location?.longitude;
+                    return lat != null && lng != null ? [lat, lng] : null;
+                  })
+                  .filter(Boolean);
                 const points =
-                  snappedDirectionMap[dirKey] || dir.routePoints || [];
+                  snappedDirectionMap[dirKey] ||
+                  (dir.routePoints?.length >= 2 ? dir.routePoints : stopFallback);
                 if (!points || points.length < 2) return null;
 
                 const hasBoth =
@@ -963,7 +971,9 @@ function InteractiveMapComponent({
                 const isOutbound =
                   dir.direction === "IDA" ||
                   (!hasBoth && dir.direction !== "VUELTA");
+                const isSoleDirection = selectedRoute.directions.length === 1;
                 const isActive =
+                  isSoleDirection ||
                   dir.direction === activeDirection ||
                   (!hasBoth && dir.direction !== "VUELTA");
                 const baseColor = selectedRoute.color || DEFAULT_ROUTE_COLOR;

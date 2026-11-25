@@ -287,4 +287,53 @@ describe('RouteDirectionEditorModal geometry editor', () => {
     await user.click(deleteButton);
     expect(screen.getByText(/0 puntos de trazado/)).toBeInTheDocument();
   });
+
+  it('preserves zero totalDistanceKm and disables duplicate stop selection', async () => {
+    const user = userEvent.setup();
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue({
+        directions: [
+          {
+            id: 'd1',
+            direction: 'IDA',
+            totalDistanceKm: 0,
+            estimatedMinutes: 20,
+            stops: [{ id: 's1', name: 'Paradero Uno', stopOrder: 1, latitude: -14.01, longitude: -75.70 }],
+            routePoints: [],
+          },
+        ],
+      }),
+      updateRouteDirections: vi.fn().mockResolvedValue({}),
+    };
+    const stopService = {
+      getAllStops: vi.fn().mockResolvedValue([
+        { id: 's1', name: 'Paradero Uno', latitude: -14.01, longitude: -75.70 },
+        { id: 's2', name: 'Paradero Dos', latitude: -14.02, longitude: -75.71 },
+      ]),
+    };
+
+    renderEditor({ routeService, stopService });
+    await waitFor(() => expect(screen.getByRole('option', { name: /Paradero Uno.*Ya agregado/i })).toBeDisabled());
+    expect(screen.getByRole('option', { name: /Paradero Dos/i })).not.toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: /Guardar Sentidos y Trazado/i }));
+    await waitFor(() => expect(routeService.updateRouteDirections).toHaveBeenCalledTimes(1));
+    expect(routeService.updateRouteDirections.mock.calls[0][1].directions[0].totalDistanceKm).toBe(0);
+  });
+
+  it('surfaces backend field errors when save returns 400 without message', async () => {
+    const user = userEvent.setup();
+    const routeService = {
+      getRouteById: vi.fn().mockResolvedValue(detailWith([])),
+      updateRouteDirections: vi.fn().mockRejectedValue({
+        response: { data: { errors: { 'directions[0].stopIdUnique': 'Paradero repetido' } } },
+      }),
+    };
+
+    renderEditor({ routeService });
+    await waitFor(() => expect(routeService.getRouteById).toHaveBeenCalledTimes(1));
+    await user.click(screen.getByRole('button', { name: /Guardar Sentidos y Trazado/i }));
+
+    await waitFor(() => expect(screen.getByText('Paradero repetido')).toBeInTheDocument());
+  });
 });

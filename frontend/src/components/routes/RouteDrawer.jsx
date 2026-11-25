@@ -208,12 +208,27 @@ export function RouteDrawer() {
   const loading = Boolean(loadingRouteDetail);
 
   const idaDirection =
-    directions.find((d) => d.direction === "IDA") || directions[0];
-  const vueltaDirection = directions.find((d) => d.direction === "VUELTA");
+    directions.find((d) => d.direction === "IDA") || null;
+  const vueltaDirection =
+    directions.find((d) => d.direction === "VUELTA") || null;
+  const hasIda = Boolean(idaDirection);
   const hasVuelta = Boolean(vueltaDirection);
 
+  const effectiveActiveDirection =
+    activeDirection === "VUELTA" && hasVuelta
+      ? "VUELTA"
+      : hasIda
+        ? "IDA"
+        : hasVuelta
+          ? "VUELTA"
+          : activeDirection;
+
   const activeDir =
-    activeDirection === "VUELTA" && vueltaDirection ? vueltaDirection : idaDirection;
+    (effectiveActiveDirection === "VUELTA" ? vueltaDirection : idaDirection) ||
+    idaDirection ||
+    vueltaDirection ||
+    directions[0] ||
+    null;
 
   const stops = [...(activeDir?.stops || [])].sort(
     (a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0),
@@ -240,7 +255,10 @@ export function RouteDrawer() {
   const code = selectedRoute.code || "Ruta";
   const color = selectedRoute.color || "var(--color-brand-primary)";
   const transportLine =
-    selectedRoute.transportLine?.company || selectedRoute.transportLineName || "";
+    selectedRoute.transportLine?.name ||
+    selectedRoute.transportLine?.company ||
+    selectedRoute.transportLineName ||
+    "";
   const scheduleHours =
     selectedRoute.schedule?.hours || selectedRoute.schedule || "";
   const frequency =
@@ -252,7 +270,8 @@ export function RouteDrawer() {
       : "Micro";
 
   const handleDirectionChange = (dir) => {
-    if (dir === "VUELTA" && !vueltaDirection) return;
+    if (dir === "IDA" && !hasIda) return;
+    if (dir === "VUELTA" && !hasVuelta) return;
     setActiveDirection(dir);
     selectStop(null); // Clear selected stop when changing direction
     focusStop(null);
@@ -391,11 +410,12 @@ export function RouteDrawer() {
           <button
             type="button"
             onClick={() => handleDirectionChange("IDA")}
+            disabled={directions.length > 0 && !hasIda}
             className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
-              activeDirection === "IDA"
+              effectiveActiveDirection === "IDA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
+                : "text-slate-500"
+            } ${directions.length > 0 && !hasIda ? "opacity-40 cursor-not-allowed" : "hover:text-slate-800"}`}
           >
             Ida
           </button>
@@ -404,7 +424,7 @@ export function RouteDrawer() {
             onClick={() => handleDirectionChange("VUELTA")}
             disabled={!hasVuelta}
             className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
-              activeDirection === "VUELTA"
+              effectiveActiveDirection === "VUELTA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
                 : "text-slate-500"
             } ${!hasVuelta ? "opacity-40 cursor-not-allowed" : "hover:text-slate-800"}`}

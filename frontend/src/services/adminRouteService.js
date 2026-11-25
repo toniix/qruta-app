@@ -22,12 +22,10 @@ export const adminRouteService = {
   },
 
   async updateRouteDirections(id, data) {
-    console.log("Updating route directions:", id, data);
     const response = await apiClient.put(
       `/admin/routes/${id}/directions`,
       data,
     );
-    console.log("Response from updateRouteDirections:", response.data);
     return response.data;
   },
 

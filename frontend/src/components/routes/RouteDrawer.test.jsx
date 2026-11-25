@@ -146,5 +146,41 @@ describe('RouteDrawer Share Feature', () => {
       expect(screen.getByText('Línea 55 Oficial')).toBeInTheDocument();
     });
   });
+
+  it('activates Vuelta tab and disables Ida when route only has VUELTA direction', () => {
+    mockUseRoutes.mockReturnValue({
+      selectedRoute: {
+        id: 'route-vuelta',
+        code: 'RV',
+        name: 'Ruta Solo Vuelta',
+        transportLine: { id: 'l1', name: 'Línea Vuelta' },
+        directions: [
+          {
+            direction: 'VUELTA',
+            originName: 'Sur',
+            destinationName: 'Centro',
+            stops: [{ id: 's1', name: 'Paradero Sur', stopOrder: 1 }],
+          },
+        ],
+      },
+      focusedStop: null,
+      selectStop: vi.fn(),
+      focusStop: vi.fn(),
+      activeDirection: 'IDA',
+      setActiveDirection: vi.fn(),
+      loadingRouteDetail: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <RouteDrawer />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: 'Ida' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Vuelta' })).not.toBeDisabled();
+    expect(screen.getByText('Línea Vuelta')).toBeInTheDocument();
+    expect(screen.getByText('Paradero Sur')).toBeInTheDocument();
+  });
 });
 
