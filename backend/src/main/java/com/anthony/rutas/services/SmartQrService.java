@@ -170,21 +170,30 @@ public class SmartQrService {
     }
 
     public String buildDestinationUrl(QrCode qr) {
+        Route route = "ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                ? routeRepository.findById(qr.getTargetId()).orElse(null)
+                : null;
+        Stop stop = "STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                ? stopRepository.findById(qr.getTargetId()).orElse(null)
+                : null;
+        return buildDestinationUrl(qr, route, stop);
+    }
+
+    private String buildDestinationUrl(QrCode qr, Route route, Stop stop) {
         StringBuilder sb = new StringBuilder();
         String base = configuredFrontendUrl != null && !configuredFrontendUrl.isBlank()
                 ? configuredFrontendUrl.trim().replaceAll("/+$", "")
                 : "https://front.anthonywar.dev";
         sb.append(base);
         if ("ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            String routeCode = routeRepository.findById(qr.getTargetId())
-                    .map(Route::getCode)
-                    .filter(c -> !c.isBlank())
-                    .orElseGet(() -> qr.getTargetId().toString());
+            String routeCode = route != null && route.getCode() != null && !route.getCode().isBlank()
+                    ? route.getCode()
+                    : qr.getTargetId().toString();
             sb.append("/mapa/ruta/").append(urlEncode(routeCode));
         } else if ("STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            String stopIdentifier = stopRepository.findById(qr.getTargetId())
-                    .map(s -> s.getSlug() != null && !s.getSlug().isBlank() ? s.getSlug() : s.getId().toString())
-                    .orElseGet(() -> qr.getTargetId().toString());
+            String stopIdentifier = stop != null && stop.getSlug() != null && !stop.getSlug().isBlank()
+                    ? stop.getSlug()
+                    : (stop != null && stop.getId() != null ? stop.getId().toString() : qr.getTargetId().toString());
             sb.append("/mapa/paradero/").append(urlEncode(stopIdentifier));
         } else {
             sb.append("/");
@@ -218,14 +227,24 @@ public class SmartQrService {
     }
 
     public String resolveTargetTitle(QrCode qr) {
+        Route route = "ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                ? routeRepository.findById(qr.getTargetId()).orElse(null)
+                : null;
+        Stop stop = "STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                ? stopRepository.findById(qr.getTargetId()).orElse(null)
+                : null;
+        return resolveTargetTitle(qr, route, stop);
+    }
+
+    private String resolveTargetTitle(QrCode qr, Route route, Stop stop) {
         if ("ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            return routeRepository.findById(qr.getTargetId())
-                    .map(r -> r.getCode() + " - " + r.getName())
-                    .orElse("Ruta (" + qr.getTargetId() + ")");
+            return route != null
+                    ? route.getCode() + " - " + route.getName()
+                    : "Ruta (" + qr.getTargetId() + ")";
         } else if ("STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null) {
-            return stopRepository.findById(qr.getTargetId())
-                    .map(Stop::getName)
-                    .orElse("Paradero (" + qr.getTargetId() + ")");
+            return stop != null
+                    ? stop.getName()
+                    : "Paradero (" + qr.getTargetId() + ")";
         } else if ("CAMPAIGN".equalsIgnoreCase(qr.getTargetType())) {
             return qr.getCampaignName() != null ? qr.getCampaignName() : "Campaña";
         }
@@ -234,16 +253,12 @@ public class SmartQrService {
 
     @Transactional(readOnly = true)
     public List<QrCodeResponse> listAll() {
-        List<QrCode> codes = qrCodeRepository.findAllByOrderByCreatedAtDesc();
-        Map<UUID, Long> scanCounts = fetchScanCountsMap();
-        return codes.stream().map(qr -> toResponse(qr, scanCounts)).toList();
+        return toResponseList(qrCodeRepository.findAllByOrderByCreatedAtDesc());
     }
 
     @Transactional(readOnly = true)
     public List<QrCodeResponse> listForOperator(UUID operatorId) {
-        List<QrCode> codes = qrCodeRepository.findByOperatorIdOrderByCreatedAtDesc(operatorId);
-        Map<UUID, Long> scanCounts = fetchScanCountsMap();
-        return codes.stream().map(qr -> toResponse(qr, scanCounts)).toList();
+        return toResponseList(qrCodeRepository.findByOperatorIdOrderByCreatedAtDesc(operatorId));
     }
 
     @Transactional(readOnly = true)
@@ -453,6 +468,51 @@ public class SmartQrService {
                         (a, b) -> a));
     }
 
+    private List<QrCodeResponse> toResponseList(List<QrCode> codes) {
+        if (codes.isEmpty()) {
+            return List.of();
+        }
+        Map<UUID, Long> scanCounts = fetchScanCountsMap();
+
+        Set<UUID> operatorIds = codes.stream()
+                .map(QrCode::getOperatorId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<UUID, String> operatorNames = operatorIds.isEmpty()
+                ? Map.of()
+                : operatorRepository.findAllById(operatorIds).stream()
+                        .collect(Collectors.toMap(Operator::getId, Operator::getName, (a, b) -> a));
+
+        Set<UUID> routeIds = codes.stream()
+                .filter(qr -> "ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null)
+                .map(QrCode::getTargetId)
+                .collect(Collectors.toSet());
+        Map<UUID, Route> routesById = routeIds.isEmpty()
+                ? Map.of()
+                : routeRepository.findAllById(routeIds).stream()
+                        .collect(Collectors.toMap(Route::getId, r -> r, (a, b) -> a));
+
+        Set<UUID> stopIds = codes.stream()
+                .filter(qr -> "STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null)
+                .map(QrCode::getTargetId)
+                .collect(Collectors.toSet());
+        Map<UUID, Stop> stopsById = stopIds.isEmpty()
+                ? Map.of()
+                : stopRepository.findAllById(stopIds).stream()
+                        .collect(Collectors.toMap(Stop::getId, s -> s, (a, b) -> a));
+
+        return codes.stream()
+                .map(qr -> buildResponse(
+                        qr,
+                        scanCounts.getOrDefault(qr.getId(), 0L),
+                        qr.getOperatorId() != null ? operatorNames.get(qr.getOperatorId()) : null,
+                        "ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                                ? routesById.get(qr.getTargetId()) : null,
+                        "STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                                ? stopsById.get(qr.getTargetId()) : null))
+                .toList();
+    }
+
     private QrCodeResponse toResponse(QrCode qr, Map<UUID, Long> scanCounts) {
         long scans = scanCounts != null && scanCounts.containsKey(qr.getId())
                 ? scanCounts.get(qr.getId())
@@ -463,13 +523,23 @@ public class SmartQrService {
                     .map(Operator::getName)
                     .orElse(null);
         }
+        Route route = "ROUTE".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                ? routeRepository.findById(qr.getTargetId()).orElse(null)
+                : null;
+        Stop stop = "STOP".equalsIgnoreCase(qr.getTargetType()) && qr.getTargetId() != null
+                ? stopRepository.findById(qr.getTargetId()).orElse(null)
+                : null;
+        return buildResponse(qr, scans, operatorName, route, stop);
+    }
+
+    private QrCodeResponse buildResponse(QrCode qr, long scans, String operatorName, Route route, Stop stop) {
         return QrCodeResponse.builder()
                 .id(qr.getId())
                 .code(qr.getCode())
                 .label(qr.getLabel())
                 .targetType(qr.getTargetType())
                 .targetId(qr.getTargetId())
-                .targetTitle(resolveTargetTitle(qr))
+                .targetTitle(resolveTargetTitle(qr, route, stop))
                 .campaignSource(qr.getCampaignSource())
                 .campaignMedium(qr.getCampaignMedium())
                 .campaignName(qr.getCampaignName())
@@ -477,7 +547,7 @@ public class SmartQrService {
                 .operatorId(qr.getOperatorId())
                 .operatorName(operatorName)
                 .canonicalUrl(getCanonicalUrl(qr.getCode()))
-                .targetUrl(buildDestinationUrl(qr))
+                .targetUrl(buildDestinationUrl(qr, route, stop))
                 .totalScans(scans)
                 .createdAt(qr.getCreatedAt())
                 .updatedAt(qr.getUpdatedAt())

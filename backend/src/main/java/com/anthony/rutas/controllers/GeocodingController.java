@@ -3,7 +3,6 @@ package com.anthony.rutas.controllers;
 import com.anthony.rutas.dtos.response.ReverseGeocodeResponse;
 import com.anthony.rutas.services.ReverseGeocodeService;
 import lombok.RequiredArgsConstructor;
-import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,10 +14,6 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api/geocode")
 @RequiredArgsConstructor
-// Enables Boot's Caffeine CacheManager auto-configuration (used by
-// ReverseGeocodeService via the Spring Cache API). Lives here instead of the
-// application class to stay within this task's allowed edit surfaces.
-@EnableCaching
 public class GeocodingController {
 
     private final ReverseGeocodeService reverseGeocodeService;

@@ -107,11 +107,21 @@ public class OperatorPortalService {
         return billingService.getSubscription();
     }
 
+    @Transactional(readOnly = true)
     public List<OperatorLineResponse> getLines() {
         UUID operatorId = operatorScope.requireOperatorId();
-        return transportLineRepository.findByOperatorId(operatorId).stream()
-                .map(line -> OperatorDtoMapper.toLineResponse(line, routeRepository
-                        .findByTransportLineIdWithLine(line.getId()).size()))
+        List<TransportLine> lines = transportLineRepository.findByOperatorId(operatorId);
+        if (lines.isEmpty()) {
+            return List.of();
+        }
+        List<UUID> lineIds = lines.stream().map(TransportLine::getId).toList();
+        Map<UUID, Long> routeCounts = routeRepository.countByTransportLineIds(lineIds).stream()
+                .collect(Collectors.toMap(
+                        row -> (UUID) row[0],
+                        row -> ((Number) row[1]).longValue(),
+                        (a, b) -> a));
+        return lines.stream()
+                .map(line -> OperatorDtoMapper.toLineResponse(line, routeCounts.getOrDefault(line.getId(), 0L)))
                 .toList();
     }
 

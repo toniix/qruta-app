@@ -1,5 +1,6 @@
 package com.anthony.rutas.dtos.request;
 
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Pattern;
 import lombok.*;
 
@@ -16,6 +17,7 @@ public class UpdateOperatorRequest {
     private String ruc;
 
     private String contactName;
+    @Email(message = "Contact email must be a valid email address")
     private String contactEmail;
     private String contactPhone;
 

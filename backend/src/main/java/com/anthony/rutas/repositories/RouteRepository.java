@@ -75,21 +75,19 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
     List<Route> findAllByIdsWithTransportLineAndCity(@Param("ids") Collection<UUID> ids);
 
     /**
-     * Fetch all routes with transport line in a single query.
+     * Fetch all routes with transport line and city in a single query.
      */
-    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine")
+    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine tl JOIN FETCH tl.city")
     List<Route> findAllWithTransportLine();
 
-    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine WHERE r.id IN :ids")
+    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine tl JOIN FETCH tl.city WHERE r.id IN :ids")
     List<Route> findAllByIdWithTransportLine(@Param("ids") Collection<UUID> ids);
 
-    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine WHERE r.transportLine.id = :transportLineId")
+    @Query("SELECT DISTINCT r FROM Route r JOIN FETCH r.transportLine tl JOIN FETCH tl.city WHERE tl.id = :transportLineId")
     List<Route> findByTransportLineIdWithLine(@Param("transportLineId") UUID transportLineId);
 
-    @Query("SELECT DISTINCT r FROM Route r " +
-           "JOIN FETCH r.transportLine tl " +
-           "JOIN FETCH tl.city")
-    List<Route> findAllWithTransportLineAndCity();
+    @Query("SELECT r.transportLine.id, COUNT(r) FROM Route r WHERE r.transportLine.id IN :lineIds GROUP BY r.transportLine.id")
+    List<Object[]> countByTransportLineIds(@Param("lineIds") Collection<UUID> lineIds);
 
     @Query("SELECT DISTINCT r FROM Route r " +
            "JOIN FETCH r.transportLine tl " +
@@ -110,7 +108,10 @@ public interface RouteRepository extends JpaRepository<Route, UUID> {
      * Fetch the most popular active routes, ordered by popularity score
      * descending. Routes without a score (null) are treated as 0 and sorted last.
      */
-    @Query("SELECT r FROM Route r WHERE r.status = 'ACTIVE' " +
+    @Query("SELECT r FROM Route r " +
+           "JOIN FETCH r.transportLine tl " +
+           "JOIN FETCH tl.city " +
+           "WHERE r.status = 'ACTIVE' " +
            "ORDER BY COALESCE(r.popularityScore, 0) DESC, r.name ASC")
     List<Route> findPopular(Pageable pageable);
 

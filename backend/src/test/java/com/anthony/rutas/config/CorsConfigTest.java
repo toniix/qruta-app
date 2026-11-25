@@ -46,4 +46,19 @@ class CorsConfigTest {
                 .andExpect(header().string(
                         "Access-Control-Allow-Methods", Matchers.containsString("PATCH")));
     }
+
+    @Test
+    void trimsWhitespaceAroundConfiguredAllowedOrigins() throws Exception {
+        CorsConfig corsConfig = new CorsConfig();
+        ReflectionTestUtils.setField(corsConfig, "allowedOrigins", " http://localhost:5173 , https://qruta.pe ");
+        MockMvc trimmedMvc = MockMvcBuilders.standaloneSetup()
+                .addFilters(corsConfig.corsFilter())
+                .build();
+
+        trimmedMvc.perform(options("/api/routes")
+                        .header("Origin", "https://qruta.pe")
+                        .header("Access-Control-Request-Method", "GET"))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Access-Control-Allow-Origin", "https://qruta.pe"));
+    }
 }

@@ -228,4 +228,27 @@ class DtoMapperTest {
         var mappedOrphan = DtoMapper.toRouteDirectionResponse(dirWithOrphanStop);
         assertTrue(mappedOrphan.getStops().isEmpty());
     }
+
+    @Test
+    @DisplayName("toStopResponse and toRouteDetailResponse handle null location and null transportLine safely")
+    void shouldHandleNullLocationAndTransportLineSafely() {
+        Stop stopWithoutLocation = Stop.builder()
+                .id(UUID.randomUUID())
+                .name("Paradero Sin Coordenadas")
+                .location(null)
+                .build();
+        var stopResp = DtoMapper.toStopResponse(stopWithoutLocation);
+        assertNull(stopResp.getLatitude());
+        assertNull(stopResp.getLongitude());
+
+        var routeWithoutLine = com.anthony.rutas.entities.Route.builder()
+                .id(UUID.randomUUID())
+                .code("R-NULL")
+                .name("Sin Línea")
+                .transportLine(null)
+                .build();
+        var detail = DtoMapper.toRouteDetailResponse(routeWithoutLine, null);
+        assertNull(detail.getTransportLine());
+        assertTrue(detail.getDirections().isEmpty());
+    }
 }
