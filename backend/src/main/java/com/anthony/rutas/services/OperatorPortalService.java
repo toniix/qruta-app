@@ -200,7 +200,7 @@ public class OperatorPortalService {
 
         List<OperatorAnalyticsSummaryResponse.DailyUsage> dailyUsage = dayTotals.entrySet().stream()
                 .sorted(Map.Entry.comparingByKey())
-                .map(entry -> entry.getValue().toDailyUsage(entry.getKey()))
+                .map(entry -> entry.getValue().toOperatorDailyUsage(entry.getKey()))
                 .toList();
 
         List<OperatorAnalyticsSummaryResponse.RouteRanking> routeRanking = routeTotals.entrySet().stream()
@@ -211,10 +211,10 @@ public class OperatorPortalService {
                             entry.getKey(),
                             route != null ? route.getName() : entry.getKey().toString(),
                             route != null ? route.getCode() : null,
-                            totals.views,
-                            totals.searches,
-                            totals.qrScans,
-                            totals.views + totals.searches);
+                            totals.views(),
+                            totals.searches(),
+                            totals.qrScans(),
+                            totals.views() + totals.searches());
                 })
                 .sorted(Comparator.comparingLong(OperatorAnalyticsSummaryResponse.RouteRanking::interactions)
                         .reversed()
@@ -483,11 +483,7 @@ public class OperatorPortalService {
     }
 
     private UUID parseUuid(String value, String entityName) {
-        try {
-            return UUID.fromString(value);
-        } catch (IllegalArgumentException exception) {
-            throw new BadRequestException("Invalid " + entityName + " ID: " + value);
-        }
+        return com.anthony.rutas.utils.UuidUtils.parseRequired(value, entityName + " ID");
     }
 
     private UUID requireOperatorCityId(UUID operatorId) {
@@ -497,36 +493,5 @@ public class OperatorPortalService {
             throw new BadRequestException("Operator city is required");
         }
         return operator.getCity().getId();
-    }
-
-    private static final class UsageTotals {
-        private long views;
-        private long searches;
-        private long qrScans;
-        private long stopViews;
-        private long nearbyQueries;
-        private long communityPosts;
-        private long uniqueDevices;
-
-        private void add(RouteDailyStat stat) {
-            views += stat.getViews();
-            searches += stat.getSearches();
-            qrScans += stat.getQrScans();
-            stopViews += stat.getStopViews();
-            nearbyQueries += stat.getNearbyQueries();
-            communityPosts += stat.getCommunityPosts();
-            uniqueDevices += stat.getUniqueDevices();
-        }
-
-        private OperatorAnalyticsSummaryResponse.LineUsage toLineUsage(UUID lineId, String lineName) {
-            return new OperatorAnalyticsSummaryResponse.LineUsage(
-                    lineId, lineName, views, searches, qrScans, stopViews, nearbyQueries, communityPosts,
-                    uniqueDevices);
-        }
-
-        private OperatorAnalyticsSummaryResponse.DailyUsage toDailyUsage(LocalDate date) {
-            return new OperatorAnalyticsSummaryResponse.DailyUsage(
-                    date, views, searches, qrScans, stopViews, nearbyQueries, communityPosts, uniqueDevices);
-        }
     }
 }

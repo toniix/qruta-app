@@ -52,13 +52,6 @@ public class StopService {
     }
 
     @Transactional(readOnly = true)
-    public StopResponse findById(UUID id) {
-        Stop stop = stopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + id));
-        return DtoMapper.toStopResponse(stop);
-    }
-
-    @Transactional(readOnly = true)
     public StopResponse findByIdOrSlug(String identifier) {
         return DtoMapper.toStopResponse(findEntityByIdOrSlug(identifier));
     }

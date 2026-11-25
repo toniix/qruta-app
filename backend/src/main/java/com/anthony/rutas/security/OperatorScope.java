@@ -16,19 +16,7 @@ import java.util.UUID;
 public class OperatorScope {
 
     public UUID requireOperatorId() {
-        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
-        if (authentication == null || !authentication.isAuthenticated()
-                || !(authentication.getPrincipal() instanceof OperatorPrincipal principal)) {
-            throw new AccessDeniedException("Operator context required");
-        }
-        return principal.getOperatorId();
-    }
-
-    public void requireOwned(UUID ownerId) {
-        UUID current = requireOperatorId();
-        if (ownerId == null || !current.equals(ownerId)) {
-            throw new AccessDeniedException("Resource is outside the operator scope");
-        }
+        return requirePrincipal().getOperatorId();
     }
 
     public OperatorPrincipal requirePrincipal() {

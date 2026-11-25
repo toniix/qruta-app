@@ -106,7 +106,9 @@ public class RouteAnalyticsService {
 
     @Transactional(readOnly = true)
     public AnalyticsOverviewResponse overview(LocalDate from, LocalDate to) {
-        List<RouteDailyStat> stats = routeDailyStatRepository.findByDateBetweenOrderByDateAsc(from, to);
+        LocalDate effectiveTo = to != null ? to : LocalDate.now(ZoneOffset.UTC);
+        LocalDate effectiveFrom = from != null ? from : effectiveTo.minusDays(29);
+        List<RouteDailyStat> stats = routeDailyStatRepository.findByDateBetweenOrderByDateAsc(effectiveFrom, effectiveTo);
 
         Map<UUID, UsageTotals> byCity = new LinkedHashMap<>();
         Map<LocalDate, UsageTotals> byDay = new LinkedHashMap<>();
@@ -121,7 +123,7 @@ public class RouteAnalyticsService {
                 .toList();
 
         List<DailyUsage> days = byDay.entrySet().stream()
-                .map(e -> e.getValue().toDailyUsage(e.getKey()))
+                .map(e -> e.getValue().toOverviewDailyUsage(e.getKey()))
                 .sorted(Comparator.comparing(DailyUsage::date))
                 .toList();
 
@@ -130,8 +132,10 @@ public class RouteAnalyticsService {
 
     @Transactional(readOnly = true)
     public RouteAnalyticsSeriesResponse routeSeries(UUID routeId, LocalDate from, LocalDate to) {
+        LocalDate effectiveTo = to != null ? to : LocalDate.now(ZoneOffset.UTC);
+        LocalDate effectiveFrom = from != null ? from : effectiveTo.minusDays(29);
         List<RouteAnalyticsSeriesResponse.DailyUsage> series =
-                routeDailyStatRepository.findByRouteIdAndDateBetweenOrderByDateAsc(routeId, from, to).stream()
+                routeDailyStatRepository.findByRouteIdAndDateBetweenOrderByDateAsc(routeId, effectiveFrom, effectiveTo).stream()
                         .map(stat -> new RouteAnalyticsSeriesResponse.DailyUsage(
                                 stat.getDate(),
                                 stat.getViews(),
@@ -166,37 +170,6 @@ public class RouteAnalyticsService {
         return value == null ? 0 : value.intValue();
     }
 
-    /** Mutable sum of the seven usage counters, shared by both overview groupings. */
-    private static final class UsageTotals {
-        private long views;
-        private long searches;
-        private long qrScans;
-        private long stopViews;
-        private long nearbyQueries;
-        private long communityPosts;
-        private long uniqueDevices;
-
-        private void add(RouteDailyStat stat) {
-            views += stat.getViews();
-            searches += stat.getSearches();
-            qrScans += stat.getQrScans();
-            stopViews += stat.getStopViews();
-            nearbyQueries += stat.getNearbyQueries();
-            communityPosts += stat.getCommunityPosts();
-            uniqueDevices += stat.getUniqueDevices();
-        }
-
-        private CityUsage toCityUsage(UUID cityId) {
-            return new CityUsage(cityId, views, searches, qrScans, stopViews, nearbyQueries,
-                    communityPosts, uniqueDevices);
-        }
-
-        private DailyUsage toDailyUsage(LocalDate date) {
-            return new DailyUsage(date, views, searches, qrScans, stopViews, nearbyQueries,
-                    communityPosts, uniqueDevices);
-        }
-    }
-
     private static String trimToNull(String value) {
         if (value == null) {
             return null;
@@ -209,10 +182,6 @@ public class RouteAnalyticsService {
         if (value == null || value.isBlank()) {
             return null;
         }
-        try {
-            return UUID.fromString(value.trim());
-        } catch (IllegalArgumentException ex) {
-            throw new BadRequestException("Invalid " + field + ": " + value);
-        }
+        return com.anthony.rutas.utils.UuidUtils.parseRequired(value, field);
     }
 }

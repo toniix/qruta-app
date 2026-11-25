@@ -27,13 +27,6 @@ public class CityService {
                 .collect(Collectors.toList());
     }
 
-    @Transactional(readOnly = true)
-    public CityResponse findById(UUID id) {
-        City city = cityRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + id));
-        return DtoMapper.toCityResponse(city);
-    }
-
     @Transactional
     public CityResponse create(CreateCityRequest request) {
         City city = City.builder()

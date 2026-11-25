@@ -23,16 +23,11 @@ public final class OperatorDtoMapper {
                 .id(line.getId())
                 .company(line.getCompany())
                 .color(line.getColor())
-                .company(line.getCompany())
                 .contact(line.getContact())
                 .description(line.getDescription())
                 .status(line.getStatus())
                 .routeCount(routeCount)
                 .build();
-    }
-
-    public static List<OperatorLineResponse> toLineResponses(List<TransportLine> lines) {
-        return lines.stream().map(line -> toLineResponse(line, 0L)).toList();
     }
 
     public static OperatorRouteResponse toRouteResponse(Route route) {

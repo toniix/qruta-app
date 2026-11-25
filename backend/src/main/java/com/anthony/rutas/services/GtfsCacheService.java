@@ -66,10 +66,6 @@ public class GtfsCacheService {
         deleteStale(citySlug, file);
     }
 
-    public Path getCacheDir() {
-        return cacheDir;
-    }
-
     private Path path(String citySlug, String catalogVersion) {
         String safeSlug = citySlug == null ? "" : citySlug.replaceAll("[^a-z0-9-]", "");
         String safeVersion = catalogVersion == null ? "" : catalogVersion.replaceAll("[^A-Za-z0-9_-]", "");

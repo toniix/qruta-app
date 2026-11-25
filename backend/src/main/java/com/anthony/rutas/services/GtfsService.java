@@ -89,21 +89,7 @@ public class GtfsService {
     }
 
     public static String slugify(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("-+", "-");
-        return normalized.startsWith("-") ? normalized.substring(1) : normalized.endsWith("-")
-                ? normalized.substring(0, normalized.length() - 1)
-                : normalized;
-    }
-
-    public static String toSlug(String value) {
-        return slugify(value);
+        return com.anthony.rutas.utils.SlugUtils.toCitySlug(value);
     }
 
     private CatalogSnapshot loadCatalog(String slug) {
@@ -162,7 +148,7 @@ public class GtfsService {
                 appendCollection(raw, catalog.pointsByDirection().getOrDefault(direction.getId(), List.of()));
             });
         });
-        return Integer.toHexString(raw.toString().hashCode());
+        return com.anthony.rutas.utils.HashUtils.sha256Hex(raw.toString()).substring(0, 16);
     }
 
     private byte[] buildZip(CatalogSnapshot catalog) {
