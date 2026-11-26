@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AlertCircle, MapPin, Edit2, Trash2, RefreshCw } from "lucide-react";
 import { AdminDataTable } from "../../../components/admin/common/AdminDataTable";
@@ -9,6 +9,7 @@ import { StopFormDrawer } from "./StopFormDrawer";
 import { adminStopService } from "../../../services/adminStopService";
 import { cityService } from "../../../services/cityService";
 import { useAdminToast } from "../../../hooks/useAdminToast";
+import { useQueryErrorToast } from "../../../hooks/useQueryErrorToast";
 import { calculateDistanceKm } from "../../../utils/geoUtils";
 import { STALE_TIMES } from "../../../lib/queryClient";
 import { adminKeys } from "../../../lib/queryKeys";
@@ -47,19 +48,15 @@ export function StopListPage() {
   const cities = citiesQuery.data ?? EMPTY_CITIES;
   const isFetching = stopsQuery.isFetching || citiesQuery.isFetching;
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (
-      stopsQuery.isError &&
-      stopsQuery.errorUpdatedAt > 0 &&
-      stopsQuery.errorUpdatedAt !== lastErrorAtRef.current
-    ) {
-      lastErrorAtRef.current = stopsQuery.errorUpdatedAt;
-      console.error("Error cargando paraderos:", stopsQuery.error);
-      toast.error("Error al cargar la lista de paraderos.");
-    }
-  }, [stopsQuery.isError, stopsQuery.error, stopsQuery.errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError: stopsQuery.isError,
+    isFetching: stopsQuery.isFetching,
+    errorUpdatedAt: stopsQuery.errorUpdatedAt,
+    error: stopsQuery.error,
+    message: "Error al cargar la lista de paraderos.",
+    toast,
+    logLabel: "Error cargando paraderos:",
+  });
 
   const handleRefresh = () => {
     Promise.all([stopsQuery.refetch(), citiesQuery.refetch()]);

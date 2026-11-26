@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { STALE_TIMES } from '../lib/queryClient';
+import { useQueryErrorToast } from './useQueryErrorToast';
 
 /**
  * Shared controller hook for Admin and Operator QR detail pages.
@@ -40,25 +41,15 @@ export function useQrDetail({
     staleTime: STALE_TIMES.METRICS,
   });
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (
-      detailQuery.isError &&
-      detailQuery.errorUpdatedAt > 0 &&
-      detailQuery.errorUpdatedAt !== lastErrorAtRef.current
-    ) {
-      lastErrorAtRef.current = detailQuery.errorUpdatedAt;
-      console.error(resolvedErrorLog, detailQuery.error);
-      toast.error('Error al cargar la información del código QR.');
-    }
-  }, [
-    detailQuery.isError,
-    detailQuery.error,
-    detailQuery.errorUpdatedAt,
-    resolvedErrorLog,
+  useQueryErrorToast({
+    isError: detailQuery.isError,
+    isFetching: detailQuery.isFetching,
+    errorUpdatedAt: detailQuery.errorUpdatedAt,
+    error: detailQuery.error,
+    message: 'Error al cargar la información del código QR.',
     toast,
-  ]);
+    logLabel: resolvedErrorLog,
+  });
 
   const qr = detailQuery.data ?? null;
   const stats = statsQuery.data ?? null;

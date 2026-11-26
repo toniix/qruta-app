@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useCallback } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -20,6 +20,7 @@ import { adminRouteService } from '../../../services/adminRouteService';
 import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
 import { STALE_TIMES } from '../../../lib/queryClient';
 import { adminKeys } from '../../../lib/queryKeys';
 
@@ -73,19 +74,15 @@ export function RouteListPage() {
   const isFetching =
     routesQuery.isFetching || linesQuery.isFetching || citiesQuery.isFetching;
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (
-      routesQuery.isError &&
-      routesQuery.errorUpdatedAt > 0 &&
-      routesQuery.errorUpdatedAt !== lastErrorAtRef.current
-    ) {
-      lastErrorAtRef.current = routesQuery.errorUpdatedAt;
-      console.error('Error cargando rutas:', routesQuery.error);
-      toast.error('Error al cargar la lista de rutas.');
-    }
-  }, [routesQuery.isError, routesQuery.error, routesQuery.errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError: routesQuery.isError,
+    isFetching: routesQuery.isFetching,
+    errorUpdatedAt: routesQuery.errorUpdatedAt,
+    error: routesQuery.error,
+    message: 'Error al cargar la lista de rutas.',
+    toast,
+    logLabel: 'Error cargando rutas:',
+  });
 
   const handleRefresh = () => {
     Promise.all([

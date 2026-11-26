@@ -98,15 +98,6 @@ export function AdminOverviewPage() {
     communityQuery.isError ||
     qrCodesQuery.isError;
 
-  const latestErrorAt = Math.max(
-    routesQuery.errorUpdatedAt,
-    linesQuery.errorUpdatedAt,
-    stopsQuery.errorUpdatedAt,
-    citiesQuery.errorUpdatedAt,
-    communityQuery.errorUpdatedAt,
-    qrCodesQuery.errorUpdatedAt,
-  );
-
   const firstError =
     routesQuery.error ||
     linesQuery.error ||
@@ -115,15 +106,18 @@ export function AdminOverviewPage() {
     communityQuery.error ||
     qrCodesQuery.error;
 
-  const lastErrorAtRef = useRef(0);
+  const wasInErrorRef = useRef(hasError);
 
   useEffect(() => {
-    if (hasError && latestErrorAt > 0 && latestErrorAt !== lastErrorAtRef.current) {
-      lastErrorAtRef.current = latestErrorAt;
+    const inSettledError = hasError && !isFetching;
+    if (inSettledError && !wasInErrorRef.current) {
+      wasInErrorRef.current = true;
       console.error('Error cargando métricas:', firstError);
       toast.error('Error al cargar métricas del sistema.');
+    } else if (!hasError || isFetching) {
+      wasInErrorRef.current = false;
     }
-  }, [hasError, latestErrorAt, firstError, toast]);
+  }, [hasError, isFetching, firstError, toast]);
 
   const handleRefresh = () => {
     Promise.all([

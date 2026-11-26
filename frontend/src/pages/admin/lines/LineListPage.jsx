@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -18,6 +18,7 @@ import { adminLineService } from '../../../services/adminLineService';
 import { adminOperatorService } from '../../../services/adminOperatorService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
 import { STALE_TIMES } from '../../../lib/queryClient';
 import { adminKeys } from '../../../lib/queryKeys';
 
@@ -67,19 +68,15 @@ export function LineListPage() {
   const isFetching =
     linesQuery.isFetching || citiesQuery.isFetching || operatorsQuery.isFetching;
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (
-      linesQuery.isError &&
-      linesQuery.errorUpdatedAt > 0 &&
-      linesQuery.errorUpdatedAt !== lastErrorAtRef.current
-    ) {
-      lastErrorAtRef.current = linesQuery.errorUpdatedAt;
-      console.error('Error cargando líneas:', linesQuery.error);
-      toast.error('Error al cargar la lista de líneas.');
-    }
-  }, [linesQuery.isError, linesQuery.error, linesQuery.errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError: linesQuery.isError,
+    isFetching: linesQuery.isFetching,
+    errorUpdatedAt: linesQuery.errorUpdatedAt,
+    error: linesQuery.error,
+    message: 'Error al cargar la lista de líneas.',
+    toast,
+    logLabel: 'Error cargando líneas:',
+  });
 
   const handleRefresh = () => {
     Promise.all([

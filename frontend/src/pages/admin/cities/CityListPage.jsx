@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -13,6 +13,7 @@ import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
 import { CityFormDrawer } from './CityFormDrawer';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
 import { STALE_TIMES } from '../../../lib/queryClient';
 import { adminKeys } from '../../../lib/queryKeys';
 
@@ -47,15 +48,15 @@ export function CityListPage() {
     select: (data) => (Array.isArray(data) ? data : []),
   });
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (isError && errorUpdatedAt > 0 && errorUpdatedAt !== lastErrorAtRef.current) {
-      lastErrorAtRef.current = errorUpdatedAt;
-      console.error('Error cargando ciudades:', error);
-      toast.error('Error al cargar la lista de ciudades.');
-    }
-  }, [isError, error, errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError,
+    isFetching,
+    errorUpdatedAt,
+    error,
+    message: 'Error al cargar la lista de ciudades.',
+    toast,
+    logLabel: 'Error cargando ciudades:',
+  });
 
   const filteredCities = useMemo(() => {
     return cities.filter((c) => {
@@ -98,6 +99,9 @@ export function CityListPage() {
       setDeleteConfirm(null);
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: adminKeys.cities() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.stops() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
         queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
       ]);
     },

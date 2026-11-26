@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
@@ -22,6 +22,7 @@ import { operatorQrCodeService } from '../../services/qrCodeService';
 import { operatorPortalService } from '../../services/operatorPortalService';
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+import { useQueryErrorToast } from '../../hooks/useQueryErrorToast';
 import { STALE_TIMES } from '../../lib/queryClient';
 import { operatorKeys } from '../../lib/queryKeys';
 
@@ -69,19 +70,15 @@ export function OperatorQrListPage() {
   const loading = qrCodesQuery.isPending;
   const isFetching = qrCodesQuery.isFetching || routesQuery.isFetching || stopsQuery.isFetching;
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (
-      qrCodesQuery.isError &&
-      qrCodesQuery.errorUpdatedAt > 0 &&
-      qrCodesQuery.errorUpdatedAt !== lastErrorAtRef.current
-    ) {
-      lastErrorAtRef.current = qrCodesQuery.errorUpdatedAt;
-      console.error('Error cargando QR del operador:', qrCodesQuery.error);
-      toast.error('Error al cargar códigos QR.');
-    }
-  }, [qrCodesQuery.isError, qrCodesQuery.error, qrCodesQuery.errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError: qrCodesQuery.isError,
+    isFetching: qrCodesQuery.isFetching,
+    errorUpdatedAt: qrCodesQuery.errorUpdatedAt,
+    error: qrCodesQuery.error,
+    message: 'Error al cargar códigos QR.',
+    toast,
+    logLabel: 'Error cargando QR del operador:',
+  });
 
   const loadData = () => {
     void Promise.all([

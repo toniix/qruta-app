@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   AlertCircle,
@@ -17,6 +17,7 @@ import { OperatorFormDrawer } from './OperatorFormDrawer';
 import { OperatorUsersDrawer } from './OperatorUsersDrawer';
 import { adminOperatorService } from '../../../services/adminOperatorService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
 import { STALE_TIMES } from '../../../lib/queryClient';
 import { adminKeys } from '../../../lib/queryKeys';
 
@@ -66,15 +67,15 @@ export function OperatorListPage() {
     select: (data) => (Array.isArray(data) ? data : []),
   });
 
-  const lastErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (isError && errorUpdatedAt > 0 && errorUpdatedAt !== lastErrorAtRef.current) {
-      lastErrorAtRef.current = errorUpdatedAt;
-      console.error('Error cargando operadores:', error);
-      toast.error('Error al cargar la lista de operadores.');
-    }
-  }, [isError, error, errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError,
+    isFetching,
+    errorUpdatedAt,
+    error,
+    message: 'Error al cargar la lista de operadores.',
+    toast,
+    logLabel: 'Error cargando operadores:',
+  });
 
   const filteredOperators = useMemo(() => {
     if (!searchQuery) return operators;

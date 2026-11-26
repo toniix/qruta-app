@@ -168,6 +168,9 @@ describe('CityListPage', () => {
     });
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.cities() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.lines() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.stops() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.routes() });
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.overview() });
     await waitFor(() => {
       expect(cityService.getAdminCities).toHaveBeenCalledTimes(2);

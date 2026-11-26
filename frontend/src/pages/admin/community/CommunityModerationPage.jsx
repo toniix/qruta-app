@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useMemo } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MessageSquare,
@@ -26,6 +26,7 @@ import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
 import { BRAND_PRIMARY } from '../../../constants/brand';
 import { STALE_TIMES } from '../../../lib/queryClient';
 import { adminKeys } from '../../../lib/queryKeys';
@@ -104,33 +105,25 @@ export function CommunityModerationPage() {
     linesQuery.isFetching ||
     citiesQuery.isFetching;
 
-  const lastErrorAtRef = useRef(0);
+  useQueryErrorToast({
+    isError: postsQuery.isError,
+    isFetching: postsQuery.isFetching,
+    errorUpdatedAt: postsQuery.errorUpdatedAt,
+    error: postsQuery.error,
+    message: 'Error al cargar datos para moderación de la comunidad.',
+    toast,
+    logLabel: 'Error cargando datos de comunidad:',
+  });
 
-  useEffect(() => {
-    if (
-      postsQuery.isError &&
-      postsQuery.errorUpdatedAt > 0 &&
-      postsQuery.errorUpdatedAt !== lastErrorAtRef.current
-    ) {
-      lastErrorAtRef.current = postsQuery.errorUpdatedAt;
-      console.error('Error cargando datos de comunidad:', postsQuery.error);
-      toast.error('Error al cargar datos para moderación de la comunidad.');
-    }
-  }, [postsQuery.isError, postsQuery.error, postsQuery.errorUpdatedAt, toast]);
-
-  const lastCommentsErrorAtRef = useRef(0);
-
-  useEffect(() => {
-    if (
-      commentsQuery.isError &&
-      commentsQuery.errorUpdatedAt > 0 &&
-      commentsQuery.errorUpdatedAt !== lastCommentsErrorAtRef.current
-    ) {
-      lastCommentsErrorAtRef.current = commentsQuery.errorUpdatedAt;
-      console.error('Error cargando comentarios:', commentsQuery.error);
-      toast.error('Error al cargar comentarios.');
-    }
-  }, [commentsQuery.isError, commentsQuery.error, commentsQuery.errorUpdatedAt, toast]);
+  useQueryErrorToast({
+    isError: commentsQuery.isError,
+    isFetching: commentsQuery.isFetching,
+    errorUpdatedAt: commentsQuery.errorUpdatedAt,
+    error: commentsQuery.error,
+    message: 'Error al cargar comentarios.',
+    toast,
+    logLabel: 'Error cargando comentarios:',
+  });
 
   const handleRefresh = () => {
     Promise.all([

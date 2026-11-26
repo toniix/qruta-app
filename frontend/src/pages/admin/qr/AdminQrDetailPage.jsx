@@ -121,13 +121,11 @@ export function AdminQrDetailPage() {
 
   const deleteMutation = useMutation({
     mutationFn: () => adminQrCodeService.delete(id),
-    onSuccess: async () => {
+    onSuccess: () => {
       setDeleteConfirm(false);
+      queryClient.removeQueries({ queryKey: adminKeys.qrDetail(id) });
+      queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes(), exact: true });
       toast.success('Código QR eliminado exitosamente.');
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() }),
-        queryClient.invalidateQueries({ queryKey: adminKeys.qrDetail(id) }),
-      ]);
       navigate('/admin/qr-codes');
     },
     onError: (err) => {
