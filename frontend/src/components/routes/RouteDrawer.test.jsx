@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RouteDrawer } from './RouteDrawer';
@@ -181,6 +181,60 @@ describe('RouteDrawer Share Feature', () => {
     expect(screen.getByRole('button', { name: 'Vuelta' })).not.toBeDisabled();
     expect(screen.getByText('Línea Vuelta')).toBeInTheDocument();
     expect(screen.getByText('Paradero Sur')).toBeInTheDocument();
+  });
+
+  it('switches between Ida and Vuelta when both directions are loaded', () => {
+    const setActiveDirection = vi.fn();
+    const selectStop = vi.fn();
+    const focusStop = vi.fn();
+
+    mockUseRoutes.mockReturnValue({
+      selectedRoute: {
+        id: 'route-both',
+        code: 'RB',
+        name: 'Ruta Completa',
+        directions: [
+          {
+            direction: 'IDA',
+            originName: 'Norte',
+            destinationName: 'Sur',
+            stops: [{ id: 's1', name: 'Paradero Norte', stopOrder: 1 }],
+          },
+          {
+            direction: 'VUELTA',
+            originName: 'Sur',
+            destinationName: 'Norte',
+            stops: [{ id: 's2', name: 'Paradero Sur', stopOrder: 1 }],
+          },
+        ],
+      },
+      focusedStop: null,
+      selectStop,
+      focusStop,
+      activeDirection: 'IDA',
+      setActiveDirection,
+      loadingRouteDetail: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <RouteDrawer />
+      </MemoryRouter>
+    );
+
+    const idaBtn = screen.getByRole('button', { name: 'Ida' });
+    const vueltaBtn = screen.getByRole('button', { name: 'Vuelta' });
+
+    expect(idaBtn).not.toBeDisabled();
+    expect(vueltaBtn).not.toBeDisabled();
+
+    fireEvent.click(vueltaBtn);
+    expect(setActiveDirection).toHaveBeenCalledWith('VUELTA');
+    expect(selectStop).toHaveBeenCalledWith(null);
+    expect(focusStop).toHaveBeenCalledWith(null);
+
+    fireEvent.click(idaBtn);
+    expect(setActiveDirection).toHaveBeenCalledWith('IDA');
   });
 });
 

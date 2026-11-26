@@ -94,4 +94,19 @@ describe('normalizeRoute category', () => {
 
     expect(route.transportLineName).toBe('Empresa Principal');
   });
+
+  it('normalizes legacy OUTBOUND/INBOUND and lowercase directions to IDA/VUELTA', () => {
+    const route = normalizeRoute({
+      id: 'route-5',
+      code: 'R105',
+      name: 'Ruta 105',
+      directions: [
+        { id: 'd1', direction: 'OUTBOUND', stops: [] },
+        { id: 'd2', direction: 'inbound', stops: [] },
+      ],
+    });
+
+    expect(route.directions[0].direction).toBe('IDA');
+    expect(route.directions[1].direction).toBe('VUELTA');
+  });
 });

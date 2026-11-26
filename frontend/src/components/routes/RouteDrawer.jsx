@@ -208,9 +208,15 @@ export function RouteDrawer() {
   const loading = Boolean(loadingRouteDetail);
 
   const idaDirection =
-    directions.find((d) => d.direction === "IDA") || null;
+    directions.find((d) => {
+      const dir = String(d.direction || "").trim().toUpperCase();
+      return dir === "IDA" || dir === "OUTBOUND";
+    }) || null;
   const vueltaDirection =
-    directions.find((d) => d.direction === "VUELTA") || null;
+    directions.find((d) => {
+      const dir = String(d.direction || "").trim().toUpperCase();
+      return dir === "VUELTA" || dir === "INBOUND";
+    }) || null;
   const hasIda = Boolean(idaDirection);
   const hasVuelta = Boolean(vueltaDirection);
 
@@ -415,7 +421,7 @@ export function RouteDrawer() {
               effectiveActiveDirection === "IDA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
                 : "text-slate-500"
-            } ${directions.length > 0 && !hasIda ? "opacity-40 cursor-not-allowed" : "hover:text-slate-800"}`}
+            } ${directions.length > 0 && !hasIda ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:text-slate-800"}`}
           >
             Ida
           </button>
@@ -427,7 +433,7 @@ export function RouteDrawer() {
               effectiveActiveDirection === "VUELTA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
                 : "text-slate-500"
-            } ${!hasVuelta ? "opacity-40 cursor-not-allowed" : "hover:text-slate-800"}`}
+            } ${!hasVuelta ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:text-slate-800"}`}
           >
             Vuelta
           </button>
