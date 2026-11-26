@@ -25,6 +25,28 @@ import { adminOperatorService } from '../../../services/adminOperatorService';
 import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
+
+async function fetchAdminQrListData() {
+  const [codes, routesData, stopsData, opsData, citiesData, linesData] =
+    await Promise.all([
+      adminQrCodeService.getAll().catch(() => []),
+      adminRouteService.getAllRoutes().catch(() => []),
+      adminStopService.getAllStops().catch(() => []),
+      adminOperatorService.getAllOperators().catch(() => []),
+      cityService.getAdminCities().catch(() => []),
+      adminLineService.getAllLines().catch(() => []),
+    ]);
+
+  return {
+    qrCodes: Array.isArray(codes) ? codes : [],
+    routes: Array.isArray(routesData) ? routesData : [],
+    stops: Array.isArray(stopsData) ? stopsData : [],
+    operators: Array.isArray(opsData) ? opsData : [],
+    cities: Array.isArray(citiesData) ? citiesData : [],
+    lines: Array.isArray(linesData) ? linesData : [],
+  };
+}
 
 export function AdminQrListPage() {
   const toast = useAdminToast();
@@ -51,36 +73,55 @@ export function AdminQrListPage() {
   const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, description }
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, label }
 
+  const applyListData = useCallback((data) => {
+    setQrCodes(data.qrCodes);
+    setRoutes(data.routes);
+    setStops(data.stops);
+    setOperators(data.operators);
+    setCities(data.cities);
+    setLines(data.lines);
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [codes, routesData, stopsData, opsData, citiesData, linesData] =
-        await Promise.all([
-          adminQrCodeService.getAll().catch(() => []),
-          adminRouteService.getAllRoutes().catch(() => []),
-          adminStopService.getAllStops().catch(() => []),
-          adminOperatorService.getAllOperators().catch(() => []),
-          cityService.getAdminCities().catch(() => []),
-          adminLineService.getAllLines().catch(() => []),
-        ]);
-      setQrCodes(Array.isArray(codes) ? codes : []);
-      setRoutes(Array.isArray(routesData) ? routesData : []);
-      setStops(Array.isArray(stopsData) ? stopsData : []);
-      setOperators(Array.isArray(opsData) ? opsData : []);
-      setCities(Array.isArray(citiesData) ? citiesData : []);
-      setLines(Array.isArray(linesData) ? linesData : []);
+      const data = await fetchAdminQrListData();
+      applyListData(data);
     } catch (err) {
       console.error('Error cargando códigos QR:', err);
       toast.error('Error al cargar la lista de códigos QR.');
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [applyListData, toast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR list state
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+
+    async function loadInitial() {
+      try {
+        const data = await fetchAdminQrListData();
+        if (!cancelled) {
+          applyListData(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error cargando códigos QR:', err);
+          toast.error('Error al cargar la lista de códigos QR.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadInitial();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyListData, toast]);
 
   // Filtered QR codes
   const filteredCodes = useMemo(() => {
@@ -163,13 +204,10 @@ export function AdminQrListPage() {
     }
   };
 
-  const [copiedId, setCopiedId] = useState(null);
+  const { copiedKey: copiedId, copy } = useCopyToClipboard();
   const handleCopyUrl = (qr) => {
     const url = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedId(qr.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
+    void copy(url, qr.id);
   };
 
   const columns = [

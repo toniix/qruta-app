@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { StatusBadge } from '../../../components/admin/common/StatusBadge';
 import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
+import { QrCodeSvg } from '../../../components/common/QrCodeSvg';
 import { QrPrintModal } from '../../../components/admin/qr/QrPrintModal';
 import { QrFormModal } from '../../../components/admin/qr/QrFormModal';
 import { adminQrCodeService } from '../../../services/qrCodeService';
@@ -20,99 +21,72 @@ import { adminStopService } from '../../../services/adminStopService';
 import { adminOperatorService } from '../../../services/adminOperatorService';
 import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
-import { generateQrSvg, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
+import { resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
+import { useQrDetail } from '../../../hooks/useQrDetail';
+
+const INITIAL_CATALOGS = {
+  routes: [],
+  stops: [],
+  operators: [],
+  cities: [],
+  lines: [],
+};
+
+async function loadAdminQrCatalogs() {
+  const [routesData, stopsData, operatorsData, citiesData, linesData] =
+    await Promise.all([
+      adminRouteService.getAllRoutes(),
+      adminStopService.getAllStops(),
+      adminOperatorService.getAllOperators(),
+      cityService.getAdminCities(),
+      adminLineService.getAllLines(),
+    ]);
+
+  return {
+    routes: Array.isArray(routesData) ? routesData : [],
+    stops: Array.isArray(stopsData) ? stopsData : [],
+    operators: Array.isArray(operatorsData) ? operatorsData : [],
+    cities: Array.isArray(citiesData) ? citiesData : [],
+    lines: Array.isArray(linesData) ? linesData : [],
+  };
+}
 
 export function AdminQrDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useAdminToast();
-  const [qr, setQr] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [routes, setRoutes] = useState([]);
-  const [stops, setStops] = useState([]);
-  const [operators, setOperators] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [lines, setLines] = useState([]);
-  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
+  const {
+    qr,
+    setQr,
+    stats,
+    loading,
+    saving,
+    setSaving,
+    printModalOpen,
+    setPrintModalOpen,
+    editModalOpen,
+    setEditModalOpen,
+    catalogs,
+    openEdit,
+    handleEdit,
+  } = useQrDetail({
+    id,
+    service: adminQrCodeService,
+    loadCatalogs: loadAdminQrCatalogs,
+    initialCatalogs: INITIAL_CATALOGS,
+    toast,
+    loadErrorLog: 'Error cargando detalle del QR:',
+  });
   const [statusConfirm, setStatusConfirm] = useState(null);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
-  const [copied, setCopied] = useState(false);
-
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [qrData, statsData] = await Promise.all([
-        adminQrCodeService.getById(id),
-        adminQrCodeService.getStats(id).catch(() => null),
-      ]);
-      setQr(qrData);
-      setStats(statsData);
-    } catch (err) {
-      console.error('Error cargando detalle del QR:', err);
-      toast.error('Error al cargar la información del código QR.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id, toast]);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR detail state
-    loadData();
-  }, [loadData]);
 
   const handleCopyUrl = () => {
     if (!qr) return;
     const url = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const openEdit = async () => {
-    if (!catalogsLoaded) {
-      try {
-        const [routesData, stopsData, operatorsData, citiesData, linesData] =
-          await Promise.all([
-            adminRouteService.getAllRoutes(),
-            adminStopService.getAllStops(),
-            adminOperatorService.getAllOperators(),
-            cityService.getAdminCities(),
-            adminLineService.getAllLines(),
-          ]);
-        setRoutes(Array.isArray(routesData) ? routesData : []);
-        setStops(Array.isArray(stopsData) ? stopsData : []);
-        setOperators(Array.isArray(operatorsData) ? operatorsData : []);
-        setCities(Array.isArray(citiesData) ? citiesData : []);
-        setLines(Array.isArray(linesData) ? linesData : []);
-        setCatalogsLoaded(true);
-      } catch (err) {
-        console.error('Error cargando catálogos para editar QR:', err);
-        toast.error('No se pudieron cargar los catálogos para editar el código QR.');
-        return;
-      }
-    }
-    setEditModalOpen(true);
-  };
-
-  const handleEdit = async (formData) => {
-    setSaving(true);
-    try {
-      const updated = await adminQrCodeService.update(id, formData);
-      setQr(updated);
-      setEditModalOpen(false);
-      toast.success('Código QR actualizado exitosamente.');
-    } catch (err) {
-      console.error('Error actualizando QR:', err);
-      toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
-    } finally {
-      setSaving(false);
-    }
+    void copy(url);
   };
 
   const handleDelete = async () => {
@@ -163,7 +137,6 @@ export function AdminQrDetailPage() {
   }
 
   const qrUrl = resolveAbsoluteQrUrl(qr);
-  const svgMarkup = generateQrSvg(qrUrl, { margin: 1 });
   const totalScans = stats?.totalScans || qr.totalScans || 0;
   const effectiveViews = stats?.effectiveViews || 0;
   const ctrPercent = totalScans > 0 ? Math.min(100, Math.round((effectiveViews / totalScans) * 100)) : 0;
@@ -398,10 +371,13 @@ export function AdminQrDetailPage() {
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card flex flex-col items-center text-center space-y-4">
           <h3 className="text-sm font-bold text-slate-900">Lámina Rápida</h3>
 
-          <div
-            className="w-52 h-52 bg-white p-3 rounded-2xl border-2 border-slate-900 shadow-sm flex items-center justify-center"
-            dangerouslySetInnerHTML={{ __html: svgMarkup }}
-          />
+          <div className="w-52 h-52 bg-white p-3 rounded-2xl border-2 border-slate-900 shadow-sm flex items-center justify-center">
+            <QrCodeSvg
+              value={qrUrl}
+              margin={1}
+              label={qr.label ? `Código QR para ${qr.label}` : 'Código QR'}
+            />
+          </div>
 
           <p className="text-xs font-bold text-slate-900 line-clamp-1">{qr.label}</p>
           <p className="text-[11px] text-slate-500 font-mono">/q/{qr.code}</p>
@@ -429,11 +405,11 @@ export function AdminQrDetailPage() {
         onClose={() => setEditModalOpen(false)}
         onSave={handleEdit}
         saving={saving}
-        routes={routes}
-        stops={stops}
-        operators={operators}
-        cities={cities}
-        lines={lines}
+        routes={catalogs.routes}
+        stops={catalogs.stops}
+        operators={catalogs.operators}
+        cities={catalogs.cities}
+        lines={catalogs.lines}
         isOperator={false}
       />
 

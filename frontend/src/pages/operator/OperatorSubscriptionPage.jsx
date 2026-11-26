@@ -5,6 +5,8 @@ import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { operatorAuthService } from '../../services/operatorAuthService';
 import { operatorPortalService } from '../../services/operatorPortalService';
+import { formatDateTime } from '../../utils/dateUtils';
+import { isSafeHttpsUrl } from '../../utils/urlUtils';
 
 const STATUS_LABELS = {
   ACTIVE: 'Activa',
@@ -29,13 +31,6 @@ const PERIOD_STATUS_LABELS = {
 };
 
 const BLOCKED_STATUSES = new Set(['PAST_DUE', 'CANCELED', 'EXPIRED']);
-
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return String(value);
-  return date.toLocaleString('es-PE', { dateStyle: 'medium', timeStyle: 'short' });
-}
 
 function formatAmount(amount, currency) {
   if (amount === null || amount === undefined || amount === '') return '—';
@@ -95,8 +90,13 @@ export function OperatorSubscriptionPage() {
         method: 'QR',
       });
       if (checkout?.checkoutUrl) {
-        setCheckoutUrl(checkout.checkoutUrl);
-        window.open(checkout.checkoutUrl, '_self');
+        if (!isSafeHttpsUrl(checkout.checkoutUrl)) {
+          toast.error('El enlace de pago recibido no es válido.');
+          return;
+        }
+        const safeUrl = checkout.checkoutUrl.trim();
+        setCheckoutUrl(safeUrl);
+        window.open(safeUrl, '_self');
         toast.info('Abriendo la pasarela de pago...');
       } else {
         toast.success('Solicitud de pago creada');
@@ -178,9 +178,9 @@ export function OperatorSubscriptionPage() {
 
             <dl className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <Detail label="Plan" value={subscription.plan || '—'} />
-              <Detail label="Inicio" value={formatDate(subscription.startsAt)} />
-              <Detail label="Renovación" value={formatDate(subscription.renewsAt)} />
-              <Detail label="Gracia hasta" value={formatDate(subscription.graceUntil)} />
+              <Detail label="Inicio" value={formatDateTime(subscription.startsAt)} />
+              <Detail label="Renovación" value={formatDateTime(subscription.renewsAt)} />
+              <Detail label="Gracia hasta" value={formatDateTime(subscription.graceUntil)} />
             </dl>
 
             {checkoutUrl && (
@@ -229,7 +229,7 @@ export function OperatorSubscriptionPage() {
                     {periods.map((period) => (
                       <tr key={period.id || period.providerReference}>
                         <td className="px-5 py-3 text-slate-700">
-                          {formatDate(period.fromAt)} — {formatDate(period.toAt)}
+                          {formatDateTime(period.fromAt)} — {formatDateTime(period.toAt)}
                         </td>
                         <td className="px-5 py-3 font-semibold text-slate-900">
                           {formatAmount(period.amount, period.currency)}

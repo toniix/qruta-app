@@ -17,8 +17,12 @@ vi.mock('../../services/operatorAuthService', () => ({
   },
 }));
 
+const { toastMock } = vi.hoisted(() => ({
+  toastMock: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+}));
+
 vi.mock('../../hooks/useAdminToast', () => ({
-  useAdminToast: () => ({ success: vi.fn(), error: vi.fn(), info: vi.fn() }),
+  useAdminToast: () => toastMock,
 }));
 
 describe('OperatorSubscriptionPage', () => {
@@ -95,5 +99,42 @@ describe('OperatorSubscriptionPage', () => {
       'https://pay.simulado.test/checkout/ref-1',
       '_self'
     );
+  });
+
+  it('rejects non-https and javascript checkout URLs without calling window.open', async () => {
+    operatorPortalService.getSubscription.mockResolvedValue({
+      plan: 'PRO',
+      status: 'ACTIVE',
+      periods: [],
+    });
+
+    for (const unsafeUrl of ['javascript:alert(1)', 'http://pay.simulado.test/checkout/ref-1']) {
+      vi.clearAllMocks();
+      operatorAuthService.getCurrentUser.mockReturnValue({ operatorName: 'Transportes Ica' });
+      operatorPortalService.getSubscription.mockResolvedValue({
+        plan: 'PRO',
+        status: 'ACTIVE',
+        periods: [],
+      });
+      operatorPortalService.createCheckout.mockResolvedValue({
+        checkoutUrl: unsafeUrl,
+        status: 'PENDING',
+      });
+
+      const { unmount } = render(<OperatorSubscriptionPage />);
+
+      const payButton = await screen.findByRole('button', { name: /pagar ahora/i });
+      await waitFor(() => expect(payButton).toBeEnabled());
+      fireEvent.click(payButton);
+
+      await waitFor(() => {
+        expect(toastMock.error).toHaveBeenCalledWith(
+          'El enlace de pago recibido no es válido.'
+        );
+      });
+      expect(openSpy).not.toHaveBeenCalled();
+      expect(screen.queryByRole('link', { name: /abrir enlace de pago/i })).not.toBeInTheDocument();
+      unmount();
+    }
   });
 });

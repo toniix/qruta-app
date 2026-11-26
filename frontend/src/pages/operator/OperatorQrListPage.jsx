@@ -20,6 +20,21 @@ import { QrFormModal } from '../../components/admin/qr/QrFormModal';
 import { operatorQrCodeService } from '../../services/qrCodeService';
 import { operatorPortalService } from '../../services/operatorPortalService';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+
+async function fetchOperatorQrListData() {
+  const [codes, routesData, stopsData] = await Promise.all([
+    operatorQrCodeService.getAll().catch(() => []),
+    operatorPortalService.getRoutes().catch(() => []),
+    operatorPortalService.getStops().catch(() => []),
+  ]);
+
+  return {
+    qrCodes: Array.isArray(codes) ? codes : [],
+    routes: Array.isArray(routesData) ? routesData : [],
+    stops: Array.isArray(stopsData) ? stopsData : [],
+  };
+}
 
 export function OperatorQrListPage() {
   const toast = useAdminToast();
@@ -39,29 +54,52 @@ export function OperatorQrListPage() {
   const [printModalQr, setPrintModalQr] = useState(null);
   const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, description }
 
+  const applyListData = useCallback((data) => {
+    setQrCodes(data.qrCodes);
+    setRoutes(data.routes);
+    setStops(data.stops);
+  }, []);
+
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [codes, routesData, stopsData] = await Promise.all([
-        operatorQrCodeService.getAll().catch(() => []),
-        operatorPortalService.getRoutes().catch(() => []),
-        operatorPortalService.getStops().catch(() => []),
-      ]);
-      setQrCodes(Array.isArray(codes) ? codes : []);
-      setRoutes(Array.isArray(routesData) ? routesData : []);
-      setStops(Array.isArray(stopsData) ? stopsData : []);
+      const data = await fetchOperatorQrListData();
+      applyListData(data);
     } catch (err) {
       console.error('Error cargando QR del operador:', err);
       toast.error('Error al cargar códigos QR.');
     } finally {
       setLoading(false);
     }
-  }, [toast]);
+  }, [applyListData, toast]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR list state
-    loadData();
-  }, [loadData]);
+    let cancelled = false;
+
+    async function loadInitial() {
+      try {
+        const data = await fetchOperatorQrListData();
+        if (!cancelled) {
+          applyListData(data);
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error('Error cargando QR del operador:', err);
+          toast.error('Error al cargar códigos QR.');
+        }
+      } finally {
+        if (!cancelled) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadInitial();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [applyListData, toast]);
 
   const filteredCodes = useMemo(() => {
     return qrCodes.filter((qr) => {
@@ -123,13 +161,10 @@ export function OperatorQrListPage() {
     }
   };
 
-  const [copiedId, setCopiedId] = useState(null);
+  const { copiedKey: copiedId, copy } = useCopyToClipboard();
   const handleCopyUrl = (qr) => {
     const url = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopiedId(qr.id);
-      setTimeout(() => setCopiedId(null), 2000);
-    });
+    void copy(url, qr.id);
   };
 
   return (
