@@ -4,6 +4,8 @@ import { TriangleAlert } from 'lucide-react';
 import { OperatorSidebar } from '../components/operator/layout/OperatorSidebar';
 import { OperatorTopBar } from '../components/operator/layout/OperatorTopBar';
 import { ToastProvider } from '../components/admin/common/ToastContext';
+import { ErrorBoundary } from '../components/common/ErrorBoundary';
+import { useNoIndex } from '../hooks/useNoIndex';
 import { operatorPortalService } from '../services/operatorPortalService';
 
 const BLOCKED_STATUSES = new Set(['PAST_DUE', 'CANCELED', 'EXPIRED']);
@@ -35,35 +37,28 @@ export function OperatorLayout() {
 
   const blockedStatus = BLOCKED_STATUSES.has(subscriptionStatus) ? subscriptionStatus : null;
 
-  useEffect(() => {
-    let meta = document.querySelector('meta[name="robots"]');
-    const created = !meta;
-    if (!meta) {
-      meta = document.createElement('meta');
-      meta.setAttribute('name', 'robots');
-      document.head.appendChild(meta);
-    }
-    const previous = meta.getAttribute('content');
-    meta.setAttribute('content', 'noindex, nofollow');
-    return () => {
-      if (created) {
-        meta.remove();
-      } else if (previous) {
-        meta.setAttribute('content', previous);
-      }
-    };
-  }, []);
+  useNoIndex();
 
   return (
     <ToastProvider>
       <div className="flex h-screen h-[100dvh] w-full overflow-hidden bg-slate-100 font-sans text-slate-800">
+        <a
+          href="#main-content"
+          className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[10000] focus:rounded-xl focus:bg-slate-900 focus:px-4 focus:py-2 focus:text-xs focus:font-bold focus:text-white focus:shadow-lg"
+        >
+          Saltar al contenido principal
+        </a>
         <OperatorSidebar
           mobileOpen={mobileSidebarOpen}
           onCloseMobile={() => setMobileSidebarOpen(false)}
         />
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           <OperatorTopBar onOpenMobile={() => setMobileSidebarOpen(true)} />
-          <main className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 focus:outline-none">
+          <main
+            id="main-content"
+            tabIndex={-1}
+            className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-8 focus:outline-none"
+          >
             {blockedStatus && (
               <div
                 role="alert"
@@ -84,7 +79,9 @@ export function OperatorLayout() {
                 </Link>
               </div>
             )}
-            <Outlet />
+            <ErrorBoundary>
+              <Outlet />
+            </ErrorBoundary>
           </main>
         </div>
       </div>
