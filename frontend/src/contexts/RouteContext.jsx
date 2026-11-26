@@ -24,11 +24,13 @@ import {
 } from "../utils/cityCache";
 import { scheduleNonCriticalTask } from "../utils/scheduler";
 
-const RouteContext = createContext(null);
+const RouteCatalogContext = createContext(null);
+const RouteSearchContext = createContext(null);
+const RouteSelectionContext = createContext(null);
+const RouteGpsContext = createContext(null);
 
 export function RouteProvider({ children }) {
   const [routes, setRoutes] = useState([]);
-  const stops = useMemo(() => [], []);
   const [selectedRoute, setSelectedRoute] = useState(null);
   const [selectedStop, setSelectedStop] = useState(null);
   const [focusedStop, setFocusedStop] = useState(null);
@@ -420,7 +422,7 @@ export function RouteProvider({ children }) {
             );
             if (match) {
               setNearestMatchInfo(match);
-              const sorted = [...results].sort((a, b) => {
+              const sorted = results.toSorted((a, b) => {
                 if (a.id === match.route?.id) return -1;
                 if (b.id === match.route?.id) return 1;
                 return 0;
@@ -577,77 +579,95 @@ export function RouteProvider({ children }) {
     clearSelectedCityId();
   }, []);
 
-  // Stabilize context value reference to prevent redundant re-renders across all child components
-  const contextValue = useMemo(
+  // Memoize each context slice independently for render isolation across consumers
+  const catalogValue = useMemo(
     () => ({
       routes,
-      stops,
-      filteredRoutes,
-      loadingFiltered,
-      selectedRoute,
-      selectedStop,
-      activeDirection,
-      setActiveDirection,
-      searchedLocation,
-      nearestMatchInfo,
-      searchQuery,
-      onlyNearby,
-      setOnlyNearby,
-      loading,
-      error,
-      userLocation,
-      gpsStatus,
-      isLocating,
-      gpsReady,
-      gpsPermissionState,
-      showGpsModal,
-      setShowGpsModal,
-      userAddress,
-      addressStatus,
-      nearbyStops,
-      loadingStops,
-      stopsError,
-      popularRoutes,
-      displayedPopularRoutes,
-      loadingPopular,
-      loadingRouteDetail,
-      loadNearbyStops,
-      setSearchQuery,
-      setSearchedLocation,
-      selectRoute,
-      selectStop,
-      focusedStop,
-      focusStop,
-      setFocusedStop,
-      clearSelection,
-      clearSelectedRoute,
-      locateNearestRoute,
-      requestLocation,
-      triggerGpsRequest,
-      setGpsPermissionState,
-      checkPermissionState,
-      loadData,
       cities,
       currentCity,
       isManualCity,
       outsideCoverage,
+      loading,
+      error,
+      popularRoutes,
+      displayedPopularRoutes,
+      loadingPopular,
+      loadData,
       setCity,
       resetToGpsDetection,
     }),
     [
       routes,
-      stops,
-      filteredRoutes,
-      loadingFiltered,
-      selectedRoute,
-      selectedStop,
-      activeDirection,
-      searchedLocation,
-      nearestMatchInfo,
-      searchQuery,
-      onlyNearby,
+      cities,
+      currentCity,
+      isManualCity,
+      outsideCoverage,
       loading,
       error,
+      popularRoutes,
+      displayedPopularRoutes,
+      loadingPopular,
+      loadData,
+      setCity,
+      resetToGpsDetection,
+    ],
+  );
+
+  const searchValue = useMemo(
+    () => ({
+      searchQuery,
+      setSearchQuery,
+      filteredRoutes,
+      loadingFiltered,
+      onlyNearby,
+      setOnlyNearby,
+      searchedLocation,
+      setSearchedLocation,
+      nearestMatchInfo,
+      locateNearestRoute,
+    }),
+    [
+      searchQuery,
+      filteredRoutes,
+      loadingFiltered,
+      onlyNearby,
+      searchedLocation,
+      nearestMatchInfo,
+      locateNearestRoute,
+    ],
+  );
+
+  const selectionValue = useMemo(
+    () => ({
+      selectedRoute,
+      selectedStop,
+      focusedStop,
+      activeDirection,
+      setActiveDirection,
+      loadingRouteDetail,
+      selectRoute,
+      selectStop,
+      focusStop,
+      setFocusedStop,
+      clearSelection,
+      clearSelectedRoute,
+    }),
+    [
+      selectedRoute,
+      selectedStop,
+      focusedStop,
+      activeDirection,
+      loadingRouteDetail,
+      selectRoute,
+      selectStop,
+      focusStop,
+      clearSelection,
+      clearSelectedRoute,
+    ],
+  );
+
+  const gpsValue = useMemo(
+    () => ({
       userLocation,
       gpsStatus,
       isLocating,
@@ -660,47 +680,99 @@ export function RouteProvider({ children }) {
       nearbyStops,
       loadingStops,
       stopsError,
-      popularRoutes,
-      displayedPopularRoutes,
-      loadingPopular,
-      loadingRouteDetail,
       loadNearbyStops,
-      setSearchQuery,
-      setSearchedLocation,
-      selectRoute,
-      selectStop,
-      focusedStop,
-      focusStop,
-      setFocusedStop,
-      clearSelection,
-      clearSelectedRoute,
-      locateNearestRoute,
       requestLocation,
       triggerGpsRequest,
       setGpsPermissionState,
       checkPermissionState,
-      loadData,
-      cities,
-      currentCity,
-      isManualCity,
-      outsideCoverage,
-      setCity,
-      resetToGpsDetection,
+    }),
+    [
+      userLocation,
+      gpsStatus,
+      isLocating,
+      gpsReady,
+      gpsPermissionState,
+      showGpsModal,
+      userAddress,
+      addressStatus,
+      nearbyStops,
+      loadingStops,
+      stopsError,
+      loadNearbyStops,
+      requestLocation,
+      triggerGpsRequest,
+      setGpsPermissionState,
+      checkPermissionState,
     ],
   );
 
   return (
-    <RouteContext.Provider value={contextValue}>
-      {children}
-    </RouteContext.Provider>
+    <RouteCatalogContext.Provider value={catalogValue}>
+      <RouteGpsContext.Provider value={gpsValue}>
+        <RouteSearchContext.Provider value={searchValue}>
+          <RouteSelectionContext.Provider value={selectionValue}>
+            {children}
+          </RouteSelectionContext.Provider>
+        </RouteSearchContext.Provider>
+      </RouteGpsContext.Provider>
+    </RouteCatalogContext.Provider>
   );
 }
 
 // eslint-disable-next-line react-refresh/only-export-components
-export function useRoutes() {
-  const context = useContext(RouteContext);
+export function useRouteCatalog() {
+  const context = useContext(RouteCatalogContext);
   if (!context) {
-    throw new Error("useRoutes debe ser usado dentro de un RouteProvider");
+    throw new Error("useRouteCatalog debe ser usado dentro de un RouteProvider");
   }
   return context;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useRouteSearch() {
+  const context = useContext(RouteSearchContext);
+  if (!context) {
+    throw new Error("useRouteSearch debe ser usado dentro de un RouteProvider");
+  }
+  return context;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useRouteSelection() {
+  const context = useContext(RouteSelectionContext);
+  if (!context) {
+    throw new Error("useRouteSelection debe ser usado dentro de un RouteProvider");
+  }
+  return context;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useRouteGps() {
+  const context = useContext(RouteGpsContext);
+  if (!context) {
+    throw new Error("useRouteGps debe ser usado dentro de un RouteProvider");
+  }
+  return context;
+}
+
+// eslint-disable-next-line react-refresh/only-export-components
+export function useRoutes() {
+  const catalog = useContext(RouteCatalogContext);
+  const search = useContext(RouteSearchContext);
+  const selection = useContext(RouteSelectionContext);
+  const gps = useContext(RouteGpsContext);
+
+  if (!catalog || !search || !selection || !gps) {
+    throw new Error("useRoutes debe ser usado dentro de un RouteProvider");
+  }
+
+  return useMemo(
+    () => ({
+      ...catalog,
+      ...search,
+      ...selection,
+      ...gps,
+    }),
+    [catalog, search, selection, gps],
+  );
 }

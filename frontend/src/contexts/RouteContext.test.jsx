@@ -1,6 +1,13 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, waitFor, act } from "@testing-library/react";
-import { RouteProvider, useRoutes } from "./RouteContext";
+import {
+  RouteProvider,
+  useRoutes,
+  useRouteCatalog,
+  useRouteSearch,
+  useRouteSelection,
+  useRouteGps,
+} from "./RouteContext";
 import { cityService } from "../services/cityService";
 
 const geoState = vi.hoisted(() => ({
@@ -341,5 +348,63 @@ describe("RouteContext GPS modal & onlyNearby flow", () => {
     await waitFor(() => {
       expect(latestContext.onlyNearby).toBe(false);
     });
+  });
+});
+
+describe("RouteContext slice render isolation", () => {
+  it("does not re-render catalog or GPS consumers when searchQuery or selection changes", async () => {
+    let catalogRenders = 0;
+    let gpsRenders = 0;
+    let latestSearch = null;
+    let latestSelection = null;
+
+    function CatalogConsumer() {
+      useRouteCatalog();
+      catalogRenders += 1;
+      return null;
+    }
+
+    function GpsConsumer() {
+      useRouteGps();
+      gpsRenders += 1;
+      return null;
+    }
+
+    function SearchConsumer() {
+      latestSearch = useRouteSearch();
+      return null;
+    }
+
+    function SelectionConsumer() {
+      latestSelection = useRouteSelection();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <CatalogConsumer />
+        <GpsConsumer />
+        <SearchConsumer />
+        <SelectionConsumer />
+      </RouteProvider>,
+    );
+
+    await waitFor(() => {
+      expect(latestSearch).not.toBeNull();
+      expect(latestSelection).not.toBeNull();
+    });
+
+    const catalogBefore = catalogRenders;
+    const gpsBefore = gpsRenders;
+
+    act(() => {
+      latestSearch.setSearchQuery("Bolognesi");
+      latestSelection.setActiveDirection("VUELTA");
+    });
+
+    expect(latestSearch.searchQuery).toBe("Bolognesi");
+    expect(latestSelection.activeDirection).toBe("VUELTA");
+    expect(catalogRenders).toBe(catalogBefore);
+    expect(gpsRenders).toBe(gpsBefore);
   });
 });

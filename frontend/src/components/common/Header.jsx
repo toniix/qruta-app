@@ -1,6 +1,6 @@
 import { Navigation, MapPin, Search } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
-import { useRoutes } from '../../contexts/RouteContext';
+import { useRouteCatalog, useRouteGps } from '../../contexts/RouteContext';
 import { streetLine } from '../../services/geocodingService';
 import { prefetchRoute } from '../../utils/routePrefetch';
 import { QrutaSymbol } from './QrutaSymbol';
@@ -16,7 +16,8 @@ const CITIZEN_LINKS = [
 export function Header() {
   const location = useLocation();
   const isAdmin = location.pathname.startsWith('/admin');
-  const { triggerGpsRequest, isLocating, gpsReady, addressStatus, userAddress, currentCity } = useRoutes();
+  const { currentCity } = useRouteCatalog();
+  const { triggerGpsRequest, isLocating, gpsReady, addressStatus, userAddress } = useRouteGps();
 
   // Citizen pages own their full-screen mobile layout; the global header is
   // desktop-only there. Admin pages always show it.

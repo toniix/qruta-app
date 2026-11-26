@@ -57,13 +57,45 @@
 }
 
 @layer base {
+  :root {
+    accent-color: var(--color-brand-primary);
+    --scrollbar-thumb: #64748b;
+    --scrollbar-track: transparent;
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+  }
+
+  /* Legacy WebKit scrollbar fallback for browsers without standard scrollbar-color. */
+  @supports not (scrollbar-color: auto) {
+    :root {
+      scrollbar-width: auto;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: var(--scrollbar-track);
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--scrollbar-thumb);
+      border-radius: 9999px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+  }
+
   html {
     -webkit-text-size-adjust: 100%;
   }
 
   body {
     font-family:
-      "Inter",
       system-ui,
       -apple-system,
       BlinkMacSystemFont,
@@ -77,7 +109,7 @@
     color: var(--color-ink-primary);
     margin: 0;
     padding: 0;
-    overflow-x: hidden;
+    overflow-x: clip;
     -webkit-tap-highlight-color: transparent;
   }
 
@@ -96,14 +128,16 @@
     outline-offset: 2px;
     border-radius: 2px;
   }
-}
 
-/* Safe-area padding helpers (index.html adds viewport-fit=cover). */
-.pb-safe {
-  padding-bottom: env(safe-area-inset-bottom);
-}
-.pt-safe {
-  padding-top: env(safe-area-inset-top);
+  /* Prevent underlying page scrolling while a native modal dialog is open. */
+  dialog:modal {
+    overscroll-behavior: contain;
+  }
+
+  dialog::backdrop {
+    overflow: hidden;
+    overscroll-behavior: contain;
+  }
 }
 
 /* ── Respect reduced motion globally ─────────────────────────────────── */
@@ -116,22 +150,6 @@
     transition-duration: 0.01ms !important;
     scroll-behavior: auto !important;
   }
-}
-
-/* Custom Scrollbars */
-::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
-  border-radius: 9999px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
 }
 
 /* Leaflet Override & Map Styling */
@@ -163,23 +181,6 @@
   background-color: #ffffff;
 }
 
-/* Glassmorphism utility (used by overlay chrome only). */
-.glass-panel {
-  background: rgba(255, 255, 255, 0.88);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(226, 232, 240, 0.8);
-}
-
-/* The single app gradient: Midnight Navy with refined depth. */
-.bg-brand-gradient {
-  background: linear-gradient(
-    135deg,
-    var(--color-brand-navy) 0%,
-    var(--color-surface-navy) 100%
-  );
-}
-
 /* Custom Pulse and Pulse Glow Animations (Electric Lime glow with high outdoor visibility) */
 @keyframes pulse-ring {
   0% {
@@ -196,25 +197,10 @@
   }
 }
 
-.user-location-pulse {
-  animation: pulse-ring 2s infinite ease-in-out;
-}
-
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
-}
-
-/* Hide scrollbar utility (horizontal scroll carousels) */
-.no-scrollbar::-webkit-scrollbar,
-.hide-scrollbar::-webkit-scrollbar {
-  display: none;
-}
-.no-scrollbar,
-.hide-scrollbar {
-  -ms-overflow-style: none;
-  scrollbar-width: none;
 }
 
 /* Slide-in animations */
@@ -249,16 +235,15 @@
   }
 }
 
-.animate-slide-in-top {
-  animation: slide-in-from-top 0.35s ease both;
-}
-
-.animate-slide-in-bottom {
-  animation: slide-in-from-bottom 0.4s ease both;
-}
-
-.animate-fade-in {
-  animation: fade-in 0.3s ease both;
+@keyframes gps-modal-slide-up {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* ── Route Polylines Transition & Simulation Animations ────────────────────── */
@@ -268,12 +253,74 @@
   }
 }
 
-.route-loading-polyline {
-  stroke-dasharray: 10, 10;
-  animation: polyline-dash 1.2s linear infinite;
-  filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.45));
+@layer components {
+  /* Glassmorphism utility (used by overlay chrome only). */
+  .glass-panel {
+    background: rgba(255, 255, 255, 0.88);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(226, 232, 240, 0.8);
+  }
+
+  /* The single app gradient: Midnight Navy with refined depth. */
+  .bg-brand-gradient {
+    background: linear-gradient(
+      135deg,
+      var(--color-brand-navy) 0%,
+      var(--color-surface-navy) 100%
+    );
+  }
+
+  .user-location-pulse {
+    animation: pulse-ring 2s infinite ease-in-out;
+  }
+
+  .gps-modal-card {
+    animation: gps-modal-slide-up 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .route-loading-polyline {
+    stroke-dasharray: 10, 10;
+    animation: polyline-dash 1.2s linear infinite;
+    filter: drop-shadow(0 0 6px rgba(37, 99, 235, 0.45));
+  }
+
+  .route-active-polyline {
+    transition: stroke-dashoffset 0.8s ease, stroke-opacity 0.5s ease;
+  }
 }
 
-.route-active-polyline {
-  transition: stroke-dashoffset 0.8s ease, stroke-opacity 0.5s ease;
+@layer utilities {
+  /* Safe-area padding helpers (index.html adds viewport-fit=cover). */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+
+  .pt-safe {
+    padding-top: env(safe-area-inset-top);
+  }
+
+  /* Hide scrollbar utility (horizontal scroll carousels) */
+  .no-scrollbar::-webkit-scrollbar,
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .no-scrollbar,
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .animate-slide-in-top {
+    animation: slide-in-from-top 0.35s ease both;
+  }
+
+  .animate-slide-in-bottom {
+    animation: slide-in-from-bottom 0.4s ease both;
+  }
+
+  .animate-fade-in {
+    animation: fade-in 0.3s ease both;
+  }
 }
