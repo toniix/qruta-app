@@ -230,7 +230,7 @@ export function RouteDrawer() {
     directions[0] ||
     null;
 
-  const stops = [...(activeDir?.stops || [])].sort(
+  const stops = (activeDir?.stops || []).toSorted(
     (a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0),
   );
 

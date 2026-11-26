@@ -6,14 +6,8 @@ import { AdminDrawer } from '../../components/admin/common/AdminDrawer';
 import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { operatorPortalService } from '../../services/operatorPortalService';
-
-export const DISRUPTION_TYPES = [
-  { value: 'DESVIO', label: 'Desvío de ruta' },
-  { value: 'CORTE', label: 'Corte de vía / tránsito' },
-  { value: 'HORARIO', label: 'Cambio de horario' },
-  { value: 'PARADERO', label: 'Paradero inhabilitado' },
-  { value: 'OTRO', label: 'Otro comunicado' },
-];
+import { DISRUPTION_TYPES } from '../../utils/disruptionConstants';
+import { formatDateTime } from '../../utils/dateUtils';
 
 const emptyForm = {
   routeId: '',
@@ -23,12 +17,6 @@ const emptyForm = {
   endsAt: '',
   active: true,
 };
-
-function formatDateTime(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('es-AR');
-}
 
 export function OperatorDisruptionsPage() {
   const toast = useAdminToast();

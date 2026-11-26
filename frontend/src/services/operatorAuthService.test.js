@@ -3,9 +3,13 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { operatorAuthService } from './operatorAuthService';
 import { operatorClient } from './apiClient';
 
-vi.mock('./apiClient', () => ({
-  operatorClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
-}));
+vi.mock('./apiClient', async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    operatorClient: { get: vi.fn(), post: vi.fn(), put: vi.fn(), delete: vi.fn() },
+  };
+});
 
 function createJwt(payload) {
   const header = btoa(JSON.stringify({ alg: 'HS512', typ: 'JWT' }));

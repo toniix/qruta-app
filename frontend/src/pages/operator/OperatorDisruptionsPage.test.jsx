@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { OperatorDisruptionsPage, DISRUPTION_TYPES } from './OperatorDisruptionsPage';
+import { OperatorDisruptionsPage } from './OperatorDisruptionsPage';
+import { DISRUPTION_TYPES } from '../../utils/disruptionConstants';
 import { ToastProvider } from '../../components/admin/common/ToastContext';
 import { operatorPortalService } from '../../services/operatorPortalService';
 
