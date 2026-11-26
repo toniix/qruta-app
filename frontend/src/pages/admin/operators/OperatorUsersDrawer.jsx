@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback, useId } from 'react';
+import { useState, useEffect, useId, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Users,
   Edit2,
@@ -18,6 +19,10 @@ import {
   validateWith,
 } from '../../../schemas';
 import { adminOperatorService } from '../../../services/adminOperatorService';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_USERS = [];
 
 const EMPTY_USER_FORM = {
   email: '',
@@ -42,13 +47,11 @@ function RoleBadge({ role }) {
   );
 }
 
-function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
-  const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(Boolean(operator?.id));
+function OperatorUsersDrawerContent({ open, operator, onClose, onChanged }) {
+  const queryClient = useQueryClient();
   const [panel, setPanel] = useState(null); // { mode: 'create'|'edit'|'reset', user? }
   const [form, setForm] = useState(EMPTY_USER_FORM);
   const [errors, setErrors] = useState({});
-  const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
 
   const emailErrorId = useId();
@@ -58,39 +61,79 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
 
   const operatorId = operator?.id;
 
-  const loadUsers = useCallback(async () => {
-    if (!operatorId) return;
-    setLoading(true);
-    try {
-      const data = await adminOperatorService.getOperatorUsers(operatorId);
-      setUsers(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error cargando usuarios del operador:', err);
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [operatorId]);
+  const usersQuery = useQuery({
+    queryKey: adminKeys.operatorUsers(operatorId),
+    queryFn: () => adminOperatorService.getOperatorUsers(operatorId),
+    enabled: Boolean(open && operatorId),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const users = usersQuery.data ?? EMPTY_USERS;
+  const loading = Boolean(operatorId) && usersQuery.isPending;
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    if (!operatorId) return undefined;
-    let cancelled = false;
-    adminOperatorService
-      .getOperatorUsers(operatorId)
-      .then((data) => {
-        if (!cancelled) setUsers(Array.isArray(data) ? data : []);
-      })
-      .catch((err) => {
-        console.error('Error cargando usuarios del operador:', err);
-        if (!cancelled) setUsers([]);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [operatorId]);
+    if (
+      usersQuery.isError &&
+      usersQuery.errorUpdatedAt > 0 &&
+      usersQuery.errorUpdatedAt !== lastErrorAtRef.current
+    ) {
+      lastErrorAtRef.current = usersQuery.errorUpdatedAt;
+      console.error('Error cargando usuarios del operador:', usersQuery.error);
+    }
+  }, [usersQuery.isError, usersQuery.error, usersQuery.errorUpdatedAt]);
+
+  const saveUserMutation = useMutation({
+    mutationFn: async ({ mode, userId, data }) => {
+      if (mode === 'create') {
+        return adminOperatorService.createOperatorUser(operatorId, data);
+      }
+      if (mode === 'edit') {
+        const payload = { ...data };
+        if (!payload.email) delete payload.email;
+        return adminOperatorService.updateOperatorUser(operatorId, userId, payload);
+      }
+      return adminOperatorService.resetOperatorUserPassword(
+        operatorId,
+        userId,
+        data.password,
+      );
+    },
+    onSuccess: async () => {
+      setPanel(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.operatorUsers(operatorId) }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.operators() }),
+      ]);
+      onChanged?.();
+    },
+    onError: (err) => {
+      console.error('Error guardando usuario del operador:', err);
+      setActionError(err.response?.data?.message || 'No se pudo guardar el usuario.');
+    },
+  });
+
+  const toggleActiveMutation = useMutation({
+    mutationFn: (user) =>
+      adminOperatorService.setOperatorUserActive(operatorId, user.id, !user.active),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.operatorUsers(operatorId) }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.operators() }),
+      ]);
+      onChanged?.();
+    },
+    onError: (err) => {
+      console.error('Error cambiando estado del usuario:', err);
+      setActionError(
+        err.response?.data?.message || 'No se pudo cambiar el estado del usuario.',
+      );
+    },
+  });
+
+  const saving = saveUserMutation.isPending;
 
   const openPanel = (mode, user = null) => {
     setActionError('');
@@ -123,7 +166,7 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
     }
   };
 
-  const handleSubmit = async (e) => {
+  const handleSubmit = (e) => {
     e.preventDefault();
     if (!panel) return;
 
@@ -144,44 +187,17 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
       return;
     }
 
-    setSaving(true);
     setActionError('');
-    try {
-      const operatorId = operator.id;
-      if (panel.mode === 'create') {
-        await adminOperatorService.createOperatorUser(operatorId, result.data);
-      } else if (panel.mode === 'edit') {
-        const payload = { ...result.data };
-        if (!payload.email) delete payload.email;
-        await adminOperatorService.updateOperatorUser(operatorId, panel.user.id, payload);
-      } else {
-        await adminOperatorService.resetOperatorUserPassword(
-          operatorId,
-          panel.user.id,
-          result.data.password,
-        );
-      }
-      setPanel(null);
-      await loadUsers();
-      if (onChanged) onChanged();
-    } catch (err) {
-      console.error('Error guardando usuario del operador:', err);
-      setActionError(err.response?.data?.message || 'No se pudo guardar el usuario.');
-    } finally {
-      setSaving(false);
-    }
+    saveUserMutation.mutate({
+      mode: panel.mode,
+      userId: panel.user?.id,
+      data: result.data,
+    });
   };
 
-  const toggleActive = async (user) => {
+  const toggleActive = (user) => {
     setActionError('');
-    try {
-      await adminOperatorService.setOperatorUserActive(operator.id, user.id, !user.active);
-      await loadUsers();
-      if (onChanged) onChanged();
-    } catch (err) {
-      console.error('Error cambiando estado del usuario:', err);
-      setActionError(err.response?.data?.message || 'No se pudo cambiar el estado del usuario.');
-    }
+    toggleActiveMutation.mutate(user);
   };
 
   const panelTitle =
@@ -461,7 +477,7 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
 
 export function OperatorUsersDrawer({ open, ...props }) {
   if (!open) return null;
-  return <OperatorUsersDrawerContent {...props} />;
+  return <OperatorUsersDrawerContent open={open} {...props} />;
 }
 
 export default OperatorUsersDrawer;

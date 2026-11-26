@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
-import { MapPin, Edit2, Trash2, RefreshCw } from "lucide-react";
+import { useState, useEffect, useMemo, useRef } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AlertCircle, MapPin, Edit2, Trash2, RefreshCw } from "lucide-react";
 import { AdminDataTable } from "../../../components/admin/common/AdminDataTable";
 import { AdminFilterBar } from "../../../components/admin/common/AdminFilterBar";
 import { AccessibleBadge } from "../../../components/admin/common/StatusBadge";
@@ -9,12 +10,15 @@ import { adminStopService } from "../../../services/adminStopService";
 import { cityService } from "../../../services/cityService";
 import { useAdminToast } from "../../../hooks/useAdminToast";
 import { calculateDistanceKm } from "../../../utils/geoUtils";
+import { STALE_TIMES } from "../../../lib/queryClient";
+import { adminKeys } from "../../../lib/queryKeys";
+
+const EMPTY_STOPS = [];
+const EMPTY_CITIES = [];
 
 export function StopListPage() {
   const toast = useAdminToast();
-  const [stops, setStops] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -23,53 +27,43 @@ export function StopListPage() {
   // Drawer & Delete state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingStop, setEditingStop] = useState(null);
-  const [saving, setSaving] = useState(false);
-
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [stopsData, citiesData] = await Promise.all([
-        adminStopService.getAllStops(),
-        cityService.getAdminCities().catch(() => []),
-      ]);
-      setStops(Array.isArray(stopsData) ? stopsData : []);
-      setCities(Array.isArray(citiesData) ? citiesData : []);
-    } catch (err) {
-      console.error("Error cargando paraderos:", err);
-      toast.error("Error al cargar la lista de paraderos.");
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const stopsQuery = useQuery({
+    queryKey: adminKeys.stops(),
+    queryFn: () => adminStopService.getAllStops(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const stops = stopsQuery.data ?? EMPTY_STOPS;
+  const cities = citiesQuery.data ?? EMPTY_CITIES;
+  const isFetching = stopsQuery.isFetching || citiesQuery.isFetching;
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const [stopsData, citiesData] = await Promise.all([
-          adminStopService.getAllStops(),
-          cityService.getAdminCities().catch(() => []),
-        ]);
-        if (isMounted) {
-          setStops(Array.isArray(stopsData) ? stopsData : []);
-          setCities(Array.isArray(citiesData) ? citiesData : []);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error("Error cargando paraderos:", err);
-          toast.error("Error al cargar la lista de paraderos.");
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+    if (
+      stopsQuery.isError &&
+      stopsQuery.errorUpdatedAt > 0 &&
+      stopsQuery.errorUpdatedAt !== lastErrorAtRef.current
+    ) {
+      lastErrorAtRef.current = stopsQuery.errorUpdatedAt;
+      console.error("Error cargando paraderos:", stopsQuery.error);
+      toast.error("Error al cargar la lista de paraderos.");
+    }
+  }, [stopsQuery.isError, stopsQuery.error, stopsQuery.errorUpdatedAt, toast]);
+
+  const handleRefresh = () => {
+    Promise.all([stopsQuery.refetch(), citiesQuery.refetch()]);
+  };
 
   const filteredStops = useMemo(() => {
     const selectedCity = cities.find(
@@ -112,77 +106,84 @@ export function StopListPage() {
     });
   }, [stops, searchQuery, filterCityId, cities]);
 
-  const handleFormSubmit = async (formData) => {
-    // imageFile/removeImage are UI-only fields for the reference image step.
-    const { imageFile, removeImage, ...stopFields } = formData;
-    setSaving(true);
-    try {
-      let savedStop;
-      if (editingStop) {
-        savedStop = await adminStopService.updateStop(
-          editingStop.id,
-          stopFields,
-        );
-      } else {
-        savedStop = await adminStopService.createStop(stopFields);
-      }
+  const saveStopMutation = useMutation({
+    mutationFn: async ({ editingStop: targetStop, formData }) => {
+      // imageFile/removeImage are UI-only fields for the reference image step.
+      const { imageFile, removeImage, ...stopFields } = formData;
+      const savedStop = targetStop
+        ? await adminStopService.updateStop(targetStop.id, stopFields)
+        : await adminStopService.createStop(stopFields);
 
       // Saving the stop and its image are two separate operations: a failure
       // in the image step must NOT roll back the already-saved stop.
-      const stopId = savedStop?.id || editingStop?.id;
-      const hadImage = Boolean(editingStop?.imageUrl);
+      const stopId = savedStop?.id || targetStop?.id;
+      const hadImage = Boolean(targetStop?.imageUrl);
+      let imageError = null;
       try {
         if (imageFile && stopId) {
-          console.log(
-            "Uploading stop image for stopId:",
-            stopId,
-            "file:",
-            imageFile,
-          );
           await adminStopService.uploadStopImage(stopId, imageFile);
         } else if (removeImage && hadImage && stopId) {
           await adminStopService.removeStopImage(stopId);
         }
-      } catch (imageErr) {
-        console.error("Error guardando la imagen del paradero:", imageErr);
-        toast.warning("Paradero guardado, pero la imagen no se pudo subir.");
+      } catch (err) {
+        console.error("Error guardando la imagen del paradero:", err);
+        imageError = err;
       }
 
+      return { savedStop, stopFields, imageError };
+    },
+    onSuccess: async ({ stopFields, imageError }, { editingStop: targetStop }) => {
+      if (imageError) {
+        toast.warning("Paradero guardado, pero la imagen no se pudo subir.");
+      }
       toast.success(
-        editingStop
+        targetStop
           ? `Paradero "${stopFields.name}" actualizado.`
           : `Paradero "${stopFields.name}" creado con éxito.`,
       );
       setDrawerOpen(false);
       setEditingStop(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.stops() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error("Error guardando paradero:", err);
       toast.error(
         err.response?.data?.message ||
           "Error al guardar los datos del paradero.",
       );
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await adminStopService.deleteStop(deleteConfirm.id);
-      toast.success(`Paradero "${deleteConfirm.name}" eliminado.`);
+  const deleteStopMutation = useMutation({
+    mutationFn: (stop) => adminStopService.deleteStop(stop.id),
+    onSuccess: async (_result, stop) => {
+      toast.success(`Paradero "${stop.name}" eliminado.`);
       setDeleteConfirm(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.stops() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error("Error eliminando paradero:", err);
       toast.error(
         err.response?.data?.message || "Error al eliminar el paradero.",
       );
-    } finally {
-      setDeleting(false);
-    }
+    },
+  });
+
+  const handleFormSubmit = (formData) => {
+    saveStopMutation.mutate({ editingStop, formData });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirm) return;
+    deleteStopMutation.mutate(deleteConfirm);
   };
 
   const columns = [
@@ -306,16 +307,36 @@ export function StopListPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={handleRefresh}
+          disabled={isFetching}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
           <RefreshCw
-            className={`h-3.5 w-3.5 ${loading ? "animate-spin" : ""}`}
+            className={`h-3.5 w-3.5 ${isFetching ? "animate-spin" : ""}`}
           />
           <span>Actualizar</span>
         </button>
       </div>
+
+      {stopsQuery.isError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No se pudo cargar la lista de paraderos.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="inline-flex items-center rounded-xl bg-rose-700 px-3 py-1.5 font-bold text-white hover:bg-rose-800 disabled:opacity-60 transition"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Filter and Action Bar */}
       <AdminFilterBar
@@ -346,7 +367,7 @@ export function StopListPage() {
       <AdminDataTable
         columns={columns}
         data={filteredStops}
-        loading={loading}
+        loading={stopsQuery.isPending}
         caption="Listado de paraderos registrados"
         emptyTitle="No se encontraron paraderos"
         emptyDescription="Crea un nuevo paradero con ayuda del mapa interactivo."
@@ -367,7 +388,7 @@ export function StopListPage() {
         initialData={editingStop}
         cities={cities}
         onSubmit={handleFormSubmit}
-        loading={saving}
+        loading={saveStopMutation.isPending}
       />
 
       {/* Delete Confirmation */}
@@ -377,7 +398,7 @@ export function StopListPage() {
         description={`¿Estás seguro de eliminar el paradero "${deleteConfirm?.name}"? Esta acción no se puede deshacer y retirará el punto de las rutas que lo utilicen.`}
         confirmLabel="Eliminar Paradero"
         tone="danger"
-        loading={deleting}
+        loading={deleteStopMutation.isPending}
         onCancel={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
       />

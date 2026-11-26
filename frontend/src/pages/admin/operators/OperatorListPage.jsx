@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   Building2,
   Edit2,
   RefreshCw,
@@ -15,6 +17,10 @@ import { OperatorFormDrawer } from './OperatorFormDrawer';
 import { OperatorUsersDrawer } from './OperatorUsersDrawer';
 import { adminOperatorService } from '../../../services/adminOperatorService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_OPERATORS = [];
 
 function PlanBadge({ plan }) {
   const styles = {
@@ -35,53 +41,40 @@ function PlanBadge({ plan }) {
 
 export function OperatorListPage() {
   const toast = useAdminToast();
-  const [operators, setOperators] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
 
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingOperator, setEditingOperator] = useState(null);
-  const [saving, setSaving] = useState(false);
 
   const [usersOperator, setUsersOperator] = useState(null);
 
   const [activeConfirm, setActiveConfirm] = useState(null);
-  const [toggling, setToggling] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await adminOperatorService.getAllOperators();
-      setOperators(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error cargando operadores:', err);
-      toast.error('Error al cargar la lista de operadores.');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const {
+    data: operators = EMPTY_OPERATORS,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    errorUpdatedAt,
+    refetch,
+  } = useQuery({
+    queryKey: adminKeys.operators(),
+    queryFn: () => adminOperatorService.getAllOperators(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const data = await adminOperatorService.getAllOperators();
-        if (isMounted) {
-          setOperators(Array.isArray(data) ? data : []);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error cargando operadores:', err);
-          toast.error('Error al cargar la lista de operadores.');
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+    if (isError && errorUpdatedAt > 0 && errorUpdatedAt !== lastErrorAtRef.current) {
+      lastErrorAtRef.current = errorUpdatedAt;
+      console.error('Error cargando operadores:', error);
+      toast.error('Error al cargar la lista de operadores.');
+    }
+  }, [isError, error, errorUpdatedAt, toast]);
 
   const filteredOperators = useMemo(() => {
     if (!searchQuery) return operators;
@@ -94,45 +87,63 @@ export function OperatorListPage() {
     );
   }, [operators, searchQuery]);
 
-  const handleFormSubmit = async (formData) => {
-    setSaving(true);
-    try {
-      if (editingOperator) {
-        await adminOperatorService.updateOperator(editingOperator.id, formData);
-        toast.success(`Operador "${formData.name}" actualizado con éxito.`);
-      } else {
-        await adminOperatorService.createOperator(formData);
-        toast.success(`Operador "${formData.name}" registrado con éxito.`);
-      }
+  const saveOperatorMutation = useMutation({
+    mutationFn: ({ id, data }) =>
+      id
+        ? adminOperatorService.updateOperator(id, data)
+        : adminOperatorService.createOperator(data),
+    onSuccess: async (_result, { id, data }) => {
+      toast.success(
+        id
+          ? `Operador "${data.name}" actualizado con éxito.`
+          : `Operador "${data.name}" registrado con éxito.`,
+      );
       setDrawerOpen(false);
       setEditingOperator(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.operators() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error guardando operador:', err);
       toast.error(err.response?.data?.message || 'Error al guardar el operador.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleConfirmToggleActive = async () => {
-    if (!activeConfirm) return;
-    setToggling(true);
-    try {
-      await adminOperatorService.setOperatorActive(activeConfirm.id, !activeConfirm.active);
+  const toggleActiveMutation = useMutation({
+    mutationFn: (operator) =>
+      adminOperatorService.setOperatorActive(operator.id, !operator.active),
+    onSuccess: async (_result, operator) => {
       toast.success(
-        activeConfirm.active
-          ? `Operador "${activeConfirm.name}" desactivado.`
-          : `Operador "${activeConfirm.name}" reactivado.`,
+        operator.active
+          ? `Operador "${operator.name}" desactivado.`
+          : `Operador "${operator.name}" reactivado.`,
       );
       setActiveConfirm(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.operators() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error cambiando estado del operador:', err);
       toast.error(err.response?.data?.message || 'No se pudo cambiar el estado del operador.');
-    } finally {
-      setToggling(false);
-    }
+    },
+  });
+
+  const handleFormSubmit = (formData) => {
+    saveOperatorMutation.mutate({
+      id: editingOperator?.id ?? null,
+      data: formData,
+    });
+  };
+
+  const handleConfirmToggleActive = () => {
+    if (!activeConfirm) return;
+    toggleActiveMutation.mutate(activeConfirm);
   };
 
   const columns = [
@@ -233,14 +244,34 @@ export function OperatorListPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={() => refetch()}
+          disabled={isFetching}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </button>
       </div>
+
+      {isError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No se pudo cargar la lista de operadores.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center rounded-xl bg-rose-700 px-3 py-1.5 font-bold text-white hover:bg-rose-800 disabled:opacity-60 transition"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <AdminFilterBar
         searchQuery={searchQuery}
@@ -256,7 +287,7 @@ export function OperatorListPage() {
       <AdminDataTable
         columns={columns}
         data={filteredOperators}
-        loading={loading}
+        loading={isPending}
         caption="Listado de operadores registrados"
         emptyTitle="No se encontraron operadores"
         emptyDescription="Registra un nuevo operador o ajusta los términos de búsqueda."
@@ -275,14 +306,14 @@ export function OperatorListPage() {
         }}
         initialData={editingOperator}
         onSubmit={handleFormSubmit}
-        loading={saving}
+        loading={saveOperatorMutation.isPending}
       />
 
       <OperatorUsersDrawer
         open={Boolean(usersOperator)}
         operator={usersOperator}
         onClose={() => setUsersOperator(null)}
-        onChanged={loadData}
+        onChanged={() => queryClient.invalidateQueries({ queryKey: adminKeys.operators() })}
       />
 
       <ConfirmDialog
@@ -295,7 +326,7 @@ export function OperatorListPage() {
         }
         confirmLabel={activeConfirm?.active ? 'Desactivar' : 'Reactivar'}
         tone={activeConfirm?.active ? 'danger' : 'warning'}
-        loading={toggling}
+        loading={toggleActiveMutation.isPending}
         onCancel={() => setActiveConfirm(null)}
         onConfirm={handleConfirmToggleActive}
       />

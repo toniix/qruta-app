@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   Bus,
   Edit2,
   Trash2,
@@ -16,14 +18,16 @@ import { adminLineService } from '../../../services/adminLineService';
 import { adminOperatorService } from '../../../services/adminOperatorService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_LINES = [];
+const EMPTY_CITIES = [];
+const EMPTY_OPERATORS = [];
 
 export function LineListPage() {
   const toast = useAdminToast();
-  const [lines, setLines] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [operators, setOperators] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [loadingOperators, setLoadingOperators] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -32,63 +36,58 @@ export function LineListPage() {
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingLine, setEditingLine] = useState(null);
-  const [saving, setSaving] = useState(false);
 
   // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    setLoadingOperators(true);
-    try {
-      const [linesData, citiesData, operatorsData] = await Promise.all([
-        adminLineService.getAllLines(),
-        cityService.getAdminCities().catch(() => []),
-        adminOperatorService.getAllOperators().catch(() => []),
-      ]);
-      setLines(Array.isArray(linesData) ? linesData : []);
-      setCities(Array.isArray(citiesData) ? citiesData : []);
-      setOperators(Array.isArray(operatorsData) ? operatorsData : []);
-    } catch (err) {
-      console.error('Error cargando líneas:', err);
-      toast.error('Error al cargar la lista de líneas.');
-    } finally {
-      setLoading(false);
-      setLoadingOperators(false);
-    }
-  }, [toast]);
+  const linesQuery = useQuery({
+    queryKey: adminKeys.lines(),
+    queryFn: () => adminLineService.getAllLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const operatorsQuery = useQuery({
+    queryKey: adminKeys.operators(),
+    queryFn: () => adminOperatorService.getAllOperators(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const lines = linesQuery.data ?? EMPTY_LINES;
+  const cities = citiesQuery.data ?? EMPTY_CITIES;
+  const operators = operatorsQuery.data ?? EMPTY_OPERATORS;
+  const isFetching =
+    linesQuery.isFetching || citiesQuery.isFetching || operatorsQuery.isFetching;
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      setLoadingOperators(true);
-      try {
-        const [linesData, citiesData, operatorsData] = await Promise.all([
-          adminLineService.getAllLines(),
-          cityService.getAdminCities().catch(() => []),
-          adminOperatorService.getAllOperators().catch(() => []),
-        ]);
-        if (isMounted) {
-          setLines(Array.isArray(linesData) ? linesData : []);
-          setCities(Array.isArray(citiesData) ? citiesData : []);
-          setOperators(Array.isArray(operatorsData) ? operatorsData : []);
-          setLoading(false);
-          setLoadingOperators(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error cargando líneas:', err);
-          toast.error('Error al cargar la lista de líneas.');
-          setLoading(false);
-          setLoadingOperators(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+    if (
+      linesQuery.isError &&
+      linesQuery.errorUpdatedAt > 0 &&
+      linesQuery.errorUpdatedAt !== lastErrorAtRef.current
+    ) {
+      lastErrorAtRef.current = linesQuery.errorUpdatedAt;
+      console.error('Error cargando líneas:', linesQuery.error);
+      toast.error('Error al cargar la lista de líneas.');
+    }
+  }, [linesQuery.isError, linesQuery.error, linesQuery.errorUpdatedAt, toast]);
+
+  const handleRefresh = () => {
+    Promise.all([
+      linesQuery.refetch(),
+      citiesQuery.refetch(),
+      operatorsQuery.refetch(),
+    ]);
+  };
 
   const cityMap = useMemo(() => {
     const map = new Map();
@@ -115,41 +114,56 @@ export function LineListPage() {
     });
   }, [lines, searchQuery, filterCityId]);
 
-  const handleFormSubmit = async (formData) => {
-    setSaving(true);
-    try {
-      if (editingLine) {
-        await adminLineService.updateLine(editingLine.id, formData);
-        toast.success(`Línea "${formData.company}" actualizada con éxito.`);
-      } else {
-        await adminLineService.createLine(formData);
-        toast.success(`Línea "${formData.company}" creada con éxito.`);
-      }
+  const saveLineMutation = useMutation({
+    mutationFn: ({ id, data }) =>
+      id ? adminLineService.updateLine(id, data) : adminLineService.createLine(data),
+    onSuccess: async (_result, { id, data }) => {
+      toast.success(
+        id
+          ? `Línea "${data.company}" actualizada con éxito.`
+          : `Línea "${data.company}" creada con éxito.`,
+      );
       setDrawerOpen(false);
       setEditingLine(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error guardando línea:', err);
       toast.error(err.response?.data?.message || 'Error al guardar los datos de la línea.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await adminLineService.deleteLine(deleteConfirm.id);
-      toast.success(`Línea "${deleteConfirm.company}" eliminada.`);
+  const deleteLineMutation = useMutation({
+    mutationFn: (line) => adminLineService.deleteLine(line.id),
+    onSuccess: async (_result, line) => {
+      toast.success(`Línea "${line.company}" eliminada.`);
       setDeleteConfirm(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error eliminando línea:', err);
       toast.error(err.response?.data?.message || 'Error al eliminar la línea.');
-    } finally {
-      setDeleting(false);
-    }
+    },
+  });
+
+  const handleFormSubmit = (formData) => {
+    saveLineMutation.mutate({
+      id: editingLine?.id ?? null,
+      data: formData,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirm) return;
+    deleteLineMutation.mutate(deleteConfirm);
   };
 
   const columns = [
@@ -270,14 +284,34 @@ export function LineListPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={handleRefresh}
+          disabled={isFetching}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </button>
       </div>
+
+      {linesQuery.isError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No se pudo cargar la lista de líneas.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="inline-flex items-center rounded-xl bg-rose-700 px-3 py-1.5 font-bold text-white hover:bg-rose-800 disabled:opacity-60 transition"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Filter and Action Bar */}
       <AdminFilterBar
@@ -308,7 +342,7 @@ export function LineListPage() {
       <AdminDataTable
         columns={columns}
         data={filteredLines}
-        loading={loading}
+        loading={linesQuery.isPending}
         caption="Listado de líneas de transporte"
         emptyTitle="No se encontraron líneas"
         emptyDescription="Crea una nueva línea de transporte o ajusta la búsqueda."
@@ -329,9 +363,9 @@ export function LineListPage() {
         initialData={editingLine}
         cities={cities}
         operators={operators}
-        loadingOperators={loadingOperators}
+        loadingOperators={operatorsQuery.isPending}
         onSubmit={handleFormSubmit}
-        loading={saving}
+        loading={saveLineMutation.isPending}
       />
 
       {/* Delete Confirmation */}
@@ -341,7 +375,7 @@ export function LineListPage() {
         description={`¿Estás seguro de eliminar la línea "${deleteConfirm?.company}"? Esta acción borrará la línea y afectará a las rutas asociadas.`}
         confirmLabel="Eliminar Línea"
         tone="danger"
-        loading={deleting}
+        loading={deleteLineMutation.isPending}
         onCancel={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
       />
