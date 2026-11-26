@@ -2,22 +2,25 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ToastProvider } from '../admin/common/ToastContext';
 import { PortalLoginPage } from './PortalLoginPage';
 
 function renderLogin(props = {}) {
   const onLogin = vi.fn().mockResolvedValue(undefined);
   render(
-    <MemoryRouter>
-      <PortalLoginPage
-        pageTitle="Acceso · QRuta"
-        heading="Portal de Acceso"
-        subtitle="Ingresa tus credenciales"
-        emailPlaceholder="correo@ejemplo.com"
-        onLogin={onLogin}
-        redirectTo="/dashboard"
-        {...props}
-      />
-    </MemoryRouter>,
+    <ToastProvider>
+      <MemoryRouter>
+        <PortalLoginPage
+          pageTitle="Acceso · QRuta"
+          heading="Portal de Acceso"
+          subtitle="Ingresa tus credenciales"
+          emailPlaceholder="correo@ejemplo.com"
+          onLogin={onLogin}
+          redirectTo="/dashboard"
+          {...props}
+        />
+      </MemoryRouter>
+    </ToastProvider>,
   );
   return { onLogin };
 }
@@ -100,5 +103,47 @@ describe('PortalLoginPage', () => {
     const passwordErrorId = passwordInput.getAttribute('aria-describedby');
     expect(passwordErrorId).toBeTruthy();
     expect(document.getElementById(passwordErrorId)).toBeInTheDocument();
+  });
+
+  it('shows inline alert and toast notification for invalid credentials (401)', async () => {
+    const user = userEvent.setup();
+    const onLogin = vi.fn().mockRejectedValue({
+      response: { status: 401, data: { message: 'Invalid credentials' } },
+    });
+    renderLogin({ onLogin });
+
+    await user.type(screen.getByLabelText('Correo electrónico'), 'admin@rutasya.pe');
+    await user.type(screen.getByLabelText('Contraseña'), 'wrongpass');
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Correo o contraseña incorrectos.');
+    expect(screen.getByRole('status')).toHaveTextContent('Correo o contraseña incorrectos.');
+  });
+
+  it('shows toast and alert for inactive account (403), server error (500), and network error', async () => {
+    const user = userEvent.setup();
+    const onLogin = vi
+      .fn()
+      .mockRejectedValueOnce({
+        response: { status: 400, data: { message: 'Operator account is inactive' } },
+      })
+      .mockRejectedValueOnce({
+        response: { status: 500, data: { message: 'Internal server error' } },
+      })
+      .mockRejectedValueOnce({ message: 'Network Error' });
+
+    renderLogin({ onLogin });
+
+    await user.type(screen.getByLabelText('Correo electrónico'), 'op@rutasya.pe');
+    await user.type(screen.getByLabelText('Contraseña'), 'secret123');
+
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/cuenta está inactiva/i);
+
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/error interno del servidor/i);
+
+    await user.click(screen.getByRole('button', { name: /iniciar sesión/i }));
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no se pudo conectar con el servidor/i);
   });
 });

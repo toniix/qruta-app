@@ -1,9 +1,42 @@
-import { useId, useRef, useState } from 'react';
+import { useContext, useId, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { AlertCircle, ArrowLeft, ArrowRight, Eye, EyeOff, Lock, User } from 'lucide-react';
 import { FieldError } from './FieldError';
+import { ToastContext } from '../admin/common/ToastContextInstance';
 import { useNoIndex } from '../../hooks/useNoIndex';
 import { loginSchema, validateWith } from '../../schemas';
+
+function resolveLoginErrorMessage(err) {
+  if (!err?.response) {
+    if (err?.code === 'ECONNABORTED') {
+      return 'La solicitud tardó demasiado. Verificá tu conexión e intentá nuevamente.';
+    }
+    if (err?.message && !/network error/i.test(err.message)) {
+      return err.message;
+    }
+    return 'No se pudo conectar con el servidor. Verificá tu conexión e intentá nuevamente.';
+  }
+
+  const status = err.response.status;
+  const rawMessage = typeof err.response.data?.message === 'string'
+    ? err.response.data.message.trim()
+    : '';
+
+  if (status === 401 || /invalid.*credentials|bad credentials/i.test(rawMessage)) {
+    return 'Correo o contraseña incorrectos.';
+  }
+  if (status === 403 || /inactive|disabled/i.test(rawMessage)) {
+    return 'Tu cuenta está inactiva o deshabilitada. Contactá al administrador.';
+  }
+  if (status === 429) {
+    return 'Demasiados intentos fallidos. Esperá un momento antes de volver a intentar.';
+  }
+  if (status >= 500) {
+    return 'Error interno del servidor. Intentá nuevamente más tarde.';
+  }
+
+  return rawMessage || 'No se pudo iniciar sesión. Verificá los datos ingresados.';
+}
 
 export function PortalLoginPage({
   pageTitle,
@@ -19,6 +52,7 @@ export function PortalLoginPage({
   useNoIndex(pageTitle);
 
   const navigate = useNavigate();
+  const toast = useContext(ToastContext);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,7 +87,9 @@ export function PortalLoginPage({
       await onLogin(result.data.email, result.data.password);
       navigate(redirectTo, redirectReplace ? { replace: true } : undefined);
     } catch (err) {
-      setError(err.response?.data?.message || err.message || 'Error al iniciar sesión');
+      const errorMessage = resolveLoginErrorMessage(err);
+      setError(errorMessage);
+      toast?.error(errorMessage);
     } finally {
       setLoading(false);
     }
