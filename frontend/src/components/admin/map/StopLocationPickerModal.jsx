@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import 'leaflet/dist/leaflet.css';
 import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from 'react-leaflet';
@@ -7,6 +7,20 @@ import { MapPin, X, Check, Search, Loader2 } from 'lucide-react';
 import { geocodingService } from '../../../services/geocodingService';
 
 const DEFAULT_CENTER = [-14.0678, -75.7286]; // Ica, Peru
+
+function supportsClosedBy() {
+  return typeof HTMLDialogElement !== 'undefined' && 'closedBy' in HTMLDialogElement.prototype;
+}
+
+function isPointerOutsideDialog(event, dialog) {
+  const rect = dialog.getBoundingClientRect();
+  return (
+    event.clientX < rect.left ||
+    event.clientX > rect.right ||
+    event.clientY < rect.top ||
+    event.clientY > rect.bottom
+  );
+}
 
 function createPinIcon() {
   return L.divIcon({
@@ -38,11 +52,61 @@ function MapClickHandler({ onLocationChange }) {
 
 function MapCenterController({ center }) {
   const map = useMap();
-  useMemo(() => {
-    if (center && center[0] && center[1]) {
-      map.setView(center, map.getZoom());
+  const centerLat = center?.[0];
+  const centerLng = center?.[1];
+
+  useEffect(() => {
+    if (
+      centerLat != null &&
+      centerLng != null &&
+      !Number.isNaN(centerLat) &&
+      !Number.isNaN(centerLng)
+    ) {
+      map.setView([centerLat, centerLng], map.getZoom());
     }
-  }, [center, map]);
+  }, [centerLat, centerLng, map]);
+
+  return null;
+}
+
+function MapResizeController() {
+  const map = useMap();
+
+  useEffect(() => {
+    let frameId = null;
+
+    const scheduleInvalidate = () => {
+      if (frameId != null) {
+        cancelAnimationFrame(frameId);
+      }
+      frameId = requestAnimationFrame(() => {
+        frameId = null;
+        map.invalidateSize();
+      });
+    };
+
+    scheduleInvalidate();
+
+    const container = typeof map.getContainer === 'function' ? map.getContainer() : null;
+    let observer = null;
+
+    if (container && typeof ResizeObserver !== 'undefined') {
+      observer = new ResizeObserver(() => {
+        scheduleInvalidate();
+      });
+      observer.observe(container);
+    }
+
+    return () => {
+      if (frameId != null) {
+        cancelAnimationFrame(frameId);
+      }
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [map]);
+
   return null;
 }
 
@@ -81,6 +145,11 @@ function StopLocationPickerModalDialog({
   cityCoords,
   onSelectLocation,
 }) {
+  const dialogRef = useRef(null);
+  const closingFromCleanupRef = useRef(false);
+  const pressedOutsideRef = useRef(false);
+  const titleId = useId();
+
   const initialPos = useMemo(
     () => getInitialPosition(initialCoords, cityCoords),
     [initialCoords, cityCoords]
@@ -92,6 +161,57 @@ function StopLocationPickerModalDialog({
   const [resolvingAddress, setResolvingAddress] = useState(false);
   const [mapCenter, setMapCenter] = useState(initialPos.center);
   const markerRef = useRef(null);
+
+  useEffect(() => {
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+
+    closingFromCleanupRef.current = false;
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+
+    return () => {
+      closingFromCleanupRef.current = true;
+      if (dialog.open) {
+        dialog.close();
+      }
+    };
+  }, []);
+
+  const handleDialogCancel = (event) => {
+    event.preventDefault();
+    onClose();
+  };
+
+  const handleDialogClose = () => {
+    if (closingFromCleanupRef.current || dialogRef.current?.open) {
+      return;
+    }
+    onClose();
+  };
+
+  const handlePointerDown = (event) => {
+    if (supportsClosedBy()) return;
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    pressedOutsideRef.current = isPointerOutsideDialog(event, dialog);
+  };
+
+  const handlePointerUp = (event) => {
+    if (supportsClosedBy()) return;
+    const wasPressedOutside = pressedOutsideRef.current;
+    pressedOutsideRef.current = false;
+    const dialog = dialogRef.current;
+    if (!dialog || !dialog.open) return;
+    if (wasPressedOutside && isPointerOutsideDialog(event, dialog)) {
+      dialog.close();
+    }
+  };
+
+  const handlePointerCancel = () => {
+    pressedOutsideRef.current = false;
+  };
 
   const handleLocationChange = (newLat, newLng) => {
     setLat(Number(newLat).toFixed(6));
@@ -134,160 +254,157 @@ function StopLocationPickerModalDialog({
   const pinIcon = useMemo(() => createPinIcon(), []);
   const currentCoords = [Number(lat) || DEFAULT_CENTER[0], Number(lng) || DEFAULT_CENTER[1]];
 
-  return createPortal(
-    <div className="fixed inset-0 z-[9990] flex items-center justify-center p-3 sm:p-5">
-      {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-slate-950/50 backdrop-blur-xs transition-opacity animate-fade-in"
-        onClick={onClose}
-        aria-hidden="true"
-      />
-
-      {/* Modal Dialog */}
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-labelledby="map-picker-title"
-        className="relative flex h-[90vh] max-h-[820px] w-full max-w-4xl flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl z-10"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-3.5 bg-slate-50/60">
-          <div className="flex items-center gap-2.5">
-            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
-              <MapPin className="h-5 w-5" />
-            </span>
-            <div>
-              <h2 id="map-picker-title" className="text-sm font-bold text-slate-900">
-                Seleccionar Ubicación del Paradero
-              </h2>
-              <p className="text-[11px] text-slate-500">
-                Haz clic en el mapa o arrastra el marcador para fijar las coordenadas exactas
-              </p>
-            </div>
+  const dialogNode = (
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={titleId}
+      closedby="any"
+      onCancel={handleDialogCancel}
+      onClose={handleDialogClose}
+      onPointerDown={handlePointerDown}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerCancel}
+      className="m-auto p-0 border-0 w-[calc(100%-1.5rem)] sm:w-[calc(100%-2.5rem)] max-w-4xl h-[90dvh] max-h-[820px] bg-white rounded-3xl shadow-2xl overflow-hidden backdrop:bg-slate-950/50 backdrop:backdrop-blur-xs open:flex open:flex-col"
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between border-b border-slate-200/80 px-5 py-3.5 bg-slate-50/60">
+        <div className="flex items-center gap-2.5">
+          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-50 text-blue-600 border border-blue-100">
+            <MapPin className="h-5 w-5" aria-hidden="true" />
+          </span>
+          <div>
+            <h2 id={titleId} className="text-sm font-bold text-slate-900">
+              Seleccionar Ubicación del Paradero
+            </h2>
+            <p className="text-[11px] text-slate-500">
+              Haz clic en el mapa o arrastra el marcador para fijar las coordenadas exactas
+            </p>
           </div>
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Cerrar mapa"
+          className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+        >
+          <X className="h-5 w-5" aria-hidden="true" />
+        </button>
+      </div>
+
+      {/* Map Body */}
+      <div className="relative flex-1 min-h-0 w-full">
+        <MapContainer
+          center={mapCenter}
+          zoom={15}
+          scrollWheelZoom={true}
+          className="h-full w-full"
+        >
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            maxZoom={19}
+          />
+          <MapClickHandler onLocationChange={handleLocationChange} />
+          <MapCenterController center={mapCenter} />
+          <MapResizeController />
+
+          <Marker
+            position={currentCoords}
+            icon={pinIcon}
+            draggable={true}
+            eventHandlers={{
+              dragend: handleMarkerDragEnd,
+            }}
+            ref={markerRef}
+          />
+        </MapContainer>
+
+        {/* Floating Coordinate Overlay */}
+        <div className="absolute top-4 left-4 z-[1000] flex flex-wrap items-center gap-2 rounded-xl bg-white/95 px-3.5 py-2.5 shadow-raised border border-slate-200/80 backdrop-blur-md">
+          <label className="flex items-center gap-2 text-xs">
+            <span className="font-semibold text-slate-500">Lat:</span>
+            <input
+              type="number"
+              step="any"
+              value={lat}
+              onChange={(e) => {
+                setLat(e.target.value);
+                const parsed = parseFloat(e.target.value);
+                if (!isNaN(parsed)) setMapCenter([parsed, Number(lng) || DEFAULT_CENTER[1]]);
+              }}
+              className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono font-bold text-slate-800"
+            />
+          </label>
+
+          <label className="flex items-center gap-2 text-xs">
+            <span className="font-semibold text-slate-500">Lng:</span>
+            <input
+              type="number"
+              step="any"
+              value={lng}
+              onChange={(e) => {
+                setLng(e.target.value);
+                const parsed = parseFloat(e.target.value);
+                if (!isNaN(parsed)) setMapCenter([Number(lat) || DEFAULT_CENTER[0], parsed]);
+              }}
+              className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono font-bold text-slate-800"
+            />
+          </label>
 
           <button
             type="button"
-            onClick={onClose}
-            aria-label="Cerrar mapa"
-            className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+            onClick={handleReverseGeocode}
+            disabled={resolvingAddress}
+            title="Obtener dirección sugerida a partir de las coordenadas"
+            className="inline-flex items-center gap-1 rounded-lg bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 transition"
           >
-            <X className="h-5 w-5" />
+            {resolvingAddress ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" />
+            ) : (
+              <Search className="h-3.5 w-3.5 text-slate-500" aria-hidden="true" />
+            )}
+            <span>Obtener dirección</span>
           </button>
         </div>
+      </div>
 
-        {/* Map Body */}
-        <div className="relative flex-1 min-h-0 w-full">
-          <MapContainer
-            center={mapCenter}
-            zoom={15}
-            scrollWheelZoom={true}
-            className="h-full w-full"
-          >
-            <TileLayer
-              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-              maxZoom={19}
-            />
-            <MapClickHandler onLocationChange={handleLocationChange} />
-            <MapCenterController center={mapCenter} />
-
-            <Marker
-              position={currentCoords}
-              icon={pinIcon}
-              draggable={true}
-              eventHandlers={{
-                dragend: handleMarkerDragEnd,
-              }}
-              ref={markerRef}
-            />
-          </MapContainer>
-
-          {/* Floating Coordinate Overlay */}
-          <div className="absolute top-4 left-4 z-[1000] flex flex-wrap items-center gap-2 rounded-xl bg-white/95 px-3.5 py-2.5 shadow-raised border border-slate-200/80 backdrop-blur-md">
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-semibold text-slate-500">Lat:</span>
-              <input
-                type="number"
-                step="any"
-                value={lat}
-                onChange={(e) => {
-                  setLat(e.target.value);
-                  const parsed = parseFloat(e.target.value);
-                  if (!isNaN(parsed)) setMapCenter([parsed, Number(lng) || DEFAULT_CENTER[1]]);
-                }}
-                className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono font-bold text-slate-800"
-              />
-            </div>
-
-            <div className="flex items-center gap-2 text-xs">
-              <span className="font-semibold text-slate-500">Lng:</span>
-              <input
-                type="number"
-                step="any"
-                value={lng}
-                onChange={(e) => {
-                  setLng(e.target.value);
-                  const parsed = parseFloat(e.target.value);
-                  if (!isNaN(parsed)) setMapCenter([Number(lat) || DEFAULT_CENTER[0], parsed]);
-                }}
-                className="w-24 rounded-lg border border-slate-200 px-2 py-1 text-xs font-mono font-bold text-slate-800"
-              />
-            </div>
-
-            <button
-              type="button"
-              onClick={handleReverseGeocode}
-              disabled={resolvingAddress}
-              title="Obtener dirección sugerida a partir de las coordenadas"
-              className="inline-flex items-center gap-1 rounded-lg bg-slate-100 hover:bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700 transition"
-            >
-              {resolvingAddress ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <Search className="h-3.5 w-3.5 text-slate-500" />
-              )}
-              <span>Obtener dirección</span>
-            </button>
-          </div>
+      {/* Footer */}
+      <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/70 px-5 py-3.5">
+        <div className="min-w-0 text-xs text-slate-600 truncate w-full sm:w-auto">
+          {suggestedAddress ? (
+            <p className="truncate">
+              <span className="font-bold text-slate-800">Dirección sugerida:</span> {suggestedAddress}
+            </p>
+          ) : (
+            <span className="text-slate-400">
+              Arrastra el marcador para ajustar la posición precisa del paradero.
+            </span>
+          )}
         </div>
 
-        {/* Footer */}
-        <div className="flex flex-col sm:flex-row items-center justify-between gap-3 border-t border-slate-200/80 bg-slate-50/70 px-5 py-3.5">
-          <div className="min-w-0 text-xs text-slate-600 truncate w-full sm:w-auto">
-            {suggestedAddress ? (
-              <p className="truncate">
-                <span className="font-bold text-slate-800">Dirección sugerida:</span> {suggestedAddress}
-              </p>
-            ) : (
-              <span className="text-slate-400">
-                Arrastra el marcador para ajustar la posición precisa del paradero.
-              </span>
-            )}
-          </div>
-
-          <div className="flex items-center gap-2.5 shrink-0 ml-auto">
-            <button
-              type="button"
-              onClick={onClose}
-              className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
-            >
-              Cancelar
-            </button>
-            <button
-              type="button"
-              onClick={handleConfirm}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-card transition hover:bg-blue-700 active:scale-[0.98]"
-            >
-              <Check className="h-4 w-4" />
-              <span>Confirmar Ubicación</span>
-            </button>
-          </div>
+        <div className="flex items-center gap-2.5 shrink-0 ml-auto">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-xl border border-slate-200 bg-white px-4 py-2 text-xs font-semibold text-slate-700 transition hover:bg-slate-50"
+          >
+            Cancelar
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-card transition hover:bg-blue-700 active:scale-[0.98]"
+          >
+            <Check className="h-4 w-4" aria-hidden="true" />
+            <span>Confirmar Ubicación</span>
+          </button>
         </div>
       </div>
-    </div>,
-    document.body
+    </dialog>
   );
+
+  return typeof document !== 'undefined' ? createPortal(dialogNode, document.body) : null;
 }
 
 export function StopLocationPickerModal({ open, ...props }) {

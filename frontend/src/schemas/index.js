@@ -80,7 +80,7 @@ export const lineSchema = z.object({
   ),
   color: colorField(),
   contact: optionalText(120, "Contacto demasiado largo (máx. 120)."),
-  description: optionalText(500, "Descripción demasiado larga (máx. 500)."),
+  description: optionalText(255, "Descripción demasiado larga (máx. 255)."),
   status: statusField(),
   // '' = platform-owned (no operator). null/undefined keeps zod permissive for edits.
   operatorId: z
@@ -163,7 +163,7 @@ export const routeBasicsSchema = z.object({
     .or(z.literal("")),
   schedule: optionalText(60, "Horario demasiado largo (máx. 60)."),
   frequency: optionalText(60, "Frecuencia demasiado larga (máx. 60)."),
-  description: optionalText(500, "Descripción demasiado larga (máx. 500)."),
+  description: optionalText(255, "Descripción demasiado larga (máx. 255)."),
   status: statusField(),
 });
 
