@@ -228,6 +228,15 @@ public class StopService {
                             + " still target this stop. Edit or delete those QR codes first.");
         }
 
+        long routeStopCount = routeStopRepository.countByStopId(id);
+        if (routeStopCount > 0) {
+            throw new ConflictException(
+                    "Cannot delete stop: it is currently used in "
+                            + routeStopCount
+                            + (routeStopCount == 1 ? " route stop" : " route stops")
+                            + ". Remove it from those routes first.");
+        }
+
         stopRepository.deleteById(id);
     }
 

@@ -8,6 +8,8 @@ import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.CommunityPostRepository;
+import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
 import com.anthony.rutas.utils.UuidUtils;
@@ -27,6 +29,8 @@ public class TransportLineService {
     private final TransportLineRepository transportLineRepository;
     private final CityRepository cityRepository;
     private final OperatorRepository operatorRepository;
+    private final CommunityPostRepository communityPostRepository;
+    private final DisruptionRepository disruptionRepository;
 
     @Transactional(readOnly = true)
     public List<TransportLineResponse> findAll() {
@@ -137,6 +141,8 @@ public class TransportLineService {
         if (!transportLineRepository.existsById(id)) {
             throw new ResourceNotFoundException("Transport line not found with id: " + id);
         }
+        communityPostRepository.detachRoutesByLineId(id);
+        disruptionRepository.deleteByRouteTransportLineId(id);
         transportLineRepository.deleteById(id);
     }
 }

@@ -8,6 +8,8 @@ import com.anthony.rutas.entities.TransportLine;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.CommunityPostRepository;
+import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,12 +45,18 @@ class TransportLineServiceOperatorTest {
     private CityRepository cityRepository;
     @Mock
     private OperatorRepository operatorRepository;
+    @Mock
+    private CommunityPostRepository communityPostRepository;
+    @Mock
+    private DisruptionRepository disruptionRepository;
 
     private TransportLineService service;
 
     @BeforeEach
     void setUp() {
-        service = new TransportLineService(transportLineRepository, cityRepository, operatorRepository);
+        service = new TransportLineService(
+                transportLineRepository, cityRepository, operatorRepository,
+                communityPostRepository, disruptionRepository);
     }
 
     private City city() {

@@ -5,6 +5,7 @@ import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
+import com.anthony.rutas.exceptions.ConflictException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -45,6 +46,12 @@ class RouteServiceTest {
     private TransportLineRepository transportLineRepository;
     @Mock
     private StopRepository stopRepository;
+    @Mock
+    private QrCodeRepository qrCodeRepository;
+    @Mock
+    private CommunityPostRepository communityPostRepository;
+    @Mock
+    private DisruptionRepository disruptionRepository;
     @Spy
     private GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
@@ -915,14 +922,34 @@ class RouteServiceTest {
     class Delete {
 
         @Test
-        @DisplayName("Should delete existing route")
+        @DisplayName("Should detach posts, delete disruptions, and delete existing route in order")
         void shouldDeleteRoute() {
             when(routeRepository.existsById(routeId)).thenReturn(true);
+            when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                    eq("ROUTE"), eq(routeId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(0L);
             doNothing().when(routeRepository).deleteById(routeId);
 
             routeService.delete(routeId);
 
-            verify(routeRepository).deleteById(routeId);
+            var inOrder = inOrder(communityPostRepository, disruptionRepository, routeRepository);
+            inOrder.verify(communityPostRepository).detachRoute(routeId);
+            inOrder.verify(disruptionRepository).deleteByRouteId(routeId);
+            inOrder.verify(routeRepository).deleteById(routeId);
+        }
+
+        @Test
+        @DisplayName("Should throw ConflictException when active or paused QR codes target the route")
+        void shouldThrowConflictWhenTargetedByQr() {
+            when(routeRepository.existsById(routeId)).thenReturn(true);
+            when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                    eq("ROUTE"), eq(routeId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(2L);
+
+            ConflictException error = assertThrows(ConflictException.class, () -> routeService.delete(routeId));
+
+            assertTrue(error.getMessage().contains("2 QR codes"));
+            assertTrue(error.getMessage().contains("Edit or delete those QR codes first"));
+            verifyNoInteractions(communityPostRepository, disruptionRepository);
+            verify(routeRepository, never()).deleteById(any(UUID.class));
         }
 
         @Test
@@ -931,6 +958,7 @@ class RouteServiceTest {
             when(routeRepository.existsById(routeId)).thenReturn(false);
 
             assertThrows(ResourceNotFoundException.class, () -> routeService.delete(routeId));
+            verifyNoInteractions(qrCodeRepository, communityPostRepository, disruptionRepository);
         }
     }
 }

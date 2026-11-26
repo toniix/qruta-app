@@ -4,6 +4,10 @@ import com.anthony.rutas.dtos.request.CreateRouteRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.response.RouteDetailResponse;
 import com.anthony.rutas.entities.City;
+import com.anthony.rutas.entities.CommunityComment;
+import com.anthony.rutas.entities.CommunityPost;
+import com.anthony.rutas.entities.CommunityPostLike;
+import com.anthony.rutas.entities.Disruption;
 import com.anthony.rutas.entities.Operator;
 import com.anthony.rutas.entities.QrCode;
 import com.anthony.rutas.entities.Route;
@@ -12,6 +16,9 @@ import com.anthony.rutas.entities.RoutePoint;
 import com.anthony.rutas.entities.RouteStop;
 import com.anthony.rutas.entities.Stop;
 import com.anthony.rutas.entities.TransportLine;
+import com.anthony.rutas.repositories.CommunityPostRepository;
+import com.anthony.rutas.repositories.DisruptionRepository;
+import com.anthony.rutas.repositories.QrCodeRepository;
 import com.anthony.rutas.repositories.RouteDirectionRepository;
 import com.anthony.rutas.repositories.RoutePointRepository;
 import com.anthony.rutas.repositories.RouteRepository;
@@ -71,7 +78,11 @@ class RouteDirectionsUpdateIntegrationTest {
                 Route.class.getName(),
                 RouteDirection.class.getName(),
                 RouteStop.class.getName(),
-                RoutePoint.class.getName()));
+                RoutePoint.class.getName(),
+                CommunityPost.class.getName(),
+                CommunityComment.class.getName(),
+                CommunityPostLike.class.getName(),
+                Disruption.class.getName()));
         factoryBean.setJpaVendorAdapter(new HibernateJpaVendorAdapter());
 
         Properties properties = new Properties();
@@ -91,9 +102,13 @@ class RouteDirectionsUpdateIntegrationTest {
         RoutePointRepository pointRepository = factory.getRepository(RoutePointRepository.class);
         TransportLineRepository lineRepository = factory.getRepository(TransportLineRepository.class);
         StopRepository stopRepository = factory.getRepository(StopRepository.class);
+        QrCodeRepository qrCodeRepository = factory.getRepository(QrCodeRepository.class);
+        CommunityPostRepository communityPostRepository = factory.getRepository(CommunityPostRepository.class);
+        DisruptionRepository disruptionRepository = factory.getRepository(DisruptionRepository.class);
 
         routeService = new RouteService(routeRepository, directionRepository, stopLinkRepository,
-                pointRepository, lineRepository, stopRepository, geometryFactory);
+                pointRepository, lineRepository, stopRepository, qrCodeRepository,
+                communityPostRepository, disruptionRepository, geometryFactory);
     }
 
     @AfterEach

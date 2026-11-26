@@ -27,6 +27,7 @@ public class Disruption {
 
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "route_id", nullable = false)
+    @OnDelete(action = OnDeleteAction.CASCADE)
     private Route route;
 
     @Column(nullable = false)

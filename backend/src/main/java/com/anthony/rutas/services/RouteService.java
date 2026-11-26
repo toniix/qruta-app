@@ -6,6 +6,7 @@ import com.anthony.rutas.dtos.request.UpdateRouteRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
 import com.anthony.rutas.exceptions.BadRequestException;
+import com.anthony.rutas.exceptions.ConflictException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
@@ -36,6 +37,7 @@ import java.util.stream.Collectors;
 public class RouteService {
 
     private static final int MAX_POPULAR_ROUTES = 10;
+    private static final List<String> REACTIVATABLE_QR_STATUSES = List.of("ACTIVE", "PAUSED");
 
     /** Default server-side cap for search results. */
     public static final int DEFAULT_SEARCH_SIZE = 50;
@@ -49,6 +51,9 @@ public class RouteService {
     private final RoutePointRepository routePointRepository;
     private final TransportLineRepository transportLineRepository;
     private final StopRepository stopRepository;
+    private final QrCodeRepository qrCodeRepository;
+    private final CommunityPostRepository communityPostRepository;
+    private final DisruptionRepository disruptionRepository;
     private final GeometryFactory geometryFactory;
 
     /**
@@ -588,6 +593,20 @@ public class RouteService {
         if (!routeRepository.existsById(id)) {
             throw new ResourceNotFoundException("Route not found with id: " + id);
         }
+
+        long blockingQrCount = qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                "ROUTE", id, REACTIVATABLE_QR_STATUSES);
+        if (blockingQrCount > 0) {
+            String qrLabel = blockingQrCount == 1
+                    ? "1 QR code"
+                    : blockingQrCount + " QR codes";
+            throw new ConflictException(
+                    "Cannot delete route: " + qrLabel
+                            + " still target this route. Edit or delete those QR codes first.");
+        }
+
+        communityPostRepository.detachRoute(id);
+        disruptionRepository.deleteByRouteId(id);
         routeRepository.deleteById(id);
     }
 }

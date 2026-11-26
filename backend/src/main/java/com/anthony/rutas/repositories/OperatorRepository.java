@@ -19,4 +19,6 @@ public interface OperatorRepository extends JpaRepository<Operator, UUID> {
      */
     @Query("SELECT DISTINCT o FROM Operator o LEFT JOIN FETCH o.city")
     List<Operator> findAllWithCity();
+
+    long countByCityId(UUID cityId);
 }

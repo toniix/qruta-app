@@ -437,4 +437,20 @@ class StopServiceTest {
         verifyNoInteractions(qrCodeRepository);
         verify(stopRepository, never()).deleteById(any(UUID.class));
     }
+
+    @Test
+    @DisplayName("delete rejects a stop currently used in route stops")
+    void deleteRejectsStopUsedInRouteStops() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                eq("STOP"), eq(stopId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(0L);
+        when(routeStopRepository.countByStopId(stopId)).thenReturn(3L);
+
+        ConflictException error = assertThrows(ConflictException.class, () -> stopService.delete(stopId));
+
+        assertTrue(error.getMessage().contains("3 route stops"));
+        assertTrue(error.getMessage().contains("Remove it from those routes first"));
+        verify(stopRepository, never()).deleteById(any(UUID.class));
+    }
 }
