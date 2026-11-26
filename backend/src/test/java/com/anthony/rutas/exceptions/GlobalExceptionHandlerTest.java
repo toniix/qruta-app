@@ -2,6 +2,7 @@ package com.anthony.rutas.exceptions;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -53,5 +54,21 @@ class GlobalExceptionHandlerTest {
         assertNotNull(response.getBody());
         assertEquals(403, response.getBody().get("status"));
         assertEquals("Account is inactive or disabled", response.getBody().get("message"));
+    }
+
+    @Test
+    @DisplayName("DataIntegrityViolationException returns 409 Conflict instead of 500")
+    void mapsDataIntegrityViolationToConflict() {
+        DataIntegrityViolationException ex = new DataIntegrityViolationException(
+                "could not execute statement",
+                new RuntimeException("violates foreign key constraint"));
+
+        ResponseEntity<Map<String, Object>> response = handler.handleDataIntegrityViolation(ex);
+
+        assertEquals(HttpStatus.CONFLICT, response.getStatusCode());
+        assertNotNull(response.getBody());
+        assertEquals(409, response.getBody().get("status"));
+        assertEquals("Cannot complete operation because the record is still referenced by existing data",
+                response.getBody().get("message"));
     }
 }
