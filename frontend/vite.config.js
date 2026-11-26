@@ -27,6 +27,9 @@ export default defineConfig({
           if (/node_modules\/(lucide-react|zod|axios)\//.test(id)) {
             return "ui-vendor";
           }
+          if (/node_modules\/@tanstack\//.test(id)) {
+            return "tanstack-vendor";
+          }
           return undefined;
         },
       },
