@@ -2,12 +2,13 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { MapPin, Heart, Trash2, ArrowRight } from "lucide-react";
 import { usePlaces } from "../../hooks/usePlaces";
 import { useFavorites } from "../../hooks/useFavorites";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog, useRouteSelection } from "../../contexts/RouteContext";
 
 export function PlacesPage() {
   const { places, removePlace } = usePlaces();
   const { favorites, removeFavorite } = useFavorites();
-  const { routes, selectRoute } = useRoutes();
+  const { routes } = useRouteCatalog();
+  const { selectRoute } = useRouteSelection();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 

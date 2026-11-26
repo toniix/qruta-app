@@ -1,19 +1,18 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, MapPin, AlertCircle, RefreshCw } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog, useRouteSelection } from "../../contexts/RouteContext";
 import { matchesCategory, SEARCH_CATEGORIES } from "../../components/search/categoryFilter";
 
 export function RoutesListPage() {
   const {
     routes,
-    selectRoute,
-    selectStop,
     currentCity,
     loading,
     error,
     loadData,
-  } = useRoutes();
+  } = useRouteCatalog();
+  const { selectRoute, selectStop } = useRouteSelection();
   const cityName = currentCity?.name;
   const navigate = useNavigate();
 

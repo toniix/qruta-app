@@ -13,7 +13,11 @@ import {
   Clock3,
   Star,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import {
+  useRouteCatalog,
+  useRouteSelection,
+  useRouteGps,
+} from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 import { streetLine } from "../../services/geocodingService";
 import { getGreeting } from "../../utils/dateUtils";
@@ -62,26 +66,28 @@ export function HomePage() {
   const [showCitySelector, setShowCitySelector] = useState(false);
   const {
     routes,
-    triggerGpsRequest,
-    isLocating,
-    gpsReady,
-    selectRoute,
-    nearbyStops,
-    loadingStops,
-    stopsError,
-    loadNearbyStops,
     displayedPopularRoutes,
     loadingPopular,
-    userAddress,
     cities,
     currentCity,
     outsideCoverage,
     setCity,
     resetToGpsDetection,
+  } = useRouteCatalog();
+  const { selectRoute } = useRouteSelection();
+  const {
+    triggerGpsRequest,
+    isLocating,
+    gpsReady,
+    nearbyStops,
+    loadingStops,
+    stopsError,
+    loadNearbyStops,
+    userAddress,
     addressStatus,
     gpsPermissionState,
     setShowGpsModal,
-  } = useRoutes();
+  } = useRouteGps();
 
   // Show polite GPS modal only on HomePage arrival if never dismissed in this session
   useEffect(() => {

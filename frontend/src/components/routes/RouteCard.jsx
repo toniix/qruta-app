@@ -8,7 +8,7 @@ import {
   Heart,
   MapPin,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteSelection } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 
 export function RouteCard({
@@ -19,7 +19,7 @@ export function RouteCard({
   showCity = false,
 }) {
   const navigate = useNavigate();
-  const { selectedRoute, selectRoute } = useRoutes();
+  const { selectedRoute, selectRoute } = useRouteSelection();
   const { isFavorite, toggleFavorite } = useFavorites();
 
   const isSelected = selectedRoute?.id === route.id;

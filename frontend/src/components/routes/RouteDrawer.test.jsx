@@ -12,7 +12,7 @@ const { mockUseRoutes, mockUseFavorites } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: mockUseRoutes,
+  useRouteSelection: mockUseRoutes,
 }));
 
 vi.mock('../../hooks/useFavorites', () => ({

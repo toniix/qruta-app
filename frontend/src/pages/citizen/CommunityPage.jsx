@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog, useRouteSelection } from "../../contexts/RouteContext";
 import { useCommunityIdentity } from "../../hooks/useCommunityIdentity";
 import {
   communityService,
@@ -75,7 +75,8 @@ function getInitials(name) {
 export function CommunityPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { routes, selectRoute } = useRoutes();
+  const { routes } = useRouteCatalog();
+  const { selectRoute } = useRouteSelection();
   const { alias, setAlias, hasAlias } = useCommunityIdentity();
 
   const routeFilterId = searchParams.get("routeId") || "";

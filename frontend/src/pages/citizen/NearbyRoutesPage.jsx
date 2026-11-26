@@ -9,7 +9,7 @@ import {
   AlertCircle,
   ChevronRight,
 } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
+import { useRouteSelection, useRouteGps } from '../../contexts/RouteContext';
 import { routeService } from '../../services/routeService';
 import { stopService } from '../../services/stopService';
 import { InteractiveMap } from '../../components/map/InteractiveMap';
@@ -20,14 +20,14 @@ import { trackEvent } from '../../services/analyticsClient';
 
 export function NearbyRoutesPage() {
   const navigate = useNavigate();
+  const { selectRoute } = useRouteSelection();
   const {
     userLocation,
-    selectRoute,
     triggerGpsRequest,
     isLocating,
     gpsReady,
     userAddress,
-  } = useRoutes();
+  } = useRouteGps();
 
   const [nearbyRoutesList, setNearbyRoutesList] = useState([]);
   const [nearbyStopsList, setNearbyStopsList] = useState([]);

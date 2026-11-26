@@ -15,7 +15,7 @@ import {
   Bus,
   ShieldCheck,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteSelection } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 import {
   communityService,
@@ -143,7 +143,7 @@ export function RouteDrawer() {
     activeDirection,
     setActiveDirection,
     loadingRouteDetail,
-  } = useRoutes();
+  } = useRouteSelection();
 
   const { isFavorite, toggleFavorite } = useFavorites();
   const [communitySummary, setCommunitySummary] = useState(null);

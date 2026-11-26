@@ -15,7 +15,11 @@ import {
   Clock3,
   Star,
 } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
+import {
+  useRouteCatalog,
+  useRouteSelection,
+  useRouteGps,
+} from '../../contexts/RouteContext';
 import { routeService } from '../../services/routeService';
 import { RouteCard } from '../../components/routes/RouteCard';
 import {
@@ -83,8 +87,9 @@ function readRecentQueries() {
 export function SearchPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { selectRoute, cities, currentCity, routes, popularRoutes, userAddress } =
-    useRoutes();
+  const { cities, currentCity, routes, popularRoutes } = useRouteCatalog();
+  const { selectRoute } = useRouteSelection();
+  const { userAddress } = useRouteGps();
 
   const [savedSearch] = useState(loadSearchState);
 

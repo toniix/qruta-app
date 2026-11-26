@@ -11,7 +11,12 @@ import {
   Layers,
   Star,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import {
+  useRouteCatalog,
+  useRouteSearch,
+  useRouteSelection,
+  useRouteGps,
+} from "../../contexts/RouteContext";
 import { usePlaces } from "../../hooks/usePlaces";
 
 const formatCategory = (cat) => {
@@ -26,18 +31,16 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
   const navigate = useNavigate();
   const location = useLocation();
   const containerRef = useRef(null);
+  const { routes } = useRouteCatalog();
   const {
-    routes,
     searchQuery,
     setSearchQuery,
-    clearSelection,
-    selectRoute,
     locateNearestRoute,
     onlyNearby,
-    isLocating,
     loadingFiltered,
-    userAddress,
-  } = useRoutes();
+  } = useRouteSearch();
+  const { clearSelection, selectRoute } = useRouteSelection();
+  const { isLocating, userAddress } = useRouteGps();
   const { places } = usePlaces();
   const quickPlaces = places.slice(0, 2);
 
