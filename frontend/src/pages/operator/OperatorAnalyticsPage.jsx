@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { BarChart3, Route as RouteIcon } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
-
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorPortalService } from '../../services/operatorPortalService';
 
 const formatter = new Intl.NumberFormat('es-PE');
@@ -126,57 +128,53 @@ function DailyDemandChart({ entries, title }) {
 }
 
 export function OperatorAnalyticsPage() {
-  const initialRange = defaultRange();
+  const [initialRange] = useState(() => defaultRange());
   const [from, setFrom] = useState(initialRange.from);
   const [to, setTo] = useState(initialRange.to);
-  const [summary, setSummary] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
   const [selectedRouteId, setSelectedRouteId] = useState(null);
-  const [routeSeries, setRouteSeries] = useState(null);
-  const [routeLoading, setRouteLoading] = useState(false);
-  const [routeError, setRouteError] = useState(null);
 
-  const loadSummary = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const payload = await operatorPortalService.getAnalyticsSummary(from, to);
-      setSummary({
-        lines: payload?.lines || [],
-        days: payload?.days || [],
-        routes: payload?.routes || [],
-      });
-    } catch (err) {
-      if (err.response?.status !== 404) {
-        setError(err.response?.data?.message || err.message || 'No se pudo cargar la analítica');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [from, to]);
-
-  useEffect(() => {
-    void Promise.resolve().then(loadSummary);
-  }, [loadSummary]);
-
-  const selectRoute = useCallback(
-    async (routeId) => {
-      setSelectedRouteId(routeId);
-      setRouteSeries(null);
-      setRouteError(null);
-      setRouteLoading(true);
+  const summaryQuery = useQuery({
+    queryKey: operatorKeys.analytics({ from, to }),
+    queryFn: async () => {
       try {
-        const payload = await operatorPortalService.getRouteAnalytics(routeId, from, to);
-        setRouteSeries(payload);
+        const payload = await operatorPortalService.getAnalyticsSummary(from, to);
+        return {
+          lines: payload?.lines || [],
+          days: payload?.days || [],
+          routes: payload?.routes || [],
+        };
       } catch (err) {
-        setRouteError(err.response?.data?.message || err.message || 'No se pudo cargar la serie de la ruta');
-      } finally {
-        setRouteLoading(false);
+        if (err?.response?.status === 404) {
+          return { lines: [], days: [], routes: [] };
+        }
+        throw err;
       }
     },
-    [from, to]
-  );
+    staleTime: STALE_TIMES.METRICS,
+  });
+
+  const routeAnalyticsQuery = useQuery({
+    queryKey: [...operatorKeys.analytics({ from, to }), 'route', selectedRouteId],
+    queryFn: () => operatorPortalService.getRouteAnalytics(selectedRouteId, from, to),
+    enabled: Boolean(selectedRouteId),
+    staleTime: STALE_TIMES.METRICS,
+  });
+
+  const summary = summaryQuery.data ?? null;
+  const loading = summaryQuery.isPending;
+  const error = summaryQuery.isError
+    ? summaryQuery.error?.response?.data?.message ||
+      summaryQuery.error?.message ||
+      'No se pudo cargar la analítica'
+    : null;
+
+  const routeSeries = routeAnalyticsQuery.data ?? null;
+  const routeLoading = Boolean(selectedRouteId) && routeAnalyticsQuery.isPending;
+  const routeError = routeAnalyticsQuery.isError
+    ? routeAnalyticsQuery.error?.response?.data?.message ||
+      routeAnalyticsQuery.error?.message ||
+      'No se pudo cargar la serie de la ruta'
+    : null;
 
   const lines = summary?.lines || [];
   const days = summary?.days || [];
@@ -215,7 +213,11 @@ export function OperatorAnalyticsPage() {
       {loading ? (
         <OperatorStatePanel loading />
       ) : error ? (
-        <OperatorStatePanel error={error} title="No se pudo cargar la analítica" onRetry={loadSummary} />
+        <OperatorStatePanel
+          error={error}
+          title="No se pudo cargar la analítica"
+          onRetry={() => void summaryQuery.refetch()}
+        />
       ) : (
         <div className="space-y-5">
           <section className="rounded-2xl border border-slate-200/80 bg-white p-5 shadow-card">
@@ -252,7 +254,7 @@ export function OperatorAnalyticsPage() {
                   <button
                     key={route.routeId}
                     type="button"
-                    onClick={() => void selectRoute(route.routeId)}
+                    onClick={() => setSelectedRouteId(route.routeId)}
                     className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left transition ${
                       selectedRouteId === route.routeId
                         ? 'border-blue-400 bg-blue-50'
@@ -281,7 +283,11 @@ export function OperatorAnalyticsPage() {
                 {routeLoading ? (
                   <OperatorStatePanel loading />
                 ) : routeError ? (
-                  <OperatorStatePanel error={routeError} title="No se pudo cargar la serie de la ruta" />
+                  <OperatorStatePanel
+                    error={routeError}
+                    title="No se pudo cargar la serie de la ruta"
+                    onRetry={() => void routeAnalyticsQuery.refetch()}
+                  />
                 ) : (
                   <DailyDemandChart entries={routeSeries?.series || []} title="Demanda diaria por ruta" />
                 )}

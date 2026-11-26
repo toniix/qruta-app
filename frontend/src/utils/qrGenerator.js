@@ -272,9 +272,9 @@ export function encodeQrMatrix(text) {
 }
 
 /**
- * Returns clean SVG markup string for a given text.
+ * Returns structured SVG rendering data for a given text.
  */
-export function generateQrSvg(text, options = {}) {
+export function generateQrSvgData(text, options = {}) {
   const matrix = encodeQrMatrix(text);
   const size = matrix.length;
   const margin = options.margin != null ? options.margin : 2;
@@ -291,9 +291,26 @@ export function generateQrSvg(text, options = {}) {
     }
   }
 
+  return {
+    viewBoxSize,
+    pathD: pathD.trim(),
+    darkColor,
+    lightColor,
+  };
+}
+
+/**
+ * Returns clean SVG markup string for a given text.
+ */
+export function generateQrSvg(text, options = {}) {
+  const { viewBoxSize, pathD, darkColor, lightColor } = generateQrSvgData(
+    text,
+    options,
+  );
+
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${viewBoxSize} ${viewBoxSize}" width="100%" height="100%" shape-rendering="crispEdges">
   <rect width="100%" height="100%" fill="${lightColor}"/>
-  <path d="${pathD.trim()}" fill="${darkColor}"/>
+  <path d="${pathD}" fill="${darkColor}"/>
 </svg>`;
 }
 

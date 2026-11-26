@@ -5,10 +5,14 @@ import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
+import com.anthony.rutas.exceptions.BadRequestException;
+import com.anthony.rutas.exceptions.ConflictException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.*;
+import com.anthony.rutas.utils.UuidUtils;
 import lombok.RequiredArgsConstructor;
+import org.hibernate.Hibernate;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
@@ -17,6 +21,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -30,6 +37,7 @@ import java.util.stream.Collectors;
 public class RouteService {
 
     private static final int MAX_POPULAR_ROUTES = 10;
+    private static final List<String> REACTIVATABLE_QR_STATUSES = List.of("ACTIVE", "PAUSED");
 
     /** Default server-side cap for search results. */
     public static final int DEFAULT_SEARCH_SIZE = 50;
@@ -43,7 +51,10 @@ public class RouteService {
     private final RoutePointRepository routePointRepository;
     private final TransportLineRepository transportLineRepository;
     private final StopRepository stopRepository;
-    private final GeometryFactory geometryFactory = new GeometryFactory();
+    private final QrCodeRepository qrCodeRepository;
+    private final CommunityPostRepository communityPostRepository;
+    private final DisruptionRepository disruptionRepository;
+    private final GeometryFactory geometryFactory;
 
     /**
      * Flat route list for the admin panel. Uses a single {@code JOIN FETCH} query
@@ -286,7 +297,8 @@ public class RouteService {
 
     @Transactional
     public RouteDetailResponse create(CreateRouteRequest request) {
-        TransportLine transportLine = transportLineRepository.findById(UUID.fromString(request.getTransportLineId()))
+        TransportLine transportLine = transportLineRepository
+                .findById(UuidUtils.parseRequired(request.getTransportLineId(), "transport line id"))
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Transport line not found with id: " + request.getTransportLineId()));
 
@@ -308,47 +320,24 @@ public class RouteService {
 
         route = routeRepository.save(route);
 
-        if (request.getDirections() != null) {
-            for (CreateRouteRequest.RouteDirectionRequest dirReq : request.getDirections()) {
-                RouteDirection direction = RouteDirection.builder()
-                        .route(route)
-                        .direction(dirReq.getDirection())
-                        .originName(dirReq.getOriginName())
-                        .destinationName(dirReq.getDestinationName())
-                        .totalDistanceKm(dirReq.getTotalDistanceKm())
-                        .estimatedMinutes(dirReq.getEstimatedMinutes())
-                        .build();
-
-                direction = routeDirectionRepository.save(direction);
-
-                if (dirReq.getStops() != null) {
-                    for (CreateRouteRequest.RouteStopItemRequest stopReq : dirReq.getStops()) {
-                        Stop stop = stopRepository.findById(UUID.fromString(stopReq.getStopId()))
-                                .orElseThrow(() -> new ResourceNotFoundException(
-                                        "Stop not found with id: " + stopReq.getStopId()));
-                        RouteStop routeStop = RouteStop.builder()
-                                .direction(direction)
-                                .stop(stop)
-                                .stopOrder(stopReq.getStopOrder())
-                                .distanceFromStart(stopReq.getDistanceFromStart())
-                                .build();
-                        routeStopRepository.save(routeStop);
-                    }
-                }
-
-                if (dirReq.getRoutePoints() != null) {
-                    for (CreateRouteRequest.RoutePointItemRequest pointReq : dirReq.getRoutePoints()) {
-                        Point location = geometryFactory
-                                .createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
-                        RoutePoint routePoint = RoutePoint.builder()
-                                .direction(direction)
-                                .pointOrder(pointReq.getPointOrder())
-                                .location(location)
-                                .build();
-                        routePointRepository.save(routePoint);
-                    }
-                }
-            }
+        if (request.getDirections() != null && !request.getDirections().isEmpty()) {
+            List<DirectionSpec> specs = request.getDirections().stream()
+                    .map(dirReq -> new DirectionSpec(
+                            dirReq.getDirection(),
+                            dirReq.getOriginName(),
+                            dirReq.getDestinationName(),
+                            dirReq.getTotalDistanceKm(),
+                            dirReq.getEstimatedMinutes(),
+                            toStopSpecs(dirReq.getStops(),
+                                    CreateRouteRequest.RouteStopItemRequest::getStopId,
+                                    CreateRouteRequest.RouteStopItemRequest::getStopOrder,
+                                    CreateRouteRequest.RouteStopItemRequest::getDistanceFromStart),
+                            toGeometryPoints(dirReq.getRoutePoints(),
+                                    CreateRouteRequest.RoutePointItemRequest::getPointOrder,
+                                    CreateRouteRequest.RoutePointItemRequest::getLatitude,
+                                    CreateRouteRequest.RoutePointItemRequest::getLongitude)))
+                    .toList();
+            persistDirections(route, specs);
         }
 
         return findById(route.getId());
@@ -388,57 +377,215 @@ public class RouteService {
         Route route = routeRepository.findById(routeId)
                 .orElseThrow(() -> new ResourceNotFoundException("Route not found with id: " + routeId));
 
-        // Delete existing directions and their stops/points
+        // Snapshot geometry before deleting, so a stops-only edit never destroys it.
         List<RouteDirection> existingDirections = routeDirectionRepository.findByRouteId(routeId);
+        Map<UUID, List<GeometryPoint>> geometryByDirectionId = new HashMap<>();
+        Map<String, List<GeometryPoint>> geometryByDirectionValue = new HashMap<>();
+        for (RouteDirection dir : existingDirections) {
+            List<GeometryPoint> geometry = dir.getRoutePoints().stream()
+                    .sorted(Comparator.comparing(RoutePoint::getPointOrder,
+                            Comparator.nullsLast(Integer::compareTo)))
+                    .map(point -> new GeometryPoint(point.getPointOrder(), point.getLocation()))
+                    .toList();
+            if (dir.getId() != null) {
+                geometryByDirectionId.put(dir.getId(), geometry);
+            }
+            if (dir.getDirection() != null) {
+                geometryByDirectionValue.put(dir.getDirection(), geometry);
+            }
+        }
+
         for (RouteDirection dir : existingDirections) {
             routePointRepository.deleteAll(dir.getRoutePoints());
             routeStopRepository.deleteAll(dir.getRouteStops());
         }
+        // Detach deleted directions from Route.directions if already initialized
+        // (e.g. OperatorPortalService) so cascade/orphanRemoval does not re-save deleted entities.
+        if (route.getDirections() != null && Hibernate.isInitialized(route.getDirections())) {
+            route.getDirections().clear();
+        }
         routeDirectionRepository.deleteAll(existingDirections);
 
-        // Create new directions
-        for (UpdateRouteDirectionsRequest.DirectionUpdateRequest dirReq : request.getDirections()) {
-            RouteDirection direction = RouteDirection.builder()
-                    .route(route)
-                    .direction(dirReq.getDirection())
-                    .originName(dirReq.getOriginName())
-                    .destinationName(dirReq.getDestinationName())
-                    .totalDistanceKm(dirReq.getTotalDistanceKm())
-                    .estimatedMinutes(dirReq.getEstimatedMinutes())
-                    .build();
+        // Hibernate executes INSERTs before DELETEs on flush. Without this flush
+        // the new direction collides with UNIQUE(route_id, direction) while the
+        // old one is still present, producing a 500 on replace.
+        routeDirectionRepository.flush();
 
-            direction = routeDirectionRepository.save(direction);
-
-            if (dirReq.getStops() != null) {
-                for (UpdateRouteDirectionsRequest.StopUpdateRequest stopReq : dirReq.getStops()) {
-                    Stop stop = stopRepository.findById(UUID.fromString(stopReq.getStopId()))
-                            .orElseThrow(() -> new ResourceNotFoundException(
-                                    "Stop not found with id: " + stopReq.getStopId()));
-                    RouteStop routeStop = RouteStop.builder()
-                            .direction(direction)
-                            .stop(stop)
-                            .stopOrder(stopReq.getStopOrder())
-                            .distanceFromStart(stopReq.getDistanceFromStart())
-                            .build();
-                    routeStopRepository.save(routeStop);
-                }
-            }
-
-            if (dirReq.getRoutePoints() != null) {
-                for (UpdateRouteDirectionsRequest.PointUpdateRequest pointReq : dirReq.getRoutePoints()) {
-                    Point location = geometryFactory
-                            .createPoint(new Coordinate(pointReq.getLongitude(), pointReq.getLatitude()));
-                    RoutePoint routePoint = RoutePoint.builder()
-                            .direction(direction)
-                            .pointOrder(pointReq.getPointOrder())
-                            .location(location)
-                            .build();
-                    routePointRepository.save(routePoint);
-                }
-            }
-        }
+        List<DirectionSpec> specs = request.getDirections().stream()
+                .map(dirReq -> new DirectionSpec(
+                        dirReq.getDirection(),
+                        dirReq.getOriginName(),
+                        dirReq.getDestinationName(),
+                        dirReq.getTotalDistanceKm(),
+                        dirReq.getEstimatedMinutes(),
+                        toStopSpecs(dirReq.getStops(),
+                                UpdateRouteDirectionsRequest.StopUpdateRequest::getStopId,
+                                UpdateRouteDirectionsRequest.StopUpdateRequest::getStopOrder,
+                                UpdateRouteDirectionsRequest.StopUpdateRequest::getDistanceFromStart),
+                        resolveGeometry(dirReq, geometryByDirectionId, geometryByDirectionValue)))
+                .toList();
+        persistDirections(route, specs);
 
         return findById(routeId);
+    }
+
+    private void persistDirections(Route route, List<DirectionSpec> specs) {
+        if (specs.isEmpty()) {
+            return;
+        }
+        Map<UUID, Stop> stopsById = loadStopsById(specs);
+
+        for (DirectionSpec spec : specs) {
+            RouteDirection direction = RouteDirection.builder()
+                    .route(route)
+                    .direction(spec.direction())
+                    .originName(spec.originName())
+                    .destinationName(spec.destinationName())
+                    .totalDistanceKm(spec.totalDistanceKm())
+                    .estimatedMinutes(spec.estimatedMinutes())
+                    .build();
+
+            RouteDirection savedDirection = routeDirectionRepository.save(direction);
+            if (savedDirection != null) {
+                direction = savedDirection;
+            }
+            if (direction.getRouteStops() == null) {
+                direction.setRouteStops(new ArrayList<>());
+            }
+            if (direction.getRoutePoints() == null) {
+                direction.setRoutePoints(new ArrayList<>());
+            }
+            if (route.getDirections() != null && Hibernate.isInitialized(route.getDirections())) {
+                route.getDirections().add(direction);
+            }
+
+            if (!spec.stops().isEmpty()) {
+                List<RouteStop> routeStops = new ArrayList<>(spec.stops().size());
+                for (StopSpec stopSpec : spec.stops()) {
+                    Stop stop = stopsById.get(stopSpec.stopId());
+                    if (stop == null) {
+                        throw new ResourceNotFoundException("Stop not found with id: " + stopSpec.stopId());
+                    }
+                    routeStops.add(RouteStop.builder()
+                            .direction(direction)
+                            .stop(stop)
+                            .stopOrder(stopSpec.stopOrder())
+                            .distanceFromStart(stopSpec.distanceFromStart())
+                            .build());
+                }
+                List<RouteStop> savedStops = routeStopRepository.saveAll(routeStops);
+                direction.getRouteStops().addAll(
+                        savedStops != null && !savedStops.isEmpty() ? savedStops : routeStops);
+                direction.getRouteStops().sort(Comparator.comparing(RouteStop::getStopOrder,
+                        Comparator.nullsLast(Integer::compareTo)));
+            }
+
+            List<RoutePoint> routePoints = new ArrayList<>();
+            for (GeometryPoint point : spec.geometry()) {
+                if (point.location() == null) continue;
+                routePoints.add(RoutePoint.builder()
+                        .direction(direction)
+                        .pointOrder(point.order())
+                        .location(point.location())
+                        .build());
+            }
+            if (!routePoints.isEmpty()) {
+                List<RoutePoint> savedPoints = routePointRepository.saveAll(routePoints);
+                direction.getRoutePoints().addAll(
+                        savedPoints != null && !savedPoints.isEmpty() ? savedPoints : routePoints);
+                direction.getRoutePoints().sort(Comparator.comparing(RoutePoint::getPointOrder,
+                        Comparator.nullsLast(Integer::compareTo)));
+            }
+        }
+    }
+
+    private Map<UUID, Stop> loadStopsById(List<DirectionSpec> specs) {
+        List<UUID> stopIds = specs.stream()
+                .flatMap(spec -> spec.stops().stream())
+                .map(StopSpec::stopId)
+                .distinct()
+                .toList();
+        if (stopIds.isEmpty()) {
+            return Map.of();
+        }
+        return stopRepository.findAllById(stopIds).stream()
+                .collect(Collectors.toMap(Stop::getId, Function.identity()));
+    }
+
+    private <T> List<StopSpec> toStopSpecs(
+            List<T> items,
+            Function<T, String> idExtractor,
+            Function<T, Integer> orderExtractor,
+            Function<T, Double> distanceExtractor) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .map(item -> new StopSpec(
+                        parseStopId(idExtractor.apply(item)),
+                        orderExtractor.apply(item),
+                        distanceExtractor.apply(item)))
+                .toList();
+    }
+
+    private <T> List<GeometryPoint> toGeometryPoints(
+            List<T> items,
+            Function<T, Integer> orderExtractor,
+            Function<T, Double> latExtractor,
+            Function<T, Double> lngExtractor) {
+        if (items == null || items.isEmpty()) {
+            return List.of();
+        }
+        return items.stream()
+                .map(item -> new GeometryPoint(
+                        orderExtractor.apply(item),
+                        geometryFactory.createPoint(
+                                new Coordinate(lngExtractor.apply(item), latExtractor.apply(item)))))
+                .toList();
+    }
+
+    /**
+     * {@code null} routePoints keeps the stored geometry, an empty list clears it,
+     * a non-empty list replaces it exactly as submitted.
+     */
+    private List<GeometryPoint> resolveGeometry(
+            UpdateRouteDirectionsRequest.DirectionUpdateRequest dirReq,
+            Map<UUID, List<GeometryPoint>> geometryByDirectionId,
+            Map<String, List<GeometryPoint>> geometryByDirectionValue) {
+        if (dirReq.getRoutePoints() != null) {
+            return toGeometryPoints(dirReq.getRoutePoints(),
+                    UpdateRouteDirectionsRequest.PointUpdateRequest::getPointOrder,
+                    UpdateRouteDirectionsRequest.PointUpdateRequest::getLatitude,
+                    UpdateRouteDirectionsRequest.PointUpdateRequest::getLongitude);
+        }
+
+        UUID directionId = UuidUtils.parseOptional(dirReq.getId());
+        List<GeometryPoint> preserved = directionId == null
+                ? null : geometryByDirectionId.get(directionId);
+        if (preserved == null) {
+            preserved = geometryByDirectionValue.get(dirReq.getDirection());
+        }
+        return preserved == null ? List.of() : preserved;
+    }
+
+    private UUID parseStopId(String value) {
+        return UuidUtils.parseRequired(value, "stop id");
+    }
+
+    private record StopSpec(UUID stopId, Integer stopOrder, Double distanceFromStart) {
+    }
+
+    private record GeometryPoint(Integer order, Point location) {
+    }
+
+    private record DirectionSpec(
+            String direction,
+            String originName,
+            String destinationName,
+            Double totalDistanceKm,
+            Integer estimatedMinutes,
+            List<StopSpec> stops,
+            List<GeometryPoint> geometry) {
     }
 
     @Transactional
@@ -446,6 +593,20 @@ public class RouteService {
         if (!routeRepository.existsById(id)) {
             throw new ResourceNotFoundException("Route not found with id: " + id);
         }
+
+        long blockingQrCount = qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                "ROUTE", id, REACTIVATABLE_QR_STATUSES);
+        if (blockingQrCount > 0) {
+            String qrLabel = blockingQrCount == 1
+                    ? "1 QR code"
+                    : blockingQrCount + " QR codes";
+            throw new ConflictException(
+                    "Cannot delete route: " + qrLabel
+                            + " still target this route. Edit or delete those QR codes first.");
+        }
+
+        communityPostRepository.detachRoute(id);
+        disruptionRepository.deleteByRouteId(id);
         routeRepository.deleteById(id);
     }
 }

@@ -558,7 +558,7 @@ function InteractiveMapComponent({
   onMapClick,
   mapCenter = [-14.0678, -75.7286],
   mapZoom = 14,
-  activeDirection = "OUTBOUND",
+  activeDirection = "IDA",
   recenterTrigger = 0,
   loadingRouteDetail = false,
   userAddress = null,
@@ -732,7 +732,14 @@ function InteractiveMapComponent({
   const activeDirectionMeta = useMemo(() => {
     if (!selectedRoute) return null;
     const dirs = selectedRoute.directions || [];
-    const dir = dirs.find((d) => d.direction === activeDirection) || dirs[0];
+    const target = String(activeDirection || "IDA").trim().toUpperCase();
+    const dir =
+      dirs.find((d) => {
+        const val = String(d.direction || "").trim().toUpperCase();
+        if (target === "IDA") return val === "IDA" || val === "OUTBOUND";
+        if (target === "VUELTA") return val === "VUELTA" || val === "INBOUND";
+        return val === target;
+      }) || dirs[0];
     return dir || null;
   }, [selectedRoute, activeDirection]);
 
@@ -944,28 +951,29 @@ function InteractiveMapComponent({
             );
           })}
 
-        {/* Selected route — one polyline per direction (IDA/VUELTA) */}
+        {/* Selected route — render the active direction polyline (IDA or VUELTA) */}
         {selectedRoute &&
-          (selectedRoute.directions?.length > 0
-            ? selectedRoute.directions.map((dir) => {
+          (activeDirectionMeta
+            ? (() => {
+                const dir = activeDirectionMeta;
                 const dirKey = `${selectedRoute.id}:${dir.direction || dir.id}`;
+                const stopFallback = (dir.stops || [])
+                  .map((s) => {
+                    const lat = s.latitude ?? s.location?.latitude;
+                    const lng = s.longitude ?? s.location?.longitude;
+                    return lat != null && lng != null ? [lat, lng] : null;
+                  })
+                  .filter(Boolean);
                 const points =
-                  snappedDirectionMap[dirKey] || dir.routePoints || [];
+                  snappedDirectionMap[dirKey] ||
+                  (dir.routePoints?.length >= 2 ? dir.routePoints : stopFallback);
                 if (!points || points.length < 2) return null;
 
-                const hasBoth =
-                  selectedRoute.directions.some(
-                    (d) => d.direction === "OUTBOUND",
-                  ) &&
-                  selectedRoute.directions.some(
-                    (d) => d.direction === "INBOUND",
-                  );
+                const normalizedDir = String(dir.direction || "")
+                  .trim()
+                  .toUpperCase();
                 const isOutbound =
-                  dir.direction === "OUTBOUND" ||
-                  (!hasBoth && dir.direction !== "INBOUND");
-                const isActive =
-                  dir.direction === activeDirection ||
-                  (!hasBoth && dir.direction !== "INBOUND");
+                  normalizedDir !== "VUELTA" && normalizedDir !== "INBOUND";
                 const baseColor = selectedRoute.color || DEFAULT_ROUTE_COLOR;
 
                 return (
@@ -974,22 +982,16 @@ function InteractiveMapComponent({
                     positions={points}
                     pathOptions={{
                       color: isOutbound ? baseColor : shadeColor(baseColor, 45),
-                      weight: isActive ? 6 : 4,
-                      opacity: isActive ? 0.95 : 0.5,
+                      weight: 6,
+                      opacity: 0.95,
                       dashArray: isOutbound ? undefined : "7 7",
                       lineCap: "round",
                       lineJoin: "round",
                       className: "route-active-polyline",
                     }}
-                    eventHandlers={{
-                      click: (e) => {
-                        L.DomEvent.stopPropagation(e);
-                        if (onSelectRoute) onSelectRoute(selectedRoute);
-                      },
-                    }}
                   />
                 );
-              })
+              })()
             : null)}
 
         {/* GPS → selected-stop trace: straight while OSRM loads, road-snapped when ready */}

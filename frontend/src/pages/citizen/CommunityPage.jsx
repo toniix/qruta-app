@@ -13,7 +13,7 @@ import {
   RefreshCw,
   Sparkles,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog, useRouteSelection } from "../../contexts/RouteContext";
 import { useCommunityIdentity } from "../../hooks/useCommunityIdentity";
 import {
   communityService,
@@ -75,7 +75,8 @@ function getInitials(name) {
 export function CommunityPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { routes, selectRoute } = useRoutes();
+  const { routes } = useRouteCatalog();
+  const { selectRoute } = useRouteSelection();
   const { alias, setAlias, hasAlias } = useCommunityIdentity();
 
   const routeFilterId = searchParams.get("routeId") || "";
@@ -877,7 +878,7 @@ export function CommunityPage() {
       </header>
 
       {/* ── Feed Content ────────────────────────────────────────────────── */}
-      <main
+      <div
         className="flex-1 overflow-y-auto hide-scrollbar p-4 sm:p-5 space-y-4 max-w-2xl mx-auto w-full pb-28"
         aria-live="polite"
         aria-busy={loading}
@@ -1033,7 +1034,7 @@ export function CommunityPage() {
             )}
           </>
         )}
-      </main>
+      </div>
 
       <ComposeModal
         open={showComposeModal}

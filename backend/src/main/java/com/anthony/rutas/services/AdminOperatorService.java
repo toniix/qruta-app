@@ -18,6 +18,7 @@ import com.anthony.rutas.repositories.CityRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.OperatorUserRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
+import com.anthony.rutas.utils.UuidUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -68,12 +69,7 @@ public class AdminOperatorService {
             throw new BadRequestException("Ya existe un operador con el RUC " + request.getRuc());
         }
 
-        UUID lineId;
-        try {
-            lineId = UUID.fromString(request.getTransportLineId());
-        } catch (IllegalArgumentException e) {
-            throw new BadRequestException("Invalid transport line ID: " + request.getTransportLineId());
-        }
+        UUID lineId = UuidUtils.parseRequired(request.getTransportLineId(), "transport line ID");
 
         TransportLine line = transportLineRepository.findById(lineId)
                 .orElseThrow(() -> new ResourceNotFoundException("Transport line not found with id: " + request.getTransportLineId()));
@@ -82,7 +78,8 @@ public class AdminOperatorService {
             throw new BadRequestException("Transport line is already linked to an operator");
         }
 
-        City city = cityRepository.findById(UUID.fromString(request.getCityId()))
+        UUID cityId = UuidUtils.parseRequired(request.getCityId(), "city ID");
+        City city = cityRepository.findById(cityId)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
         String plan = StringUtils.hasText(request.getPlan()) ? request.getPlan() : "PRO";
@@ -123,8 +120,12 @@ public class AdminOperatorService {
         if (request.getContactEmail() != null) operator.setContactEmail(request.getContactEmail());
         if (request.getContactPhone() != null) operator.setContactPhone(request.getContactPhone());
 
-        if (StringUtils.hasText(request.getCityId()) && !request.getCityId().equals(operator.getCity().getId().toString())) {
-            City city = cityRepository.findById(UUID.fromString(request.getCityId()))
+        String currentCityId = operator.getCity() != null && operator.getCity().getId() != null
+                ? operator.getCity().getId().toString()
+                : null;
+        if (StringUtils.hasText(request.getCityId()) && !request.getCityId().trim().equals(currentCityId)) {
+            UUID targetCityId = UuidUtils.parseRequired(request.getCityId(), "city ID");
+            City city = cityRepository.findById(targetCityId)
                     .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
             operator.setCity(city);
         }
@@ -185,7 +186,7 @@ public class AdminOperatorService {
     @Transactional
     public OperatorUserResponse updateUser(UUID operatorId, UUID userId, UpdateOperatorUserRequest request) {
         getOperatorOrThrow(operatorId);
-        OperatorUser user = getOperatorUserOrThrow(userId);
+        OperatorUser user = getOperatorUserForOperatorOrThrow(operatorId, userId);
 
         if (StringUtils.hasText(request.getEmail()) && !request.getEmail().equalsIgnoreCase(user.getEmail())) {
             if (operatorUserRepository.existsByEmailIgnoreCaseAndIdNot(request.getEmail(), userId)) {
@@ -208,7 +209,7 @@ public class AdminOperatorService {
     @Transactional
     public OperatorUserResponse resetPassword(UUID operatorId, UUID userId, ResetPasswordRequest request) {
         getOperatorOrThrow(operatorId);
-        OperatorUser user = getOperatorUserOrThrow(userId);
+        OperatorUser user = getOperatorUserForOperatorOrThrow(operatorId, userId);
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         return DtoMapper.toOperatorUserResponse(operatorUserRepository.save(user));
     }
@@ -216,7 +217,7 @@ public class AdminOperatorService {
     @Transactional
     public OperatorUserResponse setUserActive(UUID operatorId, UUID userId, boolean active) {
         getOperatorOrThrow(operatorId);
-        OperatorUser user = getOperatorUserOrThrow(userId);
+        OperatorUser user = getOperatorUserForOperatorOrThrow(operatorId, userId);
         user.setActive(active);
         return DtoMapper.toOperatorUserResponse(operatorUserRepository.save(user));
     }
@@ -228,8 +229,12 @@ public class AdminOperatorService {
                 .orElseThrow(() -> new ResourceNotFoundException("Operator not found with id: " + id));
     }
 
-    private OperatorUser getOperatorUserOrThrow(UUID id) {
-        return operatorUserRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Operator user not found with id: " + id));
+    private OperatorUser getOperatorUserForOperatorOrThrow(UUID operatorId, UUID userId) {
+        OperatorUser user = operatorUserRepository.findById(userId)
+                .orElseThrow(() -> new ResourceNotFoundException("Operator user not found with id: " + userId));
+        if (user.getOperator() == null || !operatorId.equals(user.getOperator().getId())) {
+            throw new ResourceNotFoundException("Operator user not found with id: " + userId);
+        }
+        return user;
     }
 }

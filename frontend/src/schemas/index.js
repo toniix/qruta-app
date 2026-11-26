@@ -80,7 +80,7 @@ export const lineSchema = z.object({
   ),
   color: colorField(),
   contact: optionalText(120, "Contacto demasiado largo (máx. 120)."),
-  description: optionalText(500, "Descripción demasiado larga (máx. 500)."),
+  description: optionalText(255, "Descripción demasiado larga (máx. 255)."),
   status: statusField(),
   // '' = platform-owned (no operator). null/undefined keeps zod permissive for edits.
   operatorId: z
@@ -163,7 +163,7 @@ export const routeBasicsSchema = z.object({
     .or(z.literal("")),
   schedule: optionalText(60, "Horario demasiado largo (máx. 60)."),
   frequency: optionalText(60, "Frecuencia demasiado larga (máx. 60)."),
-  description: optionalText(500, "Descripción demasiado larga (máx. 500)."),
+  description: optionalText(255, "Descripción demasiado larga (máx. 255)."),
   status: statusField(),
 });
 
@@ -201,6 +201,55 @@ export const routePayloadSchema = routeBasicsSchema.extend({
   directions: z
     .array(routeDirectionSchema)
     .min(1, "Agregá al menos un sentido."),
+});
+
+export const updateRouteDirectionsSchema = z.object({
+  directions: z
+    .array(
+      routeDirectionSchema
+        .extend({
+          id: z.string().optional(),
+          totalDistanceKm: z.coerce
+            .number("Distancia inválida.")
+            .min(0, "La distancia no puede ser negativa.")
+            .max(10000, "Distancia poco realista."),
+          stops: z.array(
+            routeStopItemSchema.extend({
+              stopId: z.string().trim().min(1, "Paradero inválido."),
+            }),
+          ),
+        })
+        .superRefine((dir, ctx) => {
+          const seenStops = new Set();
+          for (const stop of dir.stops || []) {
+            const key = String(stop.stopId || "").trim().toLowerCase();
+            if (seenStops.has(key)) {
+              ctx.addIssue({
+                code: "custom",
+                message: "No se puede repetir un paradero en el mismo sentido.",
+                path: ["stops"],
+              });
+              break;
+            }
+            seenStops.add(key);
+          }
+        }),
+    )
+    .min(1, "Configurá al menos un sentido.")
+    .superRefine((dirs, ctx) => {
+      const seen = new Set();
+      for (const dir of dirs) {
+        if (seen.has(dir.direction)) {
+          ctx.addIssue({
+            code: "custom",
+            message: "No puede haber dos sentidos iguales (IDA o VUELTA).",
+            path: ["directions"],
+          });
+          break;
+        }
+        seen.add(dir.direction);
+      }
+    }),
 });
 
 // ── Auth ──────────────────────────────────────────────────────────────────

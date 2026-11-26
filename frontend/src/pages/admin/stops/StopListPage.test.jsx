@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { screen, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { StopListPage } from './StopListPage';
 import { ToastProvider } from '../../../components/admin/common/ToastContext';
 import { adminStopService } from '../../../services/adminStopService';
 import { cityService } from '../../../services/cityService';
+import { adminKeys } from '../../../lib/queryKeys';
+import {
+  createSharedTestQueryClient,
+  renderWithQueryClient,
+} from '../../../test/queryTestUtils';
 
 vi.mock('../../../services/adminStopService', () => ({
   adminStopService: {
@@ -31,11 +36,12 @@ const CITY = {
   department: 'Ica',
 };
 
-function renderPage() {
-  return render(
+function renderPage(options) {
+  return renderWithQueryClient(
     <ToastProvider>
       <StopListPage />
-    </ToastProvider>
+    </ToastProvider>,
+    options,
   );
 }
 
@@ -95,8 +101,10 @@ describe('StopListPage image upload flow', () => {
     const user = userEvent.setup();
     adminStopService.createStop.mockResolvedValueOnce({ id: 'stop-new', name: 'Paradero Nuevo' });
     adminStopService.uploadStopImage.mockRejectedValueOnce(new Error('503 storage disabled'));
+    const sharedQueryClient = createSharedTestQueryClient();
+    const invalidateSpy = vi.spyOn(sharedQueryClient, 'invalidateQueries');
 
-    renderPage();
+    renderPage({ queryClient: sharedQueryClient });
     await openCreateDrawer(user);
     await fillRequiredFields(user);
 
@@ -105,6 +113,9 @@ describe('StopListPage image upload flow', () => {
 
     expect(await screen.findByText(/imagen no se pudo subir/i)).toBeInTheDocument();
     expect(adminStopService.createStop).toHaveBeenCalledTimes(1);
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.stops() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.routes() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.overview() });
   }, 20000);
 
   it('shows the QR conflict message returned by the delete API', async () => {

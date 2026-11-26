@@ -12,7 +12,8 @@ const mockRoutesState = vi.hoisted(() => ({
 }));
 
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: () => mockRoutesState,
+  useRouteCatalog: () => mockRoutesState,
+  useRouteSelection: () => mockRoutesState,
 }));
 
 vi.mock('../../hooks/useCommunityIdentity', () => ({

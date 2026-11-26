@@ -53,6 +53,10 @@ export const operatorPortalService = {
     return toList(unwrap(await operatorClient.get('/operator/stops')));
   },
 
+  async getAllStops() {
+    return this.getStops();
+  },
+
   async updateStop(id, payload) {
     return unwrap(await operatorClient.put(`/operator/stops/${id}`, payload));
   },

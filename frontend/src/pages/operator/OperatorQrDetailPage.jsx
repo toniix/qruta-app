@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -8,90 +8,80 @@ import {
   Edit2,
 } from 'lucide-react';
 import { StatusBadge } from '../../components/admin/common/StatusBadge';
+import { QrCodeSvg } from '../../components/common/QrCodeSvg';
 import { QrPrintModal } from '../../components/admin/qr/QrPrintModal';
 import { QrFormModal } from '../../components/admin/qr/QrFormModal';
 import { operatorQrCodeService } from '../../services/qrCodeService';
 import { operatorPortalService } from '../../services/operatorPortalService';
-import { generateQrSvg, resolveAbsoluteQrUrl } from '../../utils/qrGenerator';
+import { resolveAbsoluteQrUrl } from '../../utils/qrGenerator';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+import { useQrDetail } from '../../hooks/useQrDetail';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
+
+const INITIAL_CATALOGS = {
+  routes: [],
+  stops: [],
+};
+
+async function loadOperatorQrCatalogs(queryClient) {
+  const [routesData, stopsData] = await Promise.all([
+    queryClient.fetchQuery({
+      queryKey: operatorKeys.routes(),
+      queryFn: () => operatorPortalService.getRoutes(),
+      staleTime: STALE_TIMES.OPERATIONAL,
+    }),
+    queryClient.fetchQuery({
+      queryKey: operatorKeys.stops(),
+      queryFn: () => operatorPortalService.getStops(),
+      staleTime: STALE_TIMES.OPERATIONAL,
+    }),
+  ]);
+
+  return {
+    routes: Array.isArray(routesData) ? routesData : [],
+    stops: Array.isArray(stopsData) ? stopsData : [],
+  };
+}
 
 export function OperatorQrDetailPage() {
   const { id } = useParams();
   const toast = useAdminToast();
-  const [qr, setQr] = useState(null);
-  const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [printModalOpen, setPrintModalOpen] = useState(false);
-  const [editModalOpen, setEditModalOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [routes, setRoutes] = useState([]);
-  const [stops, setStops] = useState([]);
-  const [catalogsLoaded, setCatalogsLoaded] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const { copied, copy } = useCopyToClipboard();
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [qrData, statsData] = await Promise.all([
-        operatorQrCodeService.getById(id),
-        operatorQrCodeService.getStats(id).catch(() => null),
-      ]);
-      setQr(qrData);
-      setStats(statsData);
-    } catch (err) {
-      console.error('Error cargando QR de operador:', err);
-      toast.error('Error al cargar la información del código QR.');
-    } finally {
-      setLoading(false);
-    }
-  }, [id, toast]);
+  const detailQueryKey = useMemo(() => operatorKeys.qrDetail(id), [id]);
+  const statsQueryKey = useMemo(() => operatorKeys.qrStats(id), [id]);
+  const listQueryKey = useMemo(() => operatorKeys.qrCodes(), []);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- initial data fetch hydrates QR detail state
-    loadData();
-  }, [loadData]);
+  const {
+    qr,
+    stats,
+    loading,
+    saving,
+    printModalOpen,
+    setPrintModalOpen,
+    editModalOpen,
+    setEditModalOpen,
+    catalogs,
+    openEdit,
+    handleEdit,
+  } = useQrDetail({
+    id,
+    service: operatorQrCodeService,
+    detailQueryKey,
+    statsQueryKey,
+    listQueryKey,
+    loadCatalogs: loadOperatorQrCatalogs,
+    initialCatalogs: INITIAL_CATALOGS,
+    toast,
+    loadErrorLog: 'Error cargando QR de operador:',
+  });
 
   const handleCopyUrl = () => {
     if (!qr) return;
     const url = qr.canonicalUrl || `${window.location.origin}/q/${qr.code}`;
-    navigator.clipboard.writeText(url).then(() => {
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    });
-  };
-
-  const openEdit = async () => {
-    if (!catalogsLoaded) {
-      try {
-        const [routesData, stopsData] = await Promise.all([
-          operatorPortalService.getRoutes(),
-          operatorPortalService.getStops(),
-        ]);
-        setRoutes(Array.isArray(routesData) ? routesData : []);
-        setStops(Array.isArray(stopsData) ? stopsData : []);
-        setCatalogsLoaded(true);
-      } catch (err) {
-        console.error('Error cargando catálogos para editar QR:', err);
-        toast.error('No se pudieron cargar los catálogos para editar el código QR.');
-        return;
-      }
-    }
-    setEditModalOpen(true);
-  };
-
-  const handleEdit = async (formData) => {
-    setSaving(true);
-    try {
-      const updated = await operatorQrCodeService.update(qr.id, formData);
-      setQr(updated);
-      setEditModalOpen(false);
-      toast.success('Código QR actualizado exitosamente.');
-    } catch (err) {
-      console.error('Error actualizando QR:', err);
-      toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
-    } finally {
-      setSaving(false);
-    }
+    void copy(url);
   };
 
   if (loading) {
@@ -114,7 +104,6 @@ export function OperatorQrDetailPage() {
   }
 
   const qrUrl = resolveAbsoluteQrUrl(qr);
-  const svgMarkup = generateQrSvg(qrUrl, { margin: 1 });
   const totalScans = stats?.totalScans || qr.totalScans || 0;
   const effectiveViews = stats?.effectiveViews || 0;
   const ctrPercent = totalScans > 0 ? Math.min(100, Math.round((effectiveViews / totalScans) * 100)) : 0;
@@ -257,10 +246,13 @@ export function OperatorQrDetailPage() {
 
         <div className="rounded-2xl border border-slate-200/80 bg-white p-6 shadow-card flex flex-col items-center text-center space-y-4">
           <h3 className="text-sm font-bold text-slate-900">Vista del Código</h3>
-          <div
-            className="w-48 h-48 bg-white p-3 rounded-2xl border-2 border-slate-900 shadow-sm flex items-center justify-center"
-            dangerouslySetInnerHTML={{ __html: svgMarkup }}
-          />
+          <div className="w-48 h-48 bg-white p-3 rounded-2xl border-2 border-slate-900 shadow-sm flex items-center justify-center">
+            <QrCodeSvg
+              value={qrUrl}
+              margin={1}
+              label={qr.label ? `Código QR para ${qr.label}` : 'Código QR'}
+            />
+          </div>
           <button
             type="button"
             onClick={() => setPrintModalOpen(true)}
@@ -284,8 +276,8 @@ export function OperatorQrDetailPage() {
         onClose={() => setEditModalOpen(false)}
         onSave={handleEdit}
         saving={saving}
-        routes={routes}
-        stops={stops}
+        routes={catalogs.routes}
+        stops={catalogs.stops}
         isOperator={true}
       />
     </div>

@@ -157,11 +157,17 @@ public class SupabaseStorageService {
 
         /** Cap for the logged response body so huge HTML error pages stay bounded. */
         private static final int MAX_LOGGED_BODY = 500;
+        private static final int CONNECT_TIMEOUT_MS = 5_000;
+        private static final int READ_TIMEOUT_MS = 15_000;
 
         private final RestClient restClient;
 
         RestClientHttpTransport(RestClient.Builder builder) {
-            this.restClient = builder.build();
+            org.springframework.http.client.SimpleClientHttpRequestFactory requestFactory =
+                    new org.springframework.http.client.SimpleClientHttpRequestFactory();
+            requestFactory.setConnectTimeout(CONNECT_TIMEOUT_MS);
+            requestFactory.setReadTimeout(READ_TIMEOUT_MS);
+            this.restClient = builder.requestFactory(requestFactory).build();
         }
 
         @Override

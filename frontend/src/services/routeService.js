@@ -9,10 +9,10 @@ export const routeService = {
    * GET /api/routes/cards
    * @param {string} cityId - UUID de la ciudad (opcional)
    */
-  async getAllRoutes(cityId) {
-    const response = await apiClient.get("/routes/cards", {
-      params: cityId ? { cityId } : {},
-    });
+  async getAllRoutes(cityId, options = {}) {
+    const config = { params: cityId ? { cityId } : {} };
+    if (options?.signal) config.signal = options.signal;
+    const response = await apiClient.get("/routes/cards", config);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },
@@ -22,10 +22,10 @@ export const routeService = {
    * GET /api/routes/popular
    * @param {string} cityId - UUID de la ciudad (opcional)
    */
-  async getPopularRoutes(cityId) {
-    const response = await apiClient.get("/routes/popular", {
-      params: cityId ? { cityId } : {},
-    });
+  async getPopularRoutes(cityId, options = {}) {
+    const config = { params: cityId ? { cityId } : {} };
+    if (options?.signal) config.signal = options.signal;
+    const response = await apiClient.get("/routes/popular", config);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },
@@ -34,11 +34,12 @@ export const routeService = {
    * Obtiene el detalle completo de una ruta con paraderos y direcciones
    * GET /api/routes/{identifier} (acepta UUID o código de ruta)
    */
-  async getRouteDetail(routeIdentifier) {
+  async getRouteDetail(routeIdentifier, options = {}) {
     if (!routeIdentifier) throw new Error("Identificador de ruta no especificado");
-    const response = await apiClient.get(
-      `/routes/${encodeURIComponent(routeIdentifier)}`,
-    );
+    const url = `/routes/${encodeURIComponent(routeIdentifier)}`;
+    const response = options?.signal
+      ? await apiClient.get(url, { signal: options.signal })
+      : await apiClient.get(url);
     return normalizeRoute(response.data);
   },
 
@@ -84,12 +85,17 @@ export const routeService = {
    * POST /api/routes/nearby
    * El radio se limita a los bordes del backend (NearbySearchRequest: (0, 100000]).
    */
-  async getNearbyRoutes(latitude, longitude, radiusMeters = 1500) {
-    const response = await apiClient.post("/routes/nearby", {
+  async getNearbyRoutes(latitude, longitude, radiusMeters = 1500, options = {}) {
+    const payload = {
       latitude,
       longitude,
       radiusMeters: clampRadiusMeters(radiusMeters),
-    });
+    };
+    const response = options?.signal
+      ? await apiClient.post("/routes/nearby", payload, {
+          signal: options.signal,
+        })
+      : await apiClient.post("/routes/nearby", payload);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeRoute).filter(Boolean);
   },

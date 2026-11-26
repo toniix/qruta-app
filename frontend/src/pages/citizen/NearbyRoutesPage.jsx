@@ -9,7 +9,7 @@ import {
   AlertCircle,
   ChevronRight,
 } from 'lucide-react';
-import { useRoutes } from '../../contexts/RouteContext';
+import { useRouteSelection, useRouteGps } from '../../contexts/RouteContext';
 import { routeService } from '../../services/routeService';
 import { stopService } from '../../services/stopService';
 import { InteractiveMap } from '../../components/map/InteractiveMap';
@@ -20,14 +20,14 @@ import { trackEvent } from '../../services/analyticsClient';
 
 export function NearbyRoutesPage() {
   const navigate = useNavigate();
+  const { selectRoute } = useRouteSelection();
   const {
     userLocation,
-    selectRoute,
     triggerGpsRequest,
     isLocating,
     gpsReady,
     userAddress,
-  } = useRoutes();
+  } = useRouteGps();
 
   const [nearbyRoutesList, setNearbyRoutesList] = useState([]);
   const [nearbyStopsList, setNearbyStopsList] = useState([]);
@@ -119,7 +119,7 @@ export function NearbyRoutesPage() {
       </div>
 
       {/* ── Main Content Container ─────────────────────────────────────── */}
-      <main className="flex-1 p-5 max-w-lg mx-auto w-full space-y-6">
+      <div className="flex-1 p-5 max-w-lg mx-auto w-full space-y-6">
         {/* ── Mini-Map Preview Card ───────────────────────────────────────── */}
         <div
           onClick={() => navigate('/mapa')}
@@ -344,7 +344,7 @@ export function NearbyRoutesPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* Stop Routes Modal on Stop Click */}
       {selectedStopModal && (

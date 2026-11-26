@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { RouteDrawer } from './RouteDrawer';
@@ -12,7 +12,7 @@ const { mockUseRoutes, mockUseFavorites } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: mockUseRoutes,
+  useRouteSelection: mockUseRoutes,
 }));
 
 vi.mock('../../hooks/useFavorites', () => ({
@@ -35,7 +35,7 @@ describe('RouteDrawer Share Feature', () => {
     transportLine: { company: 'Empresa San Jerónimo' },
     directions: [
       {
-        direction: 'OUTBOUND',
+        direction: 'IDA',
         originName: 'Miraflores',
         destinationName: 'San Isidro',
         stops: [{ id: 's1', name: 'Paradero 1', stopOrder: 1 }],
@@ -54,7 +54,7 @@ describe('RouteDrawer Share Feature', () => {
       focusedStop: null,
       selectStop: vi.fn(),
       focusStop: vi.fn(),
-      activeDirection: 'OUTBOUND',
+      activeDirection: 'IDA',
       setActiveDirection: vi.fn(),
       loadingRouteDetail: false,
     });
@@ -106,7 +106,7 @@ describe('RouteDrawer Share Feature', () => {
       focusedStop: null,
       selectStop: vi.fn(),
       focusStop: vi.fn(),
-      activeDirection: 'OUTBOUND',
+      activeDirection: 'IDA',
       setActiveDirection: vi.fn(),
       loadingRouteDetail: false,
     });
@@ -145,6 +145,96 @@ describe('RouteDrawer Share Feature', () => {
       expect(screen.getByText('Oficial')).toBeInTheDocument();
       expect(screen.getByText('Línea 55 Oficial')).toBeInTheDocument();
     });
+  });
+
+  it('activates Vuelta tab and disables Ida when route only has VUELTA direction', () => {
+    mockUseRoutes.mockReturnValue({
+      selectedRoute: {
+        id: 'route-vuelta',
+        code: 'RV',
+        name: 'Ruta Solo Vuelta',
+        transportLine: { id: 'l1', name: 'Línea Vuelta' },
+        directions: [
+          {
+            direction: 'VUELTA',
+            originName: 'Sur',
+            destinationName: 'Centro',
+            stops: [{ id: 's1', name: 'Paradero Sur', stopOrder: 1 }],
+          },
+        ],
+      },
+      focusedStop: null,
+      selectStop: vi.fn(),
+      focusStop: vi.fn(),
+      activeDirection: 'IDA',
+      setActiveDirection: vi.fn(),
+      loadingRouteDetail: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <RouteDrawer />
+      </MemoryRouter>
+    );
+
+    expect(screen.getByRole('button', { name: 'Ida' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: 'Vuelta' })).not.toBeDisabled();
+    expect(screen.getByText('Línea Vuelta')).toBeInTheDocument();
+    expect(screen.getByText('Paradero Sur')).toBeInTheDocument();
+  });
+
+  it('switches between Ida and Vuelta when both directions are loaded', () => {
+    const setActiveDirection = vi.fn();
+    const selectStop = vi.fn();
+    const focusStop = vi.fn();
+
+    mockUseRoutes.mockReturnValue({
+      selectedRoute: {
+        id: 'route-both',
+        code: 'RB',
+        name: 'Ruta Completa',
+        directions: [
+          {
+            direction: 'IDA',
+            originName: 'Norte',
+            destinationName: 'Sur',
+            stops: [{ id: 's1', name: 'Paradero Norte', stopOrder: 1 }],
+          },
+          {
+            direction: 'VUELTA',
+            originName: 'Sur',
+            destinationName: 'Norte',
+            stops: [{ id: 's2', name: 'Paradero Sur', stopOrder: 1 }],
+          },
+        ],
+      },
+      focusedStop: null,
+      selectStop,
+      focusStop,
+      activeDirection: 'IDA',
+      setActiveDirection,
+      loadingRouteDetail: false,
+    });
+
+    render(
+      <MemoryRouter>
+        <RouteDrawer />
+      </MemoryRouter>
+    );
+
+    const idaBtn = screen.getByRole('button', { name: 'Ida' });
+    const vueltaBtn = screen.getByRole('button', { name: 'Vuelta' });
+
+    expect(idaBtn).not.toBeDisabled();
+    expect(vueltaBtn).not.toBeDisabled();
+
+    fireEvent.click(vueltaBtn);
+    expect(setActiveDirection).toHaveBeenCalledWith('VUELTA');
+    expect(selectStop).toHaveBeenCalledWith(null);
+    expect(focusStop).toHaveBeenCalledWith(null);
+
+    fireEvent.click(idaBtn);
+    expect(setActiveDirection).toHaveBeenCalledWith('IDA');
   });
 });
 

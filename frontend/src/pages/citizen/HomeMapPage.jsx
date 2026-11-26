@@ -1,6 +1,11 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
-import { useRoutes } from "../../contexts/RouteContext";
+import {
+  useRouteCatalog,
+  useRouteSearch,
+  useRouteSelection,
+  useRouteGps,
+} from "../../contexts/RouteContext";
 import { routeService } from "../../services/routeService";
 import { stopService } from "../../services/stopService";
 import { geocodingService, streetLine } from "../../services/geocodingService";
@@ -33,30 +38,36 @@ export function HomeMapPage() {
   // Route Context states & actions
   const {
     routes,
+    loading,
+    error,
+    loadData,
+    currentCity,
+  } = useRouteCatalog();
+  const {
     filteredRoutes,
     loadingFiltered,
+    searchedLocation,
+    onlyNearby,
+  } = useRouteSearch();
+  const {
     selectedRoute,
     selectedStop,
     focusedStop,
-    searchedLocation,
-    userLocation,
-    onlyNearby,
-    loading,
-    error,
     activeDirection,
     selectRoute,
     selectStop,
     focusStop,
     clearSelectedRoute,
+    loadingRouteDetail,
+  } = useRouteSelection();
+  const {
+    userLocation,
     triggerGpsRequest,
     isLocating,
     gpsReady,
-    loadingRouteDetail,
     userAddress,
     nearbyStops,
-    loadData,
-    currentCity,
-  } = useRoutes();
+  } = useRouteGps();
 
   // Local map & UI states
   const [recenterTrigger, setRecenterTrigger] = useState(0);

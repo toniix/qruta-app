@@ -71,4 +71,20 @@ public interface CommunityPostRepository extends JpaRepository<CommunityPost, UU
        long countByRoute_Id(UUID routeId);
 
        long countByRoute_IdAndCategory(UUID routeId, PostCategory category);
+
+       @Modifying(flushAutomatically = true)
+       @Query("UPDATE CommunityPost p SET p.route = null WHERE p.route.id = :routeId")
+       int detachRoute(@Param("routeId") UUID routeId);
+
+       @Modifying(flushAutomatically = true)
+       @Query("UPDATE CommunityPost p SET p.route = null WHERE p.route.transportLine.id = :lineId")
+       int detachRoutesByLineId(@Param("lineId") UUID lineId);
+
+       @Modifying(flushAutomatically = true)
+       @Query("UPDATE CommunityPost p SET p.route = null WHERE p.route.transportLine.city.id = :cityId")
+       int detachRoutesByCityId(@Param("cityId") UUID cityId);
+
+       @Modifying(flushAutomatically = true)
+       @Query("UPDATE CommunityPost p SET p.city = null WHERE p.city.id = :cityId")
+       int detachCity(@Param("cityId") UUID cityId);
 }

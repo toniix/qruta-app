@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Bus, Pencil, Search } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
 import { AdminDrawer } from '../../components/admin/common/AdminDrawer';
 import { StatusBadge } from '../../components/admin/common/StatusBadge';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorPortalService } from '../../services/operatorPortalService';
+
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 const emptyForm = {
   color: '#3B82F6',
@@ -16,29 +22,25 @@ const emptyForm = {
 
 export function OperatorLinesPage() {
   const toast = useAdminToast();
-  const [lines, setLines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setLines(await operatorPortalService.getLines());
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'No se pudieron cargar las líneas');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const linesQuery = useQuery({
+    queryKey: operatorKeys.lines(),
+    queryFn: () => operatorPortalService.getLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
 
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const lines = linesQuery.data ?? EMPTY_LIST;
+  const loading = linesQuery.isPending;
+  const error = linesQuery.isError
+    ? linesQuery.error?.response?.data?.message ||
+      linesQuery.error?.message ||
+      'No se pudieron cargar las líneas'
+    : null;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -58,20 +60,31 @@ export function OperatorLinesPage() {
     });
   };
 
-  const handleSave = async (event) => {
-    event.preventDefault();
-    if (!selected) return;
-    setSaving(true);
-    try {
-      const updated = await operatorPortalService.updateLine(selected.id, form);
-      setLines((prev) => prev.map((line) => (line.id === selected.id ? { ...line, ...updated } : line)));
+  const updateLineMutation = useMutation({
+    mutationFn: ({ id, data }) => operatorPortalService.updateLine(id, data),
+    onSuccess: async (updated, { id }) => {
+      queryClient.setQueryData(operatorKeys.lines(), (prev) =>
+        Array.isArray(prev)
+          ? prev.map((line) => (line.id === id ? { ...line, ...updated } : line))
+          : prev,
+      );
       toast.success('Línea actualizada');
       setSelected(null);
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       toast.error(err.response?.data?.message || err.message || 'No se pudo guardar la línea');
-    } finally {
-      setSaving(false);
-    }
+    },
+  });
+
+  const handleSave = (event) => {
+    event.preventDefault();
+    if (!selected) return;
+    updateLineMutation.mutate({ id: selected.id, data: form });
   };
 
   return (
@@ -96,7 +109,11 @@ export function OperatorLinesPage() {
       {loading ? (
         <OperatorStatePanel loading />
       ) : error ? (
-        <OperatorStatePanel error={error} title="No se pudieron cargar las líneas" onRetry={load} />
+        <OperatorStatePanel
+          error={error}
+          title="No se pudieron cargar las líneas"
+          onRetry={() => void linesQuery.refetch()}
+        />
       ) : filtered.length === 0 ? (
         <OperatorStatePanel
           title="No hay líneas para mostrar"
@@ -153,7 +170,7 @@ export function OperatorLinesPage() {
         subtitle={selected?.company || ''}
         icon={Bus}
         onSubmit={handleSave}
-        loading={saving}
+        loading={updateLineMutation.isPending}
       >
         <div>
           <label className="mb-1 block text-xs font-semibold text-slate-700">Empresa</label>

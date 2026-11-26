@@ -1,7 +1,15 @@
 import { describe, it, expect, vi } from "vitest";
 import { render, waitFor, act } from "@testing-library/react";
-import { RouteProvider, useRoutes } from "./RouteContext";
+import {
+  RouteProvider,
+  useRoutes,
+  useRouteCatalog,
+  useRouteSearch,
+  useRouteSelection,
+  useRouteGps,
+} from "./RouteContext";
 import { cityService } from "../services/cityService";
+import { routeService } from "../services/routeService";
 
 const geoState = vi.hoisted(() => ({
   location: null,
@@ -28,6 +36,7 @@ vi.mock("../services/routeService", () => ({
   routeService: {
     getAllRoutes: vi.fn(async () => []),
     getPopularRoutes: vi.fn(async () => []),
+    getRouteDetail: vi.fn(async () => null),
     getNearbyRoutes: vi.fn(async () => []),
     findNearestRouteAndStop: vi.fn(() => null),
   },
@@ -341,5 +350,332 @@ describe("RouteContext GPS modal & onlyNearby flow", () => {
     await waitFor(() => {
       expect(latestContext.onlyNearby).toBe(false);
     });
+  });
+});
+
+describe("RouteContext slice render isolation", () => {
+  it("does not re-render catalog or GPS consumers when searchQuery or selection changes", async () => {
+    let catalogRenders = 0;
+    let gpsRenders = 0;
+    let latestSearch = null;
+    let latestSelection = null;
+
+    function CatalogConsumer() {
+      useRouteCatalog();
+      catalogRenders += 1;
+      return null;
+    }
+
+    function GpsConsumer() {
+      useRouteGps();
+      gpsRenders += 1;
+      return null;
+    }
+
+    function SearchConsumer() {
+      latestSearch = useRouteSearch();
+      return null;
+    }
+
+    function SelectionConsumer() {
+      latestSelection = useRouteSelection();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <CatalogConsumer />
+        <GpsConsumer />
+        <SearchConsumer />
+        <SelectionConsumer />
+      </RouteProvider>,
+    );
+
+    await waitFor(() => {
+      expect(latestSearch).not.toBeNull();
+      expect(latestSelection).not.toBeNull();
+    });
+
+    const catalogBefore = catalogRenders;
+    const gpsBefore = gpsRenders;
+
+    act(() => {
+      latestSearch.setSearchQuery("Bolognesi");
+      latestSelection.setActiveDirection("VUELTA");
+    });
+
+    expect(latestSearch.searchQuery).toBe("Bolognesi");
+    expect(latestSelection.activeDirection).toBe("VUELTA");
+    expect(catalogRenders).toBe(catalogBefore);
+    expect(gpsRenders).toBe(gpsBefore);
+  });
+});
+
+function createDeferred() {
+  let resolve;
+  let reject;
+  const promise = new Promise((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+describe("RouteContext AbortController cancellation & cross-slice reset", () => {
+  it("aborts previous selectRoute request and never lets a slower response overwrite the latest selection or loading state", async () => {
+    const calls = new Map();
+    routeService.getRouteDetail.mockImplementation((identifier, options) => {
+      const deferred = createDeferred();
+      calls.set(identifier, { deferred, signal: options?.signal });
+      return deferred.promise;
+    });
+
+    let latestSelection = null;
+    function Probe() {
+      latestSelection = useRouteSelection();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    await waitFor(() => {
+      expect(latestSelection).not.toBeNull();
+    });
+
+    // Start slow request for route-a
+    let selectAPromise;
+    act(() => {
+      selectAPromise = latestSelection.selectRoute("route-a");
+    });
+
+    expect(calls.has("route-a")).toBe(true);
+    expect(calls.get("route-a").signal?.aborted).toBe(false);
+    expect(latestSelection.loadingRouteDetail).toBe(true);
+
+    // Immediately switch to route-b (fast)
+    let selectBPromise;
+    act(() => {
+      selectBPromise = latestSelection.selectRoute("route-b");
+    });
+
+    expect(calls.has("route-b")).toBe(true);
+    expect(calls.get("route-a").signal?.aborted).toBe(true);
+    expect(calls.get("route-b").signal?.aborted).toBe(false);
+    expect(latestSelection.loadingRouteDetail).toBe(true);
+
+    // Even if route-a's aborted promise settles first, loadingRouteDetail must stay true
+    const abortErr = new DOMException("Aborted", "AbortError");
+    await act(async () => {
+      calls.get("route-a").deferred.reject(abortErr);
+      await selectAPromise;
+    });
+
+    expect(latestSelection.loadingRouteDetail).toBe(true);
+    expect(latestSelection.selectedRoute?.code).toBe("route-b");
+
+    // Resolve route-b with full detail
+    const detailB = {
+      id: "id-route-b",
+      code: "route-b",
+      name: "Ruta B",
+      directions: [{ type: "IDA", stops: [] }],
+    };
+    await act(async () => {
+      calls.get("route-b").deferred.resolve(detailB);
+      await selectBPromise;
+    });
+
+    expect(latestSelection.loadingRouteDetail).toBe(false);
+    expect(latestSelection.selectedRoute).toEqual(detailB);
+
+    // Also verify a stale resolution arriving AFTER route-b never overwrites route-b
+    calls.clear();
+    let selectCPromise;
+    let selectDPromise;
+    act(() => {
+      selectCPromise = latestSelection.selectRoute("route-c");
+    });
+    act(() => {
+      selectDPromise = latestSelection.selectRoute("route-d");
+    });
+    expect(calls.get("route-c").signal?.aborted).toBe(true);
+
+    const detailD = {
+      id: "id-route-d",
+      code: "route-d",
+      name: "Ruta D",
+      directions: [{ type: "IDA", stops: [] }],
+    };
+    const staleDetailC = {
+      id: "id-route-c",
+      code: "route-c",
+      name: "Ruta C (stale)",
+      directions: [{ type: "IDA", stops: [] }],
+    };
+
+    await act(async () => {
+      calls.get("route-d").deferred.resolve(detailD);
+      await selectDPromise;
+    });
+    await act(async () => {
+      calls.get("route-c").deferred.resolve(staleDetailC);
+      await selectCPromise;
+    });
+
+    expect(latestSelection.selectedRoute).toEqual(detailD);
+    expect(latestSelection.loadingRouteDetail).toBe(false);
+
+    routeService.getRouteDetail.mockReset();
+    routeService.getRouteDetail.mockImplementation(async () => null);
+  });
+
+  it("clearSelection resets both selection state and search state", async () => {
+    setGeo({ location: COORDS_A, gpsStatus: "ready" });
+
+    const mockRoute = {
+      id: "route-1",
+      code: "R1",
+      name: "Ruta 1",
+      directions: [{ type: "IDA", stops: [] }],
+    };
+    const mockStop = { id: "stop-1", name: "Paradero Central" };
+    const mockMatch = { route: mockRoute, stop: mockStop, distanceKm: 0.2 };
+
+    routeService.getNearbyRoutes.mockResolvedValueOnce([mockRoute]);
+    routeService.findNearestRouteAndStop.mockReturnValueOnce(mockMatch);
+
+    let latestContext = null;
+    function Probe() {
+      latestContext = useRoutes();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    await waitFor(() => {
+      expect(latestContext).not.toBeNull();
+    });
+
+    await act(async () => {
+      await latestContext.selectRoute(mockRoute);
+      latestContext.selectStop(mockStop);
+      latestContext.setActiveDirection("VUELTA");
+      latestContext.setSearchedLocation({ lat: -14.06, lng: -75.72, name: "Plaza" });
+      await latestContext.locateNearestRoute();
+    });
+
+    await waitFor(() => {
+      expect(latestContext.selectedRoute).toEqual(mockRoute);
+      expect(latestContext.selectedStop).toEqual(mockStop);
+      expect(latestContext.activeDirection).toBe("VUELTA");
+      expect(latestContext.onlyNearby).toBe(true);
+      expect(latestContext.searchedLocation).toEqual({
+        lat: -14.06,
+        lng: -75.72,
+        name: "Plaza",
+      });
+      expect(latestContext.nearestMatchInfo).toEqual(mockMatch);
+    });
+
+    act(() => {
+      latestContext.clearSelection();
+    });
+
+    expect(latestContext.selectedRoute).toBeNull();
+    expect(latestContext.selectedStop).toBeNull();
+    expect(latestContext.activeDirection).toBe("IDA");
+    expect(latestContext.onlyNearby).toBe(false);
+    expect(latestContext.searchedLocation).toBeNull();
+    expect(latestContext.nearestMatchInfo).toBeNull();
+  });
+
+  it("aborts in-flight getAllRoutes request when switching city via setCity and commits only the latest city routes", async () => {
+    localStorage.clear();
+    const cityA = {
+      id: "city-a",
+      name: "Ica",
+      latitude: -14.0678,
+      longitude: -75.7286,
+      radiusKm: 30,
+    };
+    const cityB = {
+      id: "city-b",
+      name: "Lima",
+      latitude: -12.0464,
+      longitude: -77.0428,
+      radiusKm: 40,
+    };
+    cityService.getAllCities.mockResolvedValueOnce([cityA, cityB]);
+
+    const routeCalls = new Map();
+    routeService.getAllRoutes.mockImplementation((cityId, options) => {
+      const deferred = createDeferred();
+      routeCalls.set(cityId, { deferred, signal: options?.signal });
+      return deferred.promise;
+    });
+    routeService.getPopularRoutes.mockImplementation(async () => []);
+
+    let latestCatalog = null;
+    function Probe() {
+      latestCatalog = useRouteCatalog();
+      return null;
+    }
+
+    render(
+      <RouteProvider>
+        <Probe />
+      </RouteProvider>,
+    );
+
+    // Wait for initial city A load to start
+    await waitFor(() => {
+      expect(routeCalls.has("city-a")).toBe(true);
+    });
+    expect(routeCalls.get("city-a").signal?.aborted).toBe(false);
+
+    // Switch to city B while city A's routes request is still in-flight
+    act(() => {
+      latestCatalog.setCity(cityB);
+    });
+
+    await waitFor(() => {
+      expect(routeCalls.has("city-b")).toBe(true);
+    });
+    expect(routeCalls.get("city-a").signal?.aborted).toBe(true);
+    expect(routeCalls.get("city-b").signal?.aborted).toBe(false);
+
+    const routesA = [{ id: "r-a", code: "A1", name: "Ruta A1" }];
+    const routesB = [{ id: "r-b", code: "B1", name: "Ruta B1" }];
+
+    // Resolve city B first, then resolve stale city A
+    await act(async () => {
+      routeCalls.get("city-b").deferred.resolve(routesB);
+    });
+
+    await waitFor(() => {
+      expect(latestCatalog.loading).toBe(false);
+      expect(latestCatalog.routes).toEqual(routesB);
+    });
+
+    await act(async () => {
+      routeCalls.get("city-a").deferred.resolve(routesA);
+    });
+
+    // Latest city routes must remain intact
+    expect(latestCatalog.routes).toEqual(routesB);
+    expect(latestCatalog.currentCity?.id).toBe("city-b");
+
+    routeService.getAllRoutes.mockReset();
+    routeService.getAllRoutes.mockImplementation(async () => []);
+    routeService.getPopularRoutes.mockReset();
+    routeService.getPopularRoutes.mockImplementation(async () => []);
   });
 });

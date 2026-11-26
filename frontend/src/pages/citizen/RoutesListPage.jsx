@@ -1,19 +1,18 @@
 import { useState, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { Search, X, MapPin, AlertCircle, RefreshCw } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog, useRouteSelection } from "../../contexts/RouteContext";
 import { matchesCategory, SEARCH_CATEGORIES } from "../../components/search/categoryFilter";
 
 export function RoutesListPage() {
   const {
     routes,
-    selectRoute,
-    selectStop,
     currentCity,
     loading,
     error,
     loadData,
-  } = useRoutes();
+  } = useRouteCatalog();
+  const { selectRoute, selectStop } = useRouteSelection();
   const cityName = currentCity?.name;
   const navigate = useNavigate();
 
@@ -85,13 +84,20 @@ export function RoutesListPage() {
         </div>
 
         {/* Search bar */}
-        <div className="relative">
-          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+        <search className="relative block">
+          <Search
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none"
+            aria-hidden="true"
+          />
           <input
-            type="text"
+            id="routes-filter-query"
+            name="query"
+            type="search"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Buscar por código, avenida o empresa..."
+            aria-label="Buscar rutas por código, avenida o empresa"
+            spellCheck={false}
             className="w-full bg-slate-100/90 rounded-xl py-2.5 pl-10 pr-9 text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:bg-white border border-slate-200/60 text-xs sm:text-sm font-medium transition-all"
           />
           {searchQuery && (
@@ -101,10 +107,10 @@ export function RoutesListPage() {
               aria-label="Limpiar búsqueda"
               className="absolute right-3 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 rounded-full cursor-pointer"
             >
-              <X className="w-3.5 h-3.5" />
+              <X className="w-3.5 h-3.5" aria-hidden="true" />
             </button>
           )}
-        </div>
+        </search>
 
         {/* Category Pills */}
         <div className="flex items-center gap-2 overflow-x-auto hide-scrollbar pt-0.5 pb-0.5">
@@ -128,7 +134,7 @@ export function RoutesListPage() {
       </header>
 
       {/* ── Routes Scrollable Vertical List ──────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
+      <div className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
         {loading ? (
           <div className="space-y-4" role="status" aria-label="Cargando rutas">
             {[0, 1, 2].map((i) => (
@@ -303,7 +309,7 @@ export function RoutesListPage() {
             );
           })
         )}
-      </main>
+      </div>
     </div>
   );
 }

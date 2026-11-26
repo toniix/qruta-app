@@ -23,15 +23,13 @@ import com.anthony.rutas.repositories.RouteDirectionRepository;
 import com.anthony.rutas.repositories.RouteRepository;
 import com.anthony.rutas.repositories.RouteStopRepository;
 import com.anthony.rutas.repositories.StopRepository;
+import com.anthony.rutas.utils.HashUtils;
+import com.anthony.rutas.utils.SlugUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
-import java.nio.charset.StandardCharsets;
-import java.util.HexFormat;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -67,7 +65,7 @@ public class DataLicensingService {
 
     @Transactional
     public DataCoverageResponse coverage(String rawKey, String citySlug) {
-        String slug = GtfsService.slugify(citySlug);
+        String slug = SlugUtils.toCitySlug(citySlug);
         DataApiKey apiKey = authorize(rawKey);
         City city = resolveCity(slug);
         consume(apiKey, "/api/data/v1/coverage/" + slug, slug);
@@ -89,7 +87,7 @@ public class DataLicensingService {
 
     @Transactional
     public OdMatrixResponse odMatrix(String rawKey, String citySlug) {
-        String slug = GtfsService.slugify(citySlug);
+        String slug = SlugUtils.toCitySlug(citySlug);
         DataApiKey apiKey = authorize(rawKey);
         City city = resolveCity(slug);
         consume(apiKey, "/api/data/v1/od-matrix/" + slug, slug);
@@ -154,20 +152,28 @@ public class DataLicensingService {
             throw new InvalidApiKeyException("License is not valid");
         }
         LocalDate currentPeriod = YearMonth.now(ZoneOffset.UTC).atDay(1);
-        if (apiKey.getPeriodStart() == null || apiKey.getPeriodStart().isBefore(currentPeriod)) {
-            apiKey.setPeriodStart(currentPeriod);
-            apiKey.setUsedThisPeriod(0);
-        }
-        if (apiKey.getUsedThisPeriod() >= apiKey.getMonthlyQuota()) {
+        if (apiKey.getPeriodStart() != null
+                && !apiKey.getPeriodStart().isBefore(currentPeriod)
+                && apiKey.getUsedThisPeriod() >= apiKey.getMonthlyQuota()) {
             throw new QuotaExceededException("Monthly quota exhausted");
         }
         return apiKey;
     }
 
     private void consume(DataApiKey apiKey, String endpoint, String citySlug) {
-        apiKey.setUsedThisPeriod(apiKey.getUsedThisPeriod() + 1);
-        apiKey.setLastUsedAt(LocalDateTime.now(ZoneOffset.UTC));
-        apiKeyRepository.save(apiKey);
+        LocalDate currentPeriod = YearMonth.now(ZoneOffset.UTC).atDay(1);
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
+        int updated = apiKeyRepository.consumeQuotaAtomically(apiKey.getId(), currentPeriod, now);
+        if (updated == 0) {
+            throw new QuotaExceededException("Monthly quota exhausted");
+        }
+        if (apiKey.getPeriodStart() == null || apiKey.getPeriodStart().isBefore(currentPeriod)) {
+            apiKey.setPeriodStart(currentPeriod);
+            apiKey.setUsedThisPeriod(1);
+        } else {
+            apiKey.setUsedThisPeriod(apiKey.getUsedThisPeriod() + 1);
+        }
+        apiKey.setLastUsedAt(now);
         accessLogRepository.save(DataAccessLog.builder()
                 .apiKey(apiKey)
                 .endpoint(endpoint)
@@ -187,7 +193,7 @@ public class DataLicensingService {
 
     private City resolveCity(String slug) {
         return cityRepository.findAll().stream()
-                .filter(city -> slug.equals(GtfsService.slugify(city.getName())))
+                .filter(city -> slug.equals(SlugUtils.toCitySlug(city.getName())))
                 .findFirst()
                 .orElseThrow(() -> new ResourceNotFoundException("City not found for slug: " + slug));
     }
@@ -207,12 +213,7 @@ public class DataLicensingService {
     }
 
     private static String hash(String rawKey) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(rawKey.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException exception) {
-            throw new IllegalStateException("SHA-256 is unavailable", exception);
-        }
+        return HashUtils.sha256Hex(rawKey);
     }
 
     private static String zone(Stop stop, City city) {

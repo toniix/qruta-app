@@ -33,3 +33,14 @@ export function formatRelativeTime(dateInput) {
     month: 'short',
   });
 }
+
+/** Formats a date/timestamp using the es-PE locale consistently across portals */
+export function formatDateTime(
+  value,
+  options = { dateStyle: 'medium', timeStyle: 'short' }
+) {
+  if (!value) return '—';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return String(value);
+  return date.toLocaleString('es-PE', options);
+}

@@ -2,7 +2,7 @@ package com.anthony.rutas.repositories;
 
 import com.anthony.rutas.entities.RouteStop;
 import org.springframework.data.jpa.repository.JpaRepository;
-
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -54,4 +54,10 @@ public interface RouteStopRepository extends JpaRepository<RouteStop, UUID> {
            "WHERE rd.route.id IN :routeIds " +
            "GROUP BY rd.route.id")
     List<Object[]> countDistinctStopsByRouteIds(@Param("routeIds") Collection<UUID> routeIds);
+
+    long countByStopId(UUID stopId);
+
+    @Modifying(flushAutomatically = true)
+    @Query("DELETE FROM RouteStop rs WHERE rs.stop.city.id = :cityId")
+    int deleteByStopCityId(@Param("cityId") UUID cityId);
 }

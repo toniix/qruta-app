@@ -165,7 +165,7 @@ Busca paraderos por nombre. **Response (200):** array de `StopResponse`.
 
 ### GET `/api/stops/{id}/routes`
 
-Devuelve las rutas que pasan por ese paradero, agrupadas por ruta (una sola entrada por ruta). `directions` lista las direcciones servidas (`INBOUND`/`OUTBOUND`) y `directionLabel` es derivado calculado en el service: `IDA`, `VUELTA` o `IDA Y VUELTA` (nunca se persiste).
+Devuelve las rutas que pasan por ese paradero, agrupadas por ruta (una sola entrada por ruta). `directions` lista las direcciones servidas (`IDA`/`VUELTA`) y `directionLabel` es derivado calculado en el service: `IDA`, `VUELTA` o `IDA Y VUELTA` (nunca se persiste).
 
 **Response (200):** array de `StopRouteResponse`
 ```json
@@ -175,7 +175,7 @@ Devuelve las rutas que pasan por ese paradero, agrupadas por ruta (una sola entr
     "code": "LIMA-01",
     "name": "Plaza de Armas – Miraflores (Parque Kennedy)",
     "color": "#2563eb",
-    "directions": ["INBOUND", "OUTBOUND"],
+    "directions": ["IDA", "VUELTA"],
     "directionLabel": "IDA Y VUELTA"
   }
 ]
@@ -286,7 +286,7 @@ Detalle completo de una ruta. **Ojo:** en el detalle, la línea y el horario via
   "directions": [
     {
       "id": "550e8400-e29b-41d4-a716-446655440010",
-      "direction": "INBOUND",
+      "direction": "IDA",
       "originName": "Plaza de Armas",
       "destinationName": "Huacachina",
       "totalDistanceKm": 7.2,
@@ -668,7 +668,7 @@ Procesamiento en memoria del backend (lo que recibe el cliente es la imagen ya o
   "status": "ACTIVE",
   "directions": [
     {
-      "direction": "INBOUND",
+      "direction": "IDA",
       "originName": "Plaza de Armas",
       "destinationName": "Huacachina",
       "totalDistanceKm": 7.2,
@@ -700,6 +700,12 @@ Procesamiento en memoria del backend (lo que recibe el cliente es la imagen ya o
 **Response:** `AdminRouteSummaryResponse` (resumen admin — *no* la tarjeta pública con paraderos clave).
 
 **PUT `/api/admin/routes/{id}/directions` — Request:** direcciones completas (replaces). Para cada dirección existente puede ir `id`; para nueva, `id` ausente. **Response:** `RouteDetailResponse`.
+- `direction` solo acepta `"IDA"` o `"VUELTA"` y no puede repetirse en la misma ruta.
+- En `stops`: `stopId` y `stopOrder` son únicos dentro de cada sentido (`stopOrder > 0`).
+- En `routePoints` (semántica tri-estado):
+  - `null` o campo ausente: conserva la geometría almacenada en el servidor.
+  - `[]` (lista vacía): elimina toda la geometría almacenada de ese sentido.
+  - lista no vacía: reemplaza la geometría almacenada exactamente con los puntos enviados (`pointOrder > 0` único, latitud `[-90, 90]`, longitud `[-180, 180]`).
 
 ### Comunidad — Moderación
 

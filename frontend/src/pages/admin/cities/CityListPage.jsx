@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   Building2,
   Edit2,
   Trash2,
@@ -11,11 +13,15 @@ import { ConfirmDialog } from '../../../components/admin/common/ConfirmDialog';
 import { CityFormDrawer } from './CityFormDrawer';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_CITIES = [];
 
 export function CityListPage() {
   const toast = useAdminToast();
-  const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -23,46 +29,34 @@ export function CityListPage() {
   // Drawer state
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingCity, setEditingCity] = useState(null);
-  const [saving, setSaving] = useState(false);
 
   // Delete state
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await cityService.getAdminCities();
-      setCities(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error cargando ciudades:', err);
-      toast.error('Error al cargar la lista de ciudades.');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const {
+    data: cities = EMPTY_CITIES,
+    isPending,
+    isFetching,
+    isError,
+    error,
+    errorUpdatedAt,
+    refetch,
+  } = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const data = await cityService.getAdminCities();
-        if (isMounted) {
-          setCities(Array.isArray(data) ? data : []);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error cargando ciudades:', err);
-          toast.error('Error al cargar la lista de ciudades.');
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+  useQueryErrorToast({
+    isError,
+    isFetching,
+    errorUpdatedAt,
+    error,
+    message: 'Error al cargar la lista de ciudades.',
+    toast,
+    logLabel: 'Error cargando ciudades:',
+  });
 
   const filteredCities = useMemo(() => {
     return cities.filter((c) => {
@@ -76,41 +70,57 @@ export function CityListPage() {
     });
   }, [cities, searchQuery]);
 
-  const handleFormSubmit = async (formData) => {
-    setSaving(true);
-    try {
-      if (editingCity) {
-        await cityService.updateCity(editingCity.id, formData);
-        toast.success(`Ciudad "${formData.name}" actualizada con éxito.`);
-      } else {
-        await cityService.createCity(formData);
-        toast.success(`Ciudad "${formData.name}" registrada con éxito.`);
-      }
+  const saveCityMutation = useMutation({
+    mutationFn: ({ id, data }) =>
+      id ? cityService.updateCity(id, data) : cityService.createCity(data),
+    onSuccess: async (_result, { id, data }) => {
+      toast.success(
+        id
+          ? `Ciudad "${data.name}" actualizada con éxito.`
+          : `Ciudad "${data.name}" registrada con éxito.`,
+      );
       setDrawerOpen(false);
       setEditingCity(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.cities() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error guardando ciudad:', err);
       toast.error(err.response?.data?.message || 'Error al guardar la ciudad.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleConfirmDelete = async () => {
-    if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await cityService.deleteCity(deleteConfirm.id);
-      toast.success(`Ciudad "${deleteConfirm.name}" eliminada.`);
+  const deleteCityMutation = useMutation({
+    mutationFn: (city) => cityService.deleteCity(city.id),
+    onSuccess: async (_result, city) => {
+      toast.success(`Ciudad "${city.name}" eliminada.`);
       setDeleteConfirm(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.cities() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.lines() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.stops() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error eliminando ciudad:', err);
       toast.error(err.response?.data?.message || 'Error al eliminar la ciudad.');
-    } finally {
-      setDeleting(false);
-    }
+    },
+  });
+
+  const handleFormSubmit = (formData) => {
+    saveCityMutation.mutate({
+      id: editingCity?.id ?? null,
+      data: formData,
+    });
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirm) return;
+    deleteCityMutation.mutate(deleteConfirm);
   };
 
   const columns = [
@@ -215,14 +225,34 @@ export function CityListPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={() => refetch()}
+          disabled={isFetching}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </button>
       </div>
+
+      {isError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No se pudo cargar la lista de ciudades.</span>
+          </div>
+          <button
+            type="button"
+            onClick={() => refetch()}
+            disabled={isFetching}
+            className="inline-flex items-center rounded-xl bg-rose-700 px-3 py-1.5 font-bold text-white hover:bg-rose-800 disabled:opacity-60 transition"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Filter and Action Bar */}
       <AdminFilterBar
@@ -240,7 +270,7 @@ export function CityListPage() {
       <AdminDataTable
         columns={columns}
         data={filteredCities}
-        loading={loading}
+        loading={isPending}
         caption="Listado de ciudades registradas"
         emptyTitle="No se encontraron ciudades"
         emptyDescription="Registra una nueva ciudad o ajusta los términos de búsqueda."
@@ -260,7 +290,7 @@ export function CityListPage() {
         }}
         initialData={editingCity}
         onSubmit={handleFormSubmit}
-        loading={saving}
+        loading={saveCityMutation.isPending}
       />
 
       {/* Delete Confirmation */}
@@ -270,7 +300,7 @@ export function CityListPage() {
         description={`¿Estás seguro de eliminar la ciudad "${deleteConfirm?.name}"? Esta acción borrará la ciudad y afectará en cascada a sus líneas y paraderos asociados.`}
         confirmLabel="Eliminar Ciudad"
         tone="danger"
-        loading={deleting}
+        loading={deleteCityMutation.isPending}
         onCancel={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
       />

@@ -2,6 +2,8 @@ package com.anthony.rutas.mappers;
 
 import com.anthony.rutas.dtos.response.DirectionStopResponse;
 import com.anthony.rutas.dtos.response.KeyStopResponse;
+import com.anthony.rutas.entities.RouteDirection;
+import com.anthony.rutas.entities.RoutePoint;
 import com.anthony.rutas.entities.RouteStop;
 import com.anthony.rutas.entities.Stop;
 import org.junit.jupiter.api.DisplayName;
@@ -10,6 +12,7 @@ import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
 import org.locationtech.jts.geom.Point;
 
+import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -63,6 +66,27 @@ class DtoMapperTest {
 
         assertNotNull(response);
         assertNull(response.getImageUrl());
+    }
+
+    @Test
+    @DisplayName("RouteDirectionResponse skips points without geometry instead of throwing")
+    void shouldSkipNullRoutePointLocations() {
+        RouteDirection direction = RouteDirection.builder()
+                .id(UUID.randomUUID())
+                .direction("IDA")
+                .routePoints(List.of(
+                        RoutePoint.builder().pointOrder(1).build(),
+                        RoutePoint.builder().pointOrder(2)
+                                .location(geometryFactory.createPoint(new Coordinate(-75.72, -14.06)))
+                                .build()))
+                .build();
+
+        var response = DtoMapper.toRouteDirectionResponse(direction);
+
+        assertNotNull(response);
+        assertEquals(1, response.getRoutePoints().size());
+        assertEquals(-14.06, response.getRoutePoints().get(0).get(0), 1e-9);
+        assertEquals(-75.72, response.getRoutePoints().get(0).get(1), 1e-9);
     }
 
     @Test
@@ -179,5 +203,52 @@ class DtoMapperTest {
         // 4. TransportLineResponse
         var lineResp = DtoMapper.toTransportLineResponse(line);
         assertEquals("Empresa Santa Rosa S.A.", lineResp.getCompany());
+    }
+
+    @Test
+    @DisplayName("toRouteDirectionResponse handles null routeStops and skips orphan RouteStop entries")
+    void shouldHandleNullRouteStopsSafely() {
+        var dirWithNullStops = com.anthony.rutas.entities.RouteDirection.builder()
+                .id(UUID.randomUUID())
+                .direction("IDA")
+                .routeStops(null)
+                .routePoints(null)
+                .build();
+
+        var mappedNull = DtoMapper.toRouteDirectionResponse(dirWithNullStops);
+        assertTrue(mappedNull.getStops().isEmpty());
+        assertTrue(mappedNull.getRoutePoints().isEmpty());
+
+        var dirWithOrphanStop = com.anthony.rutas.entities.RouteDirection.builder()
+                .id(UUID.randomUUID())
+                .direction("IDA")
+                .routeStops(java.util.List.of(com.anthony.rutas.entities.RouteStop.builder().stop(null).build()))
+                .build();
+
+        var mappedOrphan = DtoMapper.toRouteDirectionResponse(dirWithOrphanStop);
+        assertTrue(mappedOrphan.getStops().isEmpty());
+    }
+
+    @Test
+    @DisplayName("toStopResponse and toRouteDetailResponse handle null location and null transportLine safely")
+    void shouldHandleNullLocationAndTransportLineSafely() {
+        Stop stopWithoutLocation = Stop.builder()
+                .id(UUID.randomUUID())
+                .name("Paradero Sin Coordenadas")
+                .location(null)
+                .build();
+        var stopResp = DtoMapper.toStopResponse(stopWithoutLocation);
+        assertNull(stopResp.getLatitude());
+        assertNull(stopResp.getLongitude());
+
+        var routeWithoutLine = com.anthony.rutas.entities.Route.builder()
+                .id(UUID.randomUUID())
+                .code("R-NULL")
+                .name("Sin Línea")
+                .transportLine(null)
+                .build();
+        var detail = DtoMapper.toRouteDetailResponse(routeWithoutLine, null);
+        assertNull(detail.getTransportLine());
+        assertTrue(detail.getDirections().isEmpty());
     }
 }

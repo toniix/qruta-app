@@ -1,47 +1,93 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Bus, MapPin, Route as RouteIcon, TriangleAlert } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { MetricCard } from '../../components/admin/common/MetricCard';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorPortalService } from '../../services/operatorPortalService';
 import { operatorAuthService } from '../../services/operatorAuthService';
 
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
+
 export function OperatorOverviewPage() {
-  const [profile, setProfile] = useState(() => operatorAuthService.getCurrentUser());
-  const [counts, setCounts] = useState({ lines: 0, routes: 0, stops: 0, disruptions: 0 });
-  const [disruptions, setDisruptions] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [fallbackProfile] = useState(() => operatorAuthService.getCurrentUser());
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [lines, routes, stops, activeDisruptions, profileData] = await Promise.all([
-        operatorPortalService.getLines(),
-        operatorPortalService.getRoutes(),
-        operatorPortalService.getStops(),
-        operatorPortalService.getDisruptions(),
-        operatorPortalService.getProfile().catch(() => null),
-      ]);
-      setCounts({
-        lines: lines.length,
-        routes: routes.length,
-        stops: stops.length,
-        disruptions: activeDisruptions.filter((item) => item.active).length,
-      });
-      setDisruptions(activeDisruptions.slice(0, 5));
-      if (profileData) setProfile(profileData);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'No se pudo cargar el resumen');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const linesQuery = useQuery({
+    queryKey: operatorKeys.lines(),
+    queryFn: () => operatorPortalService.getLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
 
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const routesQuery = useQuery({
+    queryKey: operatorKeys.routes(),
+    queryFn: () => operatorPortalService.getRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const stopsQuery = useQuery({
+    queryKey: operatorKeys.stops(),
+    queryFn: () => operatorPortalService.getStops(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const disruptionsQuery = useQuery({
+    queryKey: operatorKeys.disruptions(),
+    queryFn: () => operatorPortalService.getDisruptions(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const profileQuery = useQuery({
+    queryKey: operatorKeys.overview(),
+    queryFn: () => operatorPortalService.getProfile().catch(() => null),
+    staleTime: STALE_TIMES.METRICS,
+  });
+
+  const lines = linesQuery.data ?? EMPTY_LIST;
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const stops = stopsQuery.data ?? EMPTY_LIST;
+  const allDisruptions = disruptionsQuery.data ?? EMPTY_LIST;
+  const profile = profileQuery.data ?? fallbackProfile;
+
+  const loading =
+    linesQuery.isPending ||
+    routesQuery.isPending ||
+    stopsQuery.isPending ||
+    disruptionsQuery.isPending;
+
+  const firstError =
+    linesQuery.error ||
+    routesQuery.error ||
+    stopsQuery.error ||
+    disruptionsQuery.error;
+
+  const error = firstError
+    ? firstError.response?.data?.message || firstError.message || 'No se pudo cargar el resumen'
+    : null;
+
+  const counts = {
+    lines: lines.length,
+    routes: routes.length,
+    stops: stops.length,
+    disruptions: allDisruptions.filter((item) => item.active).length,
+  };
+  const disruptions = allDisruptions.slice(0, 5);
+
+  const handleRetry = () => {
+    void Promise.all([
+      linesQuery.refetch(),
+      routesQuery.refetch(),
+      stopsQuery.refetch(),
+      disruptionsQuery.refetch(),
+      profileQuery.refetch(),
+    ]);
+  };
 
   return (
     <div>
@@ -52,7 +98,7 @@ export function OperatorOverviewPage() {
 
       {error && (
         <div className="mb-5">
-          <OperatorStatePanel error={error} title="No se pudo cargar el resumen" onRetry={load} />
+          <OperatorStatePanel error={error} title="No se pudo cargar el resumen" onRetry={handleRetry} />
         </div>
       )}
 

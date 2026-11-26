@@ -1,7 +1,7 @@
 import { useState, lazy, Suspense } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronRight, Navigation } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteSelection } from "../../contexts/RouteContext";
 import { formatDistance } from "../../utils/geoUtils";
 
 const StopRoutesModal = lazy(() =>
@@ -11,7 +11,7 @@ const StopRoutesModal = lazy(() =>
 /** A single nearby stop card — compact summary; the full route list lives in StopRoutesModal */
 export function NearbyStopCard({ stop, routes, distanceKm }) {
   const navigate = useNavigate();
-  const { selectStop, clearSelectedRoute } = useRoutes();
+  const { selectStop, clearSelectedRoute } = useRouteSelection();
   const [activeModalStop, setActiveModalStop] = useState(null);
 
   // Count routes that pass through this stop (full list is fetched by the modal)

@@ -98,6 +98,7 @@ function CommentSection({
             </label>
             <input
               id={`comment-input-${post.id}`}
+              name="comment"
               type="text"
               value={commentState.text || ''}
               onChange={(e) => onTextChange(post.id, e.target.value)}

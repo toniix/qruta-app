@@ -1,11 +1,17 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { MapPin, Pencil, Search } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
 import { AdminDrawer } from '../../components/admin/common/AdminDrawer';
 import { AccessibleBadge } from '../../components/admin/common/StatusBadge';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorPortalService } from '../../services/operatorPortalService';
+
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 const emptyForm = {
   name: '',
@@ -19,29 +25,25 @@ const emptyForm = {
 
 export function OperatorStopsPage() {
   const toast = useAdminToast();
-  const [stops, setStops] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState('');
   const [selected, setSelected] = useState(null);
   const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      setStops(await operatorPortalService.getStops());
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'No se pudieron cargar los paraderos');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const stopsQuery = useQuery({
+    queryKey: operatorKeys.stops(),
+    queryFn: () => operatorPortalService.getStops(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
 
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const stops = stopsQuery.data ?? EMPTY_LIST;
+  const loading = stopsQuery.isPending;
+  const error = stopsQuery.isError
+    ? stopsQuery.error?.response?.data?.message ||
+      stopsQuery.error?.message ||
+      'No se pudieron cargar los paraderos'
+    : null;
 
   const filtered = useMemo(() => {
     const term = search.trim().toLowerCase();
@@ -66,25 +68,36 @@ export function OperatorStopsPage() {
     });
   };
 
-  const handleSave = async (event) => {
-    event.preventDefault();
-    if (!selected) return;
-    setSaving(true);
-    try {
-      const payload = {
-        ...form,
-        latitude: form.latitude === '' ? null : Number(form.latitude),
-        longitude: form.longitude === '' ? null : Number(form.longitude),
-      };
-      const updated = await operatorPortalService.updateStop(selected.id, payload);
-      setStops((prev) => prev.map((stop) => (stop.id === selected.id ? { ...stop, ...updated } : stop)));
+  const updateStopMutation = useMutation({
+    mutationFn: ({ id, payload }) => operatorPortalService.updateStop(id, payload),
+    onSuccess: async (updated, { id }) => {
+      queryClient.setQueryData(operatorKeys.stops(), (prev) =>
+        Array.isArray(prev)
+          ? prev.map((stop) => (stop.id === id ? { ...stop, ...updated } : stop))
+          : prev,
+      );
       toast.success('Paradero actualizado');
       setSelected(null);
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.stops() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       toast.error(err.response?.data?.message || err.message || 'No se pudo guardar el paradero');
-    } finally {
-      setSaving(false);
-    }
+    },
+  });
+
+  const handleSave = (event) => {
+    event.preventDefault();
+    if (!selected) return;
+    const payload = {
+      ...form,
+      latitude: form.latitude === '' ? null : Number(form.latitude),
+      longitude: form.longitude === '' ? null : Number(form.longitude),
+    };
+    updateStopMutation.mutate({ id: selected.id, payload });
   };
 
   return (
@@ -109,7 +122,11 @@ export function OperatorStopsPage() {
       {loading ? (
         <OperatorStatePanel loading />
       ) : error ? (
-        <OperatorStatePanel error={error} title="No se pudieron cargar los paraderos" onRetry={load} />
+        <OperatorStatePanel
+          error={error}
+          title="No se pudieron cargar los paraderos"
+          onRetry={() => void stopsQuery.refetch()}
+        />
       ) : filtered.length === 0 ? (
         <OperatorStatePanel
           title="No hay paraderos para mostrar"
@@ -160,7 +177,7 @@ export function OperatorStopsPage() {
         subtitle={selected?.name || ''}
         icon={MapPin}
         onSubmit={handleSave}
-        loading={saving}
+        loading={updateStopMutation.isPending}
       >
         {[
           ['name', 'Nombre'],

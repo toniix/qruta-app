@@ -7,7 +7,10 @@ import java.util.List;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
-public class DtoMapper {
+public final class DtoMapper {
+
+        private DtoMapper() {
+        }
 
         public static CityResponse toCityResponse(City city) {
                 return CityResponse.builder()
@@ -24,7 +27,7 @@ public class DtoMapper {
         public static TransportLineResponse toTransportLineResponse(TransportLine line) {
                 return TransportLineResponse.builder()
                                 .id(line.getId())
-                                .cityId(line.getCity().getId())
+                                .cityId(line.getCity() != null ? line.getCity().getId() : null)
                                 .company(line.getCompany())
                                 .color(line.getColor())
                                 .contact(line.getContact())
@@ -120,11 +123,15 @@ public class DtoMapper {
         }
 
         public static RouteDetailResponse toRouteDetailResponse(Route route, List<RouteDirection> directions) {
-                List<RouteDirectionResponse> directionResponses = directions.stream()
+                List<RouteDirectionResponse> directionResponses = directions == null
+                                ? List.of()
+                                : directions.stream()
                                 .map(DtoMapper::toRouteDirectionResponse)
                                 .collect(Collectors.toList());
 
-                RouteDetailResponse.TransportLineInfo transportLine = RouteDetailResponse.TransportLineInfo.builder()
+                RouteDetailResponse.TransportLineInfo transportLine = route.getTransportLine() == null
+                                ? null
+                                : RouteDetailResponse.TransportLineInfo.builder()
                                 .id(route.getTransportLine().getId())
                                 .name(route.getTransportLine().getCompany())
                                 .build();
@@ -150,11 +157,17 @@ public class DtoMapper {
         }
 
         public static RouteDirectionResponse toRouteDirectionResponse(RouteDirection direction) {
-                List<DirectionStopResponse> stops = direction.getRouteStops().stream()
+                List<DirectionStopResponse> stops = direction.getRouteStops() == null
+                                ? List.of()
+                                : direction.getRouteStops().stream()
                                 .map(DtoMapper::toDirectionStopResponse)
+                                .filter(java.util.Objects::nonNull)
                                 .collect(Collectors.toList());
 
-                List<List<Double>> points = direction.getRoutePoints().stream()
+                List<List<Double>> points = direction.getRoutePoints() == null
+                                ? List.of()
+                                : direction.getRoutePoints().stream()
+                                .filter(rp -> rp.getLocation() != null)
                                 .map(rp -> List.of(rp.getLocation().getY(), rp.getLocation().getX()))
                                 .collect(Collectors.toList());
 
@@ -200,8 +213,8 @@ public class DtoMapper {
                                 .id(stop.getId())
                                 .name(stop.getName())
                                 .slug(stop.getSlug())
-                                .latitude(stop.getLocation().getY())
-                                .longitude(stop.getLocation().getX())
+                                .latitude(stop.getLocation() != null ? stop.getLocation().getY() : null)
+                                .longitude(stop.getLocation() != null ? stop.getLocation().getX() : null)
                                 .reference(stop.getReference())
                                 .address(stop.getAddress())
                                 .isAccessible(stop.isAccessible())
@@ -209,17 +222,6 @@ public class DtoMapper {
                                 .cityName(stop.getCity() != null ? stop.getCity().getName() : null)
                                 .imageUrl(stop.getImageUrl())
                                 .build();
-        }
-
-        public static PopularRouteResponse toPopularRouteResponse(Route route) {
-                long totalStops = route.getDirections().stream()
-                                .flatMap(dir -> dir.getRouteStops().stream())
-                                .map(rs -> rs.getStop() != null ? rs.getStop().getId() : null)
-                                .filter(Objects::nonNull)
-                                .distinct()
-                                .count();
-
-                return toPopularRouteResponse(route, (int) totalStops);
         }
 
         public static PopularRouteResponse toPopularRouteResponse(Route route, int totalStops) {
@@ -234,13 +236,6 @@ public class DtoMapper {
                                 .cityId(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getId() : null)
                                 .cityName(route.getTransportLine() != null && route.getTransportLine().getCity() != null ? route.getTransportLine().getCity().getName() : null)
                                 .build();
-        }
-
-        public static List<KeyStopResponse> toKeyStopList(List<Stop> stops) {
-                return stops.stream()
-                                .filter(stop -> stop != null && Boolean.TRUE.equals(stop.getKeyStop()))
-                                .map(DtoMapper::toKeyStopResponse)
-                                .collect(Collectors.toList());
         }
 
         public static List<StopResponse> toStopList(List<Stop> stops) {

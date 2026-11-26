@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { AdminQrListPage } from './AdminQrListPage';
@@ -9,6 +9,7 @@ import { adminStopService } from '../../../services/adminStopService';
 import { adminOperatorService } from '../../../services/adminOperatorService';
 import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
+import { renderWithQueryClient } from '../../../test/queryTestUtils';
 
 const { toastMock } = vi.hoisted(() => ({
   toastMock: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -96,7 +97,7 @@ describe('AdminQrListPage', () => {
   });
 
   it('renders the list of QR codes and page header', async () => {
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>
@@ -113,7 +114,7 @@ describe('AdminQrListPage', () => {
 
   it('filters QR codes based on search input', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>
@@ -132,7 +133,7 @@ describe('AdminQrListPage', () => {
 
   it('opens the create QR modal when clicking the action button', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>
@@ -174,7 +175,7 @@ describe('AdminQrListPage', () => {
       },
     ]);
 
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>
@@ -204,7 +205,7 @@ describe('AdminQrListPage', () => {
     const user = userEvent.setup();
     adminQrCodeService.create.mockResolvedValue(mockQrCodes[0]);
 
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>
@@ -237,9 +238,12 @@ describe('AdminQrListPage', () => {
   it('opens the edit modal and submits updates through the admin service', async () => {
     const user = userEvent.setup();
     const updated = { ...mockQrCodes[1], label: 'Sticker Actualizado' };
+    adminQrCodeService.getAll
+      .mockResolvedValueOnce(mockQrCodes)
+      .mockResolvedValueOnce([mockQrCodes[0], updated]);
     adminQrCodeService.update.mockResolvedValue(updated);
 
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>
@@ -267,14 +271,17 @@ describe('AdminQrListPage', () => {
         expect.objectContaining({ label: 'Sticker Actualizado', targetType: 'HOME' })
       );
     });
-    expect(screen.getByText('Sticker Actualizado')).toBeInTheDocument();
+    expect(await screen.findByText('Sticker Actualizado')).toBeInTheDocument();
   });
 
   it('deletes a QR code after confirmation', async () => {
     const user = userEvent.setup();
+    adminQrCodeService.getAll
+      .mockResolvedValueOnce(mockQrCodes)
+      .mockResolvedValueOnce([mockQrCodes[1]]);
     adminQrCodeService.delete.mockResolvedValue(undefined);
 
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <AdminQrListPage />
       </MemoryRouter>

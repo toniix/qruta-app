@@ -21,10 +21,6 @@ public class JwtUtil {
         this.expirationMs = expirationMs;
     }
 
-    public String generateToken(String username) {
-        return generateToken(username, "ROLE_ADMIN");
-    }
-
     public String generateToken(String username, String role) {
         return generateToken(username, role, null);
     }
@@ -57,16 +53,6 @@ public class JwtUtil {
                 .parseSignedClaims(token)
                 .getPayload()
                 .get("role", String.class);
-    }
-
-    public UUID extractOperatorId(String token) {
-        String value = Jwts.parser()
-                .verifyWith(key)
-                .build()
-                .parseSignedClaims(token)
-                .getPayload()
-                .get("operatorId", String.class);
-        return value == null ? null : UUID.fromString(value);
     }
 
     public boolean validateToken(String token) {

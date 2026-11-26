@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { OperatorAnalyticsPage } from './OperatorAnalyticsPage';
 import { operatorPortalService } from '../../services/operatorPortalService';
+import { renderWithQueryClient } from '../../test/queryTestUtils';
 
 vi.mock('../../services/operatorPortalService', () => ({
   operatorPortalService: {
@@ -41,7 +42,7 @@ describe('OperatorAnalyticsPage', () => {
   });
 
   it('renders the operator analytics summary and a selected route series', async () => {
-    render(<OperatorAnalyticsPage />);
+    renderWithQueryClient(<OperatorAnalyticsPage />);
 
     await waitFor(() => {
       expect(screen.getByText('Resumen de la red')).toBeInTheDocument();

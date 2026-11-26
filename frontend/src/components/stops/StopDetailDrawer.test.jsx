@@ -12,7 +12,9 @@ const { mockUseRoutes } = vi.hoisted(() => ({
 }));
 
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: mockUseRoutes,
+  useRouteCatalog: mockUseRoutes,
+  useRouteSelection: mockUseRoutes,
+  useRouteGps: mockUseRoutes,
 }));
 
 function routesContext(selectedRoute = null) {

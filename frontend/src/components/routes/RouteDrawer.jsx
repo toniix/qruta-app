@@ -15,7 +15,7 @@ import {
   Bus,
   ShieldCheck,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteSelection } from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 import {
   communityService,
@@ -143,7 +143,7 @@ export function RouteDrawer() {
     activeDirection,
     setActiveDirection,
     loadingRouteDetail,
-  } = useRoutes();
+  } = useRouteSelection();
 
   const { isFavorite, toggleFavorite } = useFavorites();
   const [communitySummary, setCommunitySummary] = useState(null);
@@ -207,15 +207,36 @@ export function RouteDrawer() {
   const directions = selectedRoute.directions || [];
   const loading = Boolean(loadingRouteDetail);
 
-  const outbound =
-    directions.find((d) => d.direction === "OUTBOUND") || directions[0];
-  const inbound = directions.find((d) => d.direction === "INBOUND");
-  const hasVuelta = Boolean(inbound);
+  const idaDirection =
+    directions.find((d) => {
+      const dir = String(d.direction || "").trim().toUpperCase();
+      return dir === "IDA" || dir === "OUTBOUND";
+    }) || null;
+  const vueltaDirection =
+    directions.find((d) => {
+      const dir = String(d.direction || "").trim().toUpperCase();
+      return dir === "VUELTA" || dir === "INBOUND";
+    }) || null;
+  const hasIda = Boolean(idaDirection);
+  const hasVuelta = Boolean(vueltaDirection);
+
+  const effectiveActiveDirection =
+    activeDirection === "VUELTA" && hasVuelta
+      ? "VUELTA"
+      : hasIda
+        ? "IDA"
+        : hasVuelta
+          ? "VUELTA"
+          : activeDirection;
 
   const activeDir =
-    activeDirection === "INBOUND" && inbound ? inbound : outbound;
+    (effectiveActiveDirection === "VUELTA" ? vueltaDirection : idaDirection) ||
+    idaDirection ||
+    vueltaDirection ||
+    directions[0] ||
+    null;
 
-  const stops = [...(activeDir?.stops || [])].sort(
+  const stops = (activeDir?.stops || []).toSorted(
     (a, b) => (a.stopOrder ?? 0) - (b.stopOrder ?? 0),
   );
 
@@ -240,7 +261,10 @@ export function RouteDrawer() {
   const code = selectedRoute.code || "Ruta";
   const color = selectedRoute.color || "var(--color-brand-primary)";
   const transportLine =
-    selectedRoute.transportLine?.company || selectedRoute.transportLineName || "";
+    selectedRoute.transportLine?.name ||
+    selectedRoute.transportLine?.company ||
+    selectedRoute.transportLineName ||
+    "";
   const scheduleHours =
     selectedRoute.schedule?.hours || selectedRoute.schedule || "";
   const frequency =
@@ -252,7 +276,8 @@ export function RouteDrawer() {
       : "Micro";
 
   const handleDirectionChange = (dir) => {
-    if (dir === "INBOUND" && !inbound) return;
+    if (dir === "IDA" && !hasIda) return;
+    if (dir === "VUELTA" && !hasVuelta) return;
     setActiveDirection(dir);
     selectStop(null); // Clear selected stop when changing direction
     focusStop(null);
@@ -390,24 +415,25 @@ export function RouteDrawer() {
         <div className="bg-slate-100 p-1.5 rounded-2xl flex items-center justify-between text-xs font-semibold">
           <button
             type="button"
-            onClick={() => handleDirectionChange("OUTBOUND")}
+            onClick={() => handleDirectionChange("IDA")}
+            disabled={directions.length > 0 && !hasIda}
             className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
-              activeDirection === "OUTBOUND"
+              effectiveActiveDirection === "IDA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
-                : "text-slate-500 hover:text-slate-800"
-            }`}
+                : "text-slate-500"
+            } ${directions.length > 0 && !hasIda ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:text-slate-800"}`}
           >
             Ida
           </button>
           <button
             type="button"
-            onClick={() => handleDirectionChange("INBOUND")}
+            onClick={() => handleDirectionChange("VUELTA")}
             disabled={!hasVuelta}
             className={`flex-1 py-2.5 rounded-xl transition-all duration-200 text-center ${
-              activeDirection === "INBOUND"
+              effectiveActiveDirection === "VUELTA"
                 ? "bg-slate-900 text-white font-bold shadow-sm"
                 : "text-slate-500"
-            } ${!hasVuelta ? "opacity-40 cursor-not-allowed" : "hover:text-slate-800"}`}
+            } ${!hasVuelta ? "opacity-40 cursor-not-allowed" : "cursor-pointer hover:text-slate-800"}`}
           >
             Vuelta
           </button>

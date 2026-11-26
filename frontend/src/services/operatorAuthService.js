@@ -1,7 +1,6 @@
-import { operatorClient } from './apiClient';
+import { operatorClient, OPERATOR_TOKEN_KEY, OPERATOR_USER_KEY } from './apiClient';
+import { isJwtExpired, parseJwtPayload } from '../utils/jwtUtils';
 
-const TOKEN_KEY = 'rutasya_operator_token';
-const USER_KEY = 'rutasya_operator_user';
 const OPERATOR_ROLE = 'OPERATOR';
 const OPERATOR_ROLES = new Set(['OPERATOR', 'OWNER', 'EDITOR']);
 
@@ -11,35 +10,8 @@ function normalizeRole(role) {
     .replace(/^ROLE_/, '');
 }
 
-function decodeBase64Url(value) {
-  const normalized = value.replace(/-/g, '+').replace(/_/g, '/');
-  const padded = normalized.padEnd(Math.ceil(normalized.length / 4) * 4, '=');
-  return decodeURIComponent(
-    atob(padded)
-      .split('')
-      .map((char) => `%${char.charCodeAt(0).toString(16).padStart(2, '0')}`)
-      .join('')
-  );
-}
-
-function parseJwt(token) {
-  try {
-    const payload = token.split('.')[1];
-    if (!payload) return null;
-    return JSON.parse(decodeBase64Url(payload));
-  } catch {
-    return null;
-  }
-}
-
-function tokenExpired(token) {
-  const payload = parseJwt(token);
-  if (!payload?.exp) return false;
-  return payload.exp * 1000 <= Date.now();
-}
-
 function buildUser(data = {}, token = '') {
-  const payload = parseJwt(token) || {};
+  const payload = parseJwtPayload(token) || {};
   return {
     operatorId: data.operatorId ?? payload.operatorId ?? null,
     operatorName: data.operatorName ?? null,
@@ -55,8 +27,8 @@ function isOperatorUser(user) {
 
 function persistSession(token, data) {
   const user = buildUser(data, token);
-  localStorage.setItem(TOKEN_KEY, token);
-  localStorage.setItem(USER_KEY, JSON.stringify(user));
+  localStorage.setItem(OPERATOR_TOKEN_KEY, token);
+  localStorage.setItem(OPERATOR_USER_KEY, JSON.stringify(user));
   return user;
 }
 
@@ -75,16 +47,16 @@ export const operatorAuthService = {
   },
 
   logout() {
-    localStorage.removeItem(TOKEN_KEY);
-    localStorage.removeItem(USER_KEY);
+    localStorage.removeItem(OPERATOR_TOKEN_KEY);
+    localStorage.removeItem(OPERATOR_USER_KEY);
   },
 
   getToken() {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(OPERATOR_TOKEN_KEY);
   },
 
   getCurrentUser() {
-    const raw = localStorage.getItem(USER_KEY);
+    const raw = localStorage.getItem(OPERATOR_USER_KEY);
     if (!raw) return null;
     try {
       return JSON.parse(raw);
@@ -97,11 +69,11 @@ export const operatorAuthService = {
   isAuthenticated() {
     const token = this.getToken();
     if (!token) return false;
-    if (tokenExpired(token)) {
+    if (isJwtExpired(token)) {
       this.logout();
       return false;
     }
-    const payload = parseJwt(token);
+    const payload = parseJwtPayload(token);
     const storedUser = this.getCurrentUser();
     if (payload?.role && !OPERATOR_ROLES.has(normalizeRole(payload.role))) {
       this.logout();
@@ -118,16 +90,20 @@ export const operatorAuthService = {
     if (!this.isAuthenticated()) {
       throw new Error('No active session');
     }
-    const { data } = await operatorClient.get('/operator/profile');
-    const user = persistSession(this.getToken(), {
-      ...this.getCurrentUser(),
-      ...data,
-    });
-    if (!isOperatorUser(user)) {
+    try {
+      const { data } = await operatorClient.get('/operator/profile');
+      const user = persistSession(this.getToken(), {
+        ...this.getCurrentUser(),
+        ...data,
+      });
+      if (!isOperatorUser(user)) {
+        throw new Error('La cuenta no tiene permisos de operador');
+      }
+      return user;
+    } catch (err) {
       this.logout();
-      throw new Error('La cuenta no tiene permisos de operador');
+      throw err;
     }
-    return user;
   },
 };
 

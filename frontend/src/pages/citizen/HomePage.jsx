@@ -13,7 +13,11 @@ import {
   Clock3,
   Star,
 } from "lucide-react";
-import { useRoutes } from "../../contexts/RouteContext";
+import {
+  useRouteCatalog,
+  useRouteSelection,
+  useRouteGps,
+} from "../../contexts/RouteContext";
 import { useFavorites } from "../../hooks/useFavorites";
 import { streetLine } from "../../services/geocodingService";
 import { getGreeting } from "../../utils/dateUtils";
@@ -62,26 +66,28 @@ export function HomePage() {
   const [showCitySelector, setShowCitySelector] = useState(false);
   const {
     routes,
-    triggerGpsRequest,
-    isLocating,
-    gpsReady,
-    selectRoute,
-    nearbyStops,
-    loadingStops,
-    stopsError,
-    loadNearbyStops,
     displayedPopularRoutes,
     loadingPopular,
-    userAddress,
     cities,
     currentCity,
     outsideCoverage,
     setCity,
     resetToGpsDetection,
+  } = useRouteCatalog();
+  const { selectRoute } = useRouteSelection();
+  const {
+    triggerGpsRequest,
+    isLocating,
+    gpsReady,
+    nearbyStops,
+    loadingStops,
+    stopsError,
+    loadNearbyStops,
+    userAddress,
     addressStatus,
     gpsPermissionState,
     setShowGpsModal,
-  } = useRoutes();
+  } = useRouteGps();
 
   // Show polite GPS modal only on HomePage arrival if never dismissed in this session
   useEffect(() => {
@@ -347,7 +353,7 @@ export function HomePage() {
       )}
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-7">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-7">
         {/* ── Continúa explorando: recents + favorites, compact one-liner ── */}
         {(recentSearches.length > 0 || favorites.length > 0) && (
           <section aria-label="Continúa explorando" className="space-y-2">
@@ -626,7 +632,7 @@ export function HomePage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 }

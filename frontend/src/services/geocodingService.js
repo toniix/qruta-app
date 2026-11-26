@@ -62,14 +62,18 @@ export const geocodingService = {
    * Proxy-only: the backend owns the whole chain (Google -> Photon ->
    * honest error), so there is no client-side fallback to keep in sync.
    */
-  async reverseGeocode(lat, lon) {
+  async reverseGeocode(lat, lon, options = {}) {
     if (lat == null || lon == null) return null;
 
     try {
-      const response = await apiClient.get("/geocode/reverse", {
+      const config = {
         params: { lat, lng: lon },
         timeout: 4000,
-      });
+      };
+      if (options?.signal) {
+        config.signal = options.signal;
+      }
+      const response = await apiClient.get("/geocode/reverse", config);
       const data = response.data;
       if (data?.formattedAddress || data?.street) {
         return {
@@ -82,7 +86,7 @@ export const geocodingService = {
         };
       }
     } catch {
-      // Proxy unavailable: callers already handle null (coordinates fallback).
+      // Proxy unavailable or request aborted: callers already handle null (coordinates fallback).
     }
     return null;
   },

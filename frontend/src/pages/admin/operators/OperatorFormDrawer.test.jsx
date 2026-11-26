@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OperatorFormDrawer } from './OperatorFormDrawer';
 import { cityService } from '../../../services/cityService';
 import { adminLineService } from '../../../services/adminLineService';
+import { renderWithQueryClient } from '../../../test/queryTestUtils';
 
 vi.mock('../../../services/cityService', () => ({
   cityService: { getAdminCities: vi.fn() },
@@ -31,7 +32,7 @@ describe('OperatorFormDrawer', () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(<OperatorFormDrawer open onClose={vi.fn()} onSubmit={onSubmit} />);
+    renderWithQueryClient(<OperatorFormDrawer open onClose={vi.fn()} onSubmit={onSubmit} />);
 
     expect(await screen.findByRole('option', { name: 'Ica (Ica)' })).toBeTruthy();
     expect(await screen.findByRole('option', { name: 'Expreso Ica S.A.C.' })).toBeTruthy();
@@ -61,7 +62,7 @@ describe('OperatorFormDrawer', () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(<OperatorFormDrawer open onClose={vi.fn()} onSubmit={onSubmit} />);
+    renderWithQueryClient(<OperatorFormDrawer open onClose={vi.fn()} onSubmit={onSubmit} />);
 
     expect(await screen.findByRole('option', { name: 'Ica (Ica)' })).toBeTruthy();
 
@@ -76,7 +77,7 @@ describe('OperatorFormDrawer', () => {
     const user = userEvent.setup();
     const onSubmit = vi.fn();
 
-    render(<OperatorFormDrawer open onClose={vi.fn()} onSubmit={onSubmit} />);
+    renderWithQueryClient(<OperatorFormDrawer open onClose={vi.fn()} onSubmit={onSubmit} />);
 
     expect(await screen.findByRole('option', { name: 'Expreso Ica S.A.C.' })).toBeTruthy();
 

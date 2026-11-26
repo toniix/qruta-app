@@ -1,15 +1,12 @@
 package com.anthony.rutas.services;
 
+import com.anthony.rutas.utils.HashUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import java.nio.charset.StandardCharsets;
-import java.security.MessageDigest;
-import java.security.NoSuchAlgorithmException;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.time.LocalDate;
-import java.util.HexFormat;
+import java.time.ZoneOffset;
 
 /**
  * Pseudonymizes a device id with SHA-256 and a salt that rotates every day.
@@ -42,20 +39,11 @@ public class DeviceHasher {
         LocalDate day = recordedAt == null
                 ? LocalDate.now(ZoneOffset.UTC)
                 : recordedAt.atOffset(ZoneOffset.UTC).toLocalDate();
-        return sha256(dailySalt(day) + "|" + (deviceId == null ? "" : deviceId));
+        return HashUtils.sha256Hex(dailySalt(day) + "|" + (deviceId == null ? "" : deviceId));
     }
 
     /** Salt for a given UTC day; exposed for tests and for same-day consistency checks. */
     public String dailySalt(LocalDate day) {
-        return sha256(baseSalt + "|" + day);
-    }
-
-    private static String sha256(String value) {
-        try {
-            MessageDigest digest = MessageDigest.getInstance("SHA-256");
-            return HexFormat.of().formatHex(digest.digest(value.getBytes(StandardCharsets.UTF_8)));
-        } catch (NoSuchAlgorithmException ex) {
-            throw new IllegalStateException("SHA-256 is not available", ex);
-        }
+        return HashUtils.sha256Hex(baseSalt + "|" + day);
     }
 }

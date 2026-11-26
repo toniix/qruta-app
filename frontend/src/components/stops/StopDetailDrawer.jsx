@@ -16,7 +16,11 @@ import {
   X,
 } from "lucide-react";
 import { stopService } from "../../services/stopService";
-import { useRoutes } from "../../contexts/RouteContext";
+import {
+  useRouteCatalog,
+  useRouteSelection,
+  useRouteGps,
+} from "../../contexts/RouteContext";
 import { calculateDistanceKm } from "../../utils/geoUtils";
 import { formatDistanceBand } from "../../utils/distanceBands";
 import { trackEvent } from "../../services/analyticsClient";
@@ -29,13 +33,9 @@ import { trackEvent } from "../../services/analyticsClient";
 export function StopDetailDrawer({ stop, context = "map" }) {
   const navigate = useNavigate();
   const location = useLocation();
-  const {
-    routes: allContextRoutes,
-    selectedRoute,
-    selectRoute,
-    selectStop,
-    userLocation,
-  } = useRoutes();
+  const { routes: allContextRoutes } = useRouteCatalog();
+  const { selectedRoute, selectRoute, selectStop } = useRouteSelection();
+  const { userLocation } = useRouteGps();
   const isRouteContext = context === "route";
 
   const [stopRoutes, setStopRoutes] = useState([]);

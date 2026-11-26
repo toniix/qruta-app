@@ -1,4 +1,5 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   MessageSquare,
   Trash2,
@@ -25,15 +26,17 @@ import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
 import { formatRelativeTime } from '../../../utils/dateUtils';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
 import { BRAND_PRIMARY } from '../../../constants/brand';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 export function CommunityModerationPage() {
   const toast = useAdminToast();
-  const [posts, setPosts] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [lines, setLines] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -44,49 +47,92 @@ export function CommunityModerationPage() {
 
   // Delete Post state
   const [deletePostConfirm, setDeletePostConfirm] = useState(null);
-  const [deletingPost, setDeletingPost] = useState(false);
 
   // Comments inspection Drawer
   const [inspectingPost, setInspectingPost] = useState(null);
-  const [comments, setComments] = useState([]);
-  const [loadingComments, setLoadingComments] = useState(false);
 
   // Delete Comment state
   const [deleteCommentConfirm, setDeleteCommentConfirm] = useState(null);
-  const [deletingComment, setDeletingComment] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [postsData, routesData, linesData, citiesData] = await Promise.all([
-        communityService.getAdminPosts(),
-        adminRouteService.getAllRoutes().catch(() => []),
-        adminLineService.getAllLines().catch(() => []),
-        cityService.getAdminCities().catch(() => []),
-      ]);
-      setPosts(Array.isArray(postsData) ? postsData : []);
-      setRoutes(Array.isArray(routesData) ? routesData : []);
-      setLines(Array.isArray(linesData) ? linesData : []);
-      setCities(Array.isArray(citiesData) ? citiesData : []);
-    } catch (err) {
-      console.error('Error cargando datos de comunidad:', err);
-      toast.error('Error al cargar datos para moderación de la comunidad.');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const postsQuery = useQuery({
+    queryKey: adminKeys.communityPosts(),
+    queryFn: () => communityService.getAdminPosts(),
+    staleTime: STALE_TIMES.METRICS,
+    select: selectArray,
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      if (isMounted) {
-        await loadData();
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [loadData]);
+  const routesQuery = useQuery({
+    queryKey: adminKeys.routes(),
+    queryFn: () => adminRouteService.getAllRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const linesQuery = useQuery({
+    queryKey: adminKeys.lines(),
+    queryFn: () => adminLineService.getAllLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  const inspectingPostId = inspectingPost?.id;
+
+  const commentsQuery = useQuery({
+    queryKey: [...adminKeys.communityAll(), 'comments', inspectingPostId],
+    queryFn: () => communityService.getComments(inspectingPostId),
+    enabled: Boolean(inspectingPostId),
+    staleTime: STALE_TIMES.METRICS,
+    select: selectArray,
+  });
+
+  const posts = postsQuery.data ?? EMPTY_LIST;
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const lines = linesQuery.data ?? EMPTY_LIST;
+  const cities = citiesQuery.data ?? EMPTY_LIST;
+  const comments = commentsQuery.data ?? EMPTY_LIST;
+  const loadingComments = Boolean(inspectingPostId) && commentsQuery.isPending;
+
+  const isFetching =
+    postsQuery.isFetching ||
+    routesQuery.isFetching ||
+    linesQuery.isFetching ||
+    citiesQuery.isFetching;
+
+  useQueryErrorToast({
+    isError: postsQuery.isError,
+    isFetching: postsQuery.isFetching,
+    errorUpdatedAt: postsQuery.errorUpdatedAt,
+    error: postsQuery.error,
+    message: 'Error al cargar datos para moderación de la comunidad.',
+    toast,
+    logLabel: 'Error cargando datos de comunidad:',
+  });
+
+  useQueryErrorToast({
+    isError: commentsQuery.isError,
+    isFetching: commentsQuery.isFetching,
+    errorUpdatedAt: commentsQuery.errorUpdatedAt,
+    error: commentsQuery.error,
+    message: 'Error al cargar comentarios.',
+    toast,
+    logLabel: 'Error cargando comentarios:',
+  });
+
+  const handleRefresh = () => {
+    Promise.all([
+      postsQuery.refetch(),
+      routesQuery.refetch(),
+      linesQuery.refetch(),
+      citiesQuery.refetch(),
+    ]);
+  };
 
   // Context fast maps
   const routeMap = useMemo(() => new Map(routes.map((r) => [String(r.id), r])), [routes]);
@@ -221,60 +267,53 @@ export function CommunityModerationPage() {
     lineMap,
   ]);
 
-  const handleConfirmDeletePost = async () => {
-    if (!deletePostConfirm) return;
-    setDeletingPost(true);
-    try {
-      await communityService.adminDeletePost(deletePostConfirm.id);
-      toast.success(`Publicación de "${deletePostConfirm.authorAlias}" eliminada.`);
+  const deletePostMutation = useMutation({
+    mutationFn: (post) => communityService.adminDeletePost(post.id),
+    onSuccess: async (_result, post) => {
+      toast.success(`Publicación de "${post.authorAlias}" eliminada.`);
       setDeletePostConfirm(null);
-      if (inspectingPost?.id === deletePostConfirm.id) {
+      if (inspectingPost?.id === post.id) {
         setInspectingPost(null);
       }
-      await loadData();
-    } catch (err) {
+      await queryClient.invalidateQueries({ queryKey: adminKeys.communityAll() });
+    },
+    onError: (err) => {
       console.error('Error eliminando publicación:', err);
       toast.error(err.response?.data?.message || 'Error al eliminar la publicación.');
-    } finally {
-      setDeletingPost(false);
-    }
-  };
+    },
+  });
 
-  const handleOpenInspectComments = async (post) => {
-    setInspectingPost(post);
-    setLoadingComments(true);
-    try {
-      const data = await communityService.getComments(post.id);
-      setComments(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error('Error cargando comentarios:', err);
-      toast.error('Error al cargar comentarios.');
-    } finally {
-      setLoadingComments(false);
-    }
-  };
-
-  const handleConfirmDeleteComment = async () => {
-    if (!deleteCommentConfirm) return;
-    setDeletingComment(true);
-    try {
-      await communityService.adminDeleteComment(deleteCommentConfirm.id);
+  const deleteCommentMutation = useMutation({
+    mutationFn: (comment) => communityService.adminDeleteComment(comment.id),
+    onSuccess: async (_result, comment) => {
       toast.success('Comentario eliminado por moderación.');
-      setComments((prev) => prev.filter((c) => c.id !== deleteCommentConfirm.id));
+      if (inspectingPost?.id) {
+        queryClient.setQueryData(
+          [...adminKeys.communityAll(), 'comments', inspectingPost.id],
+          (prev) => (Array.isArray(prev) ? prev.filter((c) => c.id !== comment.id) : prev),
+        );
+      }
       setDeleteCommentConfirm(null);
-      setPosts((prev) =>
-        prev.map((p) =>
-          p.id === inspectingPost?.id
-            ? { ...p, commentsCount: Math.max(0, (p.commentsCount || 1) - 1) }
-            : p,
-        ),
-      );
-    } catch (err) {
+      await queryClient.invalidateQueries({ queryKey: adminKeys.communityAll() });
+    },
+    onError: (err) => {
       console.error('Error eliminando comentario:', err);
       toast.error('Error al eliminar comentario.');
-    } finally {
-      setDeletingComment(false);
-    }
+    },
+  });
+
+  const handleConfirmDeletePost = () => {
+    if (!deletePostConfirm) return;
+    deletePostMutation.mutate(deletePostConfirm);
+  };
+
+  const handleOpenInspectComments = (post) => {
+    setInspectingPost(post);
+  };
+
+  const handleConfirmDeleteComment = () => {
+    if (!deleteCommentConfirm) return;
+    deleteCommentMutation.mutate(deleteCommentConfirm);
   };
 
   const columns = [
@@ -448,11 +487,11 @@ export function CommunityModerationPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={handleRefresh}
+          disabled={isFetching}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </button>
       </div>
@@ -537,7 +576,7 @@ export function CommunityModerationPage() {
       <AdminDataTable
         columns={columns}
         data={filteredPosts}
-        loading={loading}
+        loading={postsQuery.isPending}
         caption="Listado de publicaciones para moderación"
         emptyTitle="No hay publicaciones"
         emptyDescription={
@@ -632,7 +671,7 @@ export function CommunityModerationPage() {
         description={`¿Estás seguro de eliminar la publicación de "${deletePostConfirm?.authorAlias}"? Esta acción borrará el mensaje y todos sus comentarios de forma permanente.`}
         confirmLabel="Eliminar Publicación"
         tone="danger"
-        loading={deletingPost}
+        loading={deletePostMutation.isPending}
         onCancel={() => setDeletePostConfirm(null)}
         onConfirm={handleConfirmDeletePost}
       />
@@ -644,7 +683,7 @@ export function CommunityModerationPage() {
         description="¿Estás seguro de eliminar este comentario por infracción de normas comunitarias?"
         confirmLabel="Eliminar Comentario"
         tone="danger"
-        loading={deletingComment}
+        loading={deleteCommentMutation.isPending}
         onCancel={() => setDeleteCommentConfirm(null)}
         onConfirm={handleConfirmDeleteComment}
       />

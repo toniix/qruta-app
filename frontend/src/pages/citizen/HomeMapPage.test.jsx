@@ -5,7 +5,10 @@ import { HomeMapPage } from './HomeMapPage';
 const routeState = vi.hoisted(() => ({ current: {} }));
 
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: () => routeState.current,
+  useRouteCatalog: () => routeState.current,
+  useRouteSearch: () => routeState.current,
+  useRouteSelection: () => routeState.current,
+  useRouteGps: () => routeState.current,
 }));
 
 vi.mock('react-router-dom', async () => {
@@ -61,7 +64,7 @@ const BASE_STATE = {
   onlyNearby: false,
   loading: false,
   error: null,
-  activeDirection: 'OUTBOUND',
+  activeDirection: 'IDA',
   selectRoute: vi.fn(),
   selectStop: vi.fn(),
   focusStop: vi.fn(),

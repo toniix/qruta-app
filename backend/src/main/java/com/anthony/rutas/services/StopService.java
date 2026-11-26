@@ -44,18 +44,11 @@ public class StopService {
     private final RouteStopRepository routeStopRepository;
     private final SupabaseStorageService storageService;
     private final ImageProcessingService imageProcessingService;
-    private final GeometryFactory geometryFactory = new GeometryFactory();
+    private final GeometryFactory geometryFactory;
 
     @Transactional(readOnly = true)
     public List<StopResponse> findAll() {
         return DtoMapper.toStopList(stopRepository.findAllWithCity());
-    }
-
-    @Transactional(readOnly = true)
-    public StopResponse findById(UUID id) {
-        Stop stop = stopRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Stop not found with id: " + id));
-        return DtoMapper.toStopResponse(stop);
     }
 
     @Transactional(readOnly = true)
@@ -112,7 +105,7 @@ public class StopService {
 
     /**
      * Returns all routes that pass through the given stop, grouped by route.
-     * Each entry includes the distinct directions served (OUTBOUND/INBOUND)
+     * Each entry includes the distinct directions served (IDA/VUELTA)
      * and a derived label (IDA / VUELTA / IDA Y VUELTA) computed here, never
      * persisted.
      */
@@ -149,12 +142,12 @@ public class StopService {
     }
 
     private String resolveDirectionLabel(List<String> directions) {
-        boolean hasOutbound = directions.contains("OUTBOUND");
-        boolean hasInbound = directions.contains("INBOUND");
-        if (hasOutbound && hasInbound) {
+        boolean hasIda = directions.contains("IDA") || directions.contains("OUTBOUND");
+        boolean hasVuelta = directions.contains("VUELTA") || directions.contains("INBOUND");
+        if (hasIda && hasVuelta) {
             return "IDA Y VUELTA";
         }
-        return hasOutbound ? "IDA" : "VUELTA";
+        return hasIda ? "IDA" : "VUELTA";
     }
 
     @Transactional(readOnly = true)
@@ -164,7 +157,8 @@ public class StopService {
 
     @Transactional
     public StopResponse create(CreateStopRequest request) {
-        City city = cityRepository.findById(UUID.fromString(request.getCityId()))
+        UUID cityId = com.anthony.rutas.utils.UuidUtils.parseRequired(request.getCityId(), "city id");
+        City city = cityRepository.findById(cityId)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
         Point location = geometryFactory.createPoint(new Coordinate(request.getLongitude(), request.getLatitude()));
@@ -232,6 +226,15 @@ public class StopService {
             throw new ConflictException(
                     "Cannot delete stop: " + qrLabel
                             + " still target this stop. Edit or delete those QR codes first.");
+        }
+
+        long routeStopCount = routeStopRepository.countByStopId(id);
+        if (routeStopCount > 0) {
+            throw new ConflictException(
+                    "Cannot delete stop: it is currently used in "
+                            + routeStopCount
+                            + (routeStopCount == 1 ? " route stop" : " route stops")
+                            + ". Remove it from those routes first.");
         }
 
         stopRepository.deleteById(id);

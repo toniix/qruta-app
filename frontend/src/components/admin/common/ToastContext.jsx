@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useContext } from 'react';
 import { createPortal } from 'react-dom';
 import { CheckCircle2, AlertTriangle, AlertCircle, Info, X } from 'lucide-react';
 import { ToastContext } from './ToastContextInstance';
@@ -6,6 +6,7 @@ import { ToastContext } from './ToastContextInstance';
 let toastSeq = 0;
 
 export function ToastProvider({ children }) {
+  const parentToast = useContext(ToastContext);
   const [toasts, setToasts] = useState([]);
 
   const dismiss = useCallback((id) => {
@@ -37,6 +38,10 @@ export function ToastProvider({ children }) {
     }),
     [showToast, dismiss]
   );
+
+  if (parentToast) {
+    return children;
+  }
 
   return (
     <ToastContext.Provider value={toast}>

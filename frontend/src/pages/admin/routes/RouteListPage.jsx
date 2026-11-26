@@ -1,5 +1,7 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
+  AlertCircle,
   Route,
   Edit2,
   Trash2,
@@ -18,13 +20,17 @@ import { adminRouteService } from '../../../services/adminRouteService';
 import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { useQueryErrorToast } from '../../../hooks/useQueryErrorToast';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_ROUTES = [];
+const EMPTY_LINES = [];
+const EMPTY_CITIES = [];
 
 export function RouteListPage() {
   const toast = useAdminToast();
-  const [routes, setRoutes] = useState([]);
-  const [lines, setLines] = useState([]);
-  const [cities, setCities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -35,60 +41,64 @@ export function RouteListPage() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editingRoute, setEditingRoute] = useState(null);
   const [wizardOpen, setWizardOpen] = useState(false);
-  const [saving, setSaving] = useState(false);
 
   const [mapModalOpen, setMapModalOpen] = useState(false);
   const [selectedRouteForMap, setSelectedRouteForMap] = useState(null);
 
   const [deleteConfirm, setDeleteConfirm] = useState(null);
-  const [deleting, setDeleting] = useState(false);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [routesData, linesData, citiesData] = await Promise.all([
-        adminRouteService.getAllRoutes(),
-        adminLineService.getAllLines().catch(() => []),
-        cityService.getAdminCities().catch(() => []),
-      ]);
-      setRoutes(Array.isArray(routesData) ? routesData : []);
-      setLines(Array.isArray(linesData) ? linesData : []);
-      setCities(Array.isArray(citiesData) ? citiesData : []);
-    } catch (err) {
-      console.error('Error cargando rutas:', err);
-      toast.error('Error al cargar la lista de rutas.');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const routesQuery = useQuery({
+    queryKey: adminKeys.routes(),
+    queryFn: () => adminRouteService.getAllRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
 
-  useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const [routesData, linesData, citiesData] = await Promise.all([
-          adminRouteService.getAllRoutes(),
-          adminLineService.getAllLines().catch(() => []),
-          cityService.getAdminCities().catch(() => []),
-        ]);
-        if (isMounted) {
-          setRoutes(Array.isArray(routesData) ? routesData : []);
-          setLines(Array.isArray(linesData) ? linesData : []);
-          setCities(Array.isArray(citiesData) ? citiesData : []);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error cargando rutas:', err);
-          toast.error('Error al cargar la lista de rutas.');
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+  const linesQuery = useQuery({
+    queryKey: adminKeys.lines(),
+    queryFn: () => adminLineService.getAllLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const routes = routesQuery.data ?? EMPTY_ROUTES;
+  const lines = linesQuery.data ?? EMPTY_LINES;
+  const cities = citiesQuery.data ?? EMPTY_CITIES;
+  const isFetching =
+    routesQuery.isFetching || linesQuery.isFetching || citiesQuery.isFetching;
+
+  useQueryErrorToast({
+    isError: routesQuery.isError,
+    isFetching: routesQuery.isFetching,
+    errorUpdatedAt: routesQuery.errorUpdatedAt,
+    error: routesQuery.error,
+    message: 'Error al cargar la lista de rutas.',
+    toast,
+    logLabel: 'Error cargando rutas:',
+  });
+
+  const handleRefresh = () => {
+    Promise.all([
+      routesQuery.refetch(),
+      linesQuery.refetch(),
+      citiesQuery.refetch(),
+    ]);
+  };
+
+  const handleRouteOrDirectionsSaved = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+      queryClient.invalidateQueries({ queryKey: adminKeys.stops() }),
+      queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+    ]);
+  }, [queryClient]);
 
   // Line id -> city id lookup (routes inherit the city from their line)
   const lineCityMap = useMemo(() => {
@@ -142,39 +152,49 @@ export function RouteListPage() {
     return lineCityMap.get(String(lineId)) || '';
   }, [selectedRouteForMap, lineCityMap]);
 
-  // Form submit handler (drawer is edit-only; creation goes through the wizard)
-  const handleFormSubmit = async (formData) => {
-    if (!editingRoute) return;
-    setSaving(true);
-    try {
-      await adminRouteService.updateRoute(editingRoute.id, formData);
-      toast.success(`Ruta ${formData.code} actualizada correctamente.`);
+  const updateRouteMutation = useMutation({
+    mutationFn: ({ id, data }) => adminRouteService.updateRoute(id, data),
+    onSuccess: async (_result, { data }) => {
+      toast.success(`Ruta ${data.code} actualizada correctamente.`);
       setDrawerOpen(false);
       setEditingRoute(null);
-      await loadData();
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error guardando ruta:', err);
       toast.error(err.response?.data?.message || 'Error al guardar los datos de la ruta.');
-    } finally {
-      setSaving(false);
-    }
+    },
+  });
+
+  const deleteRouteMutation = useMutation({
+    mutationFn: (route) => adminRouteService.deleteRoute(route.id),
+    onSuccess: async (_result, route) => {
+      toast.success(`Ruta ${route.code} eliminada.`);
+      setDeleteConfirm(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
+      console.error('Error eliminando ruta:', err);
+      toast.error(err.response?.data?.message || 'Error al eliminar la ruta.');
+    },
+  });
+
+  // Form submit handler (drawer is edit-only; creation goes through the wizard)
+  const handleFormSubmit = (formData) => {
+    if (!editingRoute) return;
+    updateRouteMutation.mutate({ id: editingRoute.id, data: formData });
   };
 
   // Delete handler
-  const handleConfirmDelete = async () => {
+  const handleConfirmDelete = () => {
     if (!deleteConfirm) return;
-    setDeleting(true);
-    try {
-      await adminRouteService.deleteRoute(deleteConfirm.id);
-      toast.success(`Ruta ${deleteConfirm.code} eliminada.`);
-      setDeleteConfirm(null);
-      await loadData();
-    } catch (err) {
-      console.error('Error eliminando ruta:', err);
-      toast.error(err.response?.data?.message || 'Error al eliminar la ruta.');
-    } finally {
-      setDeleting(false);
-    }
+    deleteRouteMutation.mutate(deleteConfirm);
   };
 
   const columns = [
@@ -310,14 +330,34 @@ export function RouteListPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={handleRefresh}
+          disabled={isFetching}
           className="inline-flex items-center gap-1.5 self-start sm:self-center rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
         >
-          <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </button>
       </div>
+
+      {routesQuery.isError && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-xs text-rose-800"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span>No se pudo cargar la lista de rutas.</span>
+          </div>
+          <button
+            type="button"
+            onClick={handleRefresh}
+            disabled={isFetching}
+            className="inline-flex items-center rounded-xl bg-rose-700 px-3 py-1.5 font-bold text-white hover:bg-rose-800 disabled:opacity-60 transition"
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Filter and Action Bar */}
       <AdminFilterBar
@@ -361,7 +401,7 @@ export function RouteListPage() {
       <AdminDataTable
         columns={columns}
         data={filteredRoutes}
-        loading={loading}
+        loading={routesQuery.isPending}
         caption="Listado de rutas de transporte"
         emptyTitle="No se encontraron rutas"
         emptyDescription="Crea una nueva ruta o ajusta los filtros de búsqueda."
@@ -378,7 +418,7 @@ export function RouteListPage() {
           onClose={() => setWizardOpen(false)}
           lines={lines}
           cities={cities}
-          onCreated={loadData}
+          onCreated={handleRouteOrDirectionsSaved}
         />
       )}
 
@@ -393,7 +433,7 @@ export function RouteListPage() {
         lines={lines}
         cities={cities}
         onSubmit={handleFormSubmit}
-        loading={saving}
+        loading={updateRouteMutation.isPending}
       />
 
       {/* Spatial Directions & Stops Modal */}
@@ -407,7 +447,7 @@ export function RouteListPage() {
           route={selectedRouteForMap}
           cities={cities}
           cityId={selectedRouteCityId}
-          onSaved={loadData}
+          onSaved={handleRouteOrDirectionsSaved}
         />
       )}
 
@@ -418,7 +458,7 @@ export function RouteListPage() {
         description={`¿Estás seguro de eliminar la ruta "${deleteConfirm?.name}" (${deleteConfirm?.code})? Esta acción borrará también sus sentidos y paraderos asociados.`}
         confirmLabel="Eliminar Definitivamente"
         tone="danger"
-        loading={deleting}
+        loading={deleteRouteMutation.isPending}
         onCancel={() => setDeleteConfirm(null)}
         onConfirm={handleConfirmDelete}
       />

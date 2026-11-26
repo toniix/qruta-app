@@ -5,6 +5,7 @@ import com.anthony.rutas.dtos.request.UpdateRouteDirectionsRequest;
 import com.anthony.rutas.dtos.request.UpdateRouteRequest;
 import com.anthony.rutas.dtos.response.*;
 import com.anthony.rutas.entities.*;
+import com.anthony.rutas.exceptions.ConflictException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.repositories.*;
 import org.junit.jupiter.api.BeforeEach;
@@ -12,9 +13,13 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import org.locationtech.jts.geom.Coordinate;
+import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
@@ -41,6 +46,14 @@ class RouteServiceTest {
     private TransportLineRepository transportLineRepository;
     @Mock
     private StopRepository stopRepository;
+    @Mock
+    private QrCodeRepository qrCodeRepository;
+    @Mock
+    private CommunityPostRepository communityPostRepository;
+    @Mock
+    private DisruptionRepository disruptionRepository;
+    @Spy
+    private GeometryFactory geometryFactory = new GeometryFactory(new PrecisionModel(), 4326);
 
     @InjectMocks
     private RouteService routeService;
@@ -98,7 +111,7 @@ class RouteServiceTest {
         return RouteDirection.builder()
                 .id(id)
                 .route(route)
-                .direction("OUTBOUND")
+                .direction("IDA")
                 .originName("Origen")
                 .destinationName("Destino")
                 .totalDistanceKm(5.0)
@@ -130,7 +143,7 @@ class RouteServiceTest {
                 .build();
 
         CreateRouteRequest.RouteDirectionRequest direction = CreateRouteRequest.RouteDirectionRequest.builder()
-                .direction("OUTBOUND")
+                .direction("IDA")
                 .originName("Origen")
                 .destinationName("Destino")
                 .totalDistanceKm(5.0)
@@ -688,7 +701,7 @@ class RouteServiceTest {
             CreateRouteRequest request = createRouteRequest();
             when(transportLineRepository.findById(transportLineId)).thenReturn(Optional.of(transportLine));
             when(routeRepository.save(any(Route.class))).thenReturn(route);
-            when(stopRepository.findById(stopId)).thenReturn(Optional.of(stop));
+            when(stopRepository.findAllById(any())).thenReturn(List.of(stop));
             when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
             when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
 
@@ -697,8 +710,8 @@ class RouteServiceTest {
             assertNotNull(result);
             verify(routeRepository).save(any(Route.class));
             verify(routeDirectionRepository).save(any(RouteDirection.class));
-            verify(routeStopRepository).save(any(RouteStop.class));
-            verify(routePointRepository).save(any(RoutePoint.class));
+            verify(routeStopRepository).saveAll(anyList());
+            verify(routePointRepository).saveAll(anyList());
         }
 
         @Test
@@ -720,6 +733,27 @@ class RouteServiceTest {
             assertNotNull(result);
             verify(routeRepository).save(any(Route.class));
             verify(routeDirectionRepository).findByRouteIdWithStops(routeId);
+        }
+
+        @Test
+        @DisplayName("Should persist submitted custom geometry verbatim")
+        void shouldPersistSubmittedGeometry() {
+            CreateRouteRequest request = createRouteRequest();
+            when(transportLineRepository.findById(transportLineId)).thenReturn(Optional.of(transportLine));
+            when(routeRepository.save(any(Route.class))).thenReturn(route);
+            when(stopRepository.findAllById(any())).thenReturn(List.of(stop));
+            when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
+
+            routeService.create(request);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<RoutePoint>> captor = ArgumentCaptor.forClass(List.class);
+            verify(routePointRepository).saveAll(captor.capture());
+            assertEquals(1, captor.getValue().size());
+            assertEquals(1, captor.getValue().get(0).getPointOrder());
+            assertEquals(-57.9545, captor.getValue().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-34.9215, captor.getValue().get(0).getLocation().getY(), 1e-9);
         }
 
         @Test
@@ -795,6 +829,90 @@ class RouteServiceTest {
             assertNotNull(result);
             verify(routeDirectionRepository).deleteAll(anyList());
         }
+
+        private RouteDirection existingDirection() {
+            GeometryFactory factory = new GeometryFactory();
+            return RouteDirection.builder()
+                    .id(UUID.randomUUID())
+                    .route(route)
+                    .direction("IDA")
+                    .routePoints(List.of(
+                            RoutePoint.builder().pointOrder(1)
+                                    .location(factory.createPoint(new Coordinate(-75.70, -14.05))).build(),
+                            RoutePoint.builder().pointOrder(2)
+                                    .location(factory.createPoint(new Coordinate(-75.71, -14.06))).build()))
+                    .build();
+        }
+
+        private void mockExisting(RouteDirection existing) {
+            when(routeRepository.findById(routeId)).thenReturn(Optional.of(route));
+            when(routeDirectionRepository.findByRouteId(routeId)).thenReturn(List.of(existing));
+            when(routeDirectionRepository.save(any(RouteDirection.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));
+            when(routeDirectionRepository.findByRouteIdWithStops(routeId)).thenReturn(List.of());
+        }
+
+        @Test
+        @DisplayName("Omitting routePoints preserves the stored geometry")
+        void shouldPreserveGeometryWhenPointsOmitted() {
+            RouteDirection existing = existingDirection();
+            mockExisting(existing);
+            UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                    .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                            .id(existing.getId().toString())
+                            .direction("IDA")
+                            .stops(List.of())
+                            .build()))
+                    .build();
+
+            routeService.updateDirections(routeId, request);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<RoutePoint>> captor = ArgumentCaptor.forClass(List.class);
+            verify(routePointRepository).saveAll(captor.capture());
+            assertEquals(2, captor.getValue().size());
+            assertEquals(-75.70, captor.getValue().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-75.71, captor.getValue().get(1).getLocation().getX(), 1e-9);
+        }
+
+        @Test
+        @DisplayName("An empty points list clears the geometry")
+        void shouldClearGeometryWhenPointsEmpty() {
+            mockExisting(existingDirection());
+            UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                    .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                            .id(UUID.randomUUID().toString())
+                            .direction("IDA")
+                            .routePoints(List.of())
+                            .build()))
+                    .build();
+
+            routeService.updateDirections(routeId, request);
+
+            verify(routePointRepository, never()).saveAll(anyList());
+        }
+
+        @Test
+        @DisplayName("A non-empty points list replaces the geometry exactly")
+        void shouldReplaceGeometryWhenSubmitted() {
+            mockExisting(existingDirection());
+            UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
+                    .directions(List.of(UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder()
+                            .direction("IDA")
+                            .routePoints(List.of(UpdateRouteDirectionsRequest.PointUpdateRequest.builder()
+                                    .pointOrder(1).latitude(-14.20).longitude(-75.90).build()))
+                            .build()))
+                    .build();
+
+            routeService.updateDirections(routeId, request);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<RoutePoint>> captor = ArgumentCaptor.forClass(List.class);
+            verify(routePointRepository).saveAll(captor.capture());
+            assertEquals(1, captor.getValue().size());
+            assertEquals(-75.90, captor.getValue().get(0).getLocation().getX(), 1e-9);
+            assertEquals(-14.20, captor.getValue().get(0).getLocation().getY(), 1e-9);
+        }
     }
 
     // ==================== DELETE ====================
@@ -804,14 +922,34 @@ class RouteServiceTest {
     class Delete {
 
         @Test
-        @DisplayName("Should delete existing route")
+        @DisplayName("Should detach posts, delete disruptions, and delete existing route in order")
         void shouldDeleteRoute() {
             when(routeRepository.existsById(routeId)).thenReturn(true);
+            when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                    eq("ROUTE"), eq(routeId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(0L);
             doNothing().when(routeRepository).deleteById(routeId);
 
             routeService.delete(routeId);
 
-            verify(routeRepository).deleteById(routeId);
+            var inOrder = inOrder(communityPostRepository, disruptionRepository, routeRepository);
+            inOrder.verify(communityPostRepository).detachRoute(routeId);
+            inOrder.verify(disruptionRepository).deleteByRouteId(routeId);
+            inOrder.verify(routeRepository).deleteById(routeId);
+        }
+
+        @Test
+        @DisplayName("Should throw ConflictException when active or paused QR codes target the route")
+        void shouldThrowConflictWhenTargetedByQr() {
+            when(routeRepository.existsById(routeId)).thenReturn(true);
+            when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                    eq("ROUTE"), eq(routeId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(2L);
+
+            ConflictException error = assertThrows(ConflictException.class, () -> routeService.delete(routeId));
+
+            assertTrue(error.getMessage().contains("2 QR codes"));
+            assertTrue(error.getMessage().contains("Edit or delete those QR codes first"));
+            verifyNoInteractions(communityPostRepository, disruptionRepository);
+            verify(routeRepository, never()).deleteById(any(UUID.class));
         }
 
         @Test
@@ -820,6 +958,7 @@ class RouteServiceTest {
             when(routeRepository.existsById(routeId)).thenReturn(false);
 
             assertThrows(ResourceNotFoundException.class, () -> routeService.delete(routeId));
+            verifyNoInteractions(qrCodeRepository, communityPostRepository, disruptionRepository);
         }
     }
 }

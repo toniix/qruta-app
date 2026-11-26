@@ -13,17 +13,17 @@ import {
   ArrowRight,
 } from "lucide-react";
 import { stopService } from "../../services/stopService";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog, useRouteSelection } from "../../contexts/RouteContext";
 
 export function StopRoutesModal({ stop, onClose }) {
   console.log("Rendering StopRoutesModal for stop:", stop);
   const navigate = useNavigate();
+  const { routes: allContextRoutes } = useRouteCatalog();
   const {
-    routes: allContextRoutes,
     selectRoute,
     selectStop,
     clearSelectedRoute,
-  } = useRoutes();
+  } = useRouteSelection();
 
   const [stopRoutes, setStopRoutes] = useState([]);
   const [loading, setLoading] = useState(true);

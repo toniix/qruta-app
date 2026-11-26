@@ -128,6 +128,29 @@ class SmartQrServiceTest {
     }
 
     @Test
+    void createForOperatorFailsWhenTargetStopBelongsToAnotherCity() {
+        UUID operatorId = UUID.randomUUID();
+        UUID stopId = UUID.randomUUID();
+        City ica = City.builder().id(UUID.randomUUID()).name("Ica").build();
+        City lima = City.builder().id(UUID.randomUUID()).name("Lima").build();
+        Operator operator = Operator.builder().id(operatorId).name("Transportes Ica").city(ica).build();
+        Stop foreignStop = Stop.builder().id(stopId).name("Paradero Lima").city(lima).build();
+
+        when(operatorRepository.findById(operatorId)).thenReturn(Optional.of(operator));
+        when(stopRepository.findById(stopId)).thenReturn(Optional.of(foreignStop));
+
+        CreateQrCodeRequest req = CreateQrCodeRequest.builder()
+                .label("QR Paradero Ajeno")
+                .targetType("STOP")
+                .targetId(stopId)
+                .build();
+
+        assertThatThrownBy(() -> service.createForOperator(operatorId, req))
+                .isInstanceOf(AccessDeniedException.class)
+                .hasMessageContaining("city");
+    }
+
+    @Test
     void updateStatusRetargetsRouteAndKeepsCodeAndCanonicalUrl() {
         UUID qrId = UUID.randomUUID();
         UUID oldRouteId = UUID.randomUUID();

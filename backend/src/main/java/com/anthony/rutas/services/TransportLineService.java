@@ -8,8 +8,11 @@ import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ResourceNotFoundException;
 import com.anthony.rutas.mappers.DtoMapper;
 import com.anthony.rutas.repositories.CityRepository;
+import com.anthony.rutas.repositories.CommunityPostRepository;
+import com.anthony.rutas.repositories.DisruptionRepository;
 import com.anthony.rutas.repositories.OperatorRepository;
 import com.anthony.rutas.repositories.TransportLineRepository;
+import com.anthony.rutas.utils.UuidUtils;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,6 +29,8 @@ public class TransportLineService {
     private final TransportLineRepository transportLineRepository;
     private final CityRepository cityRepository;
     private final OperatorRepository operatorRepository;
+    private final CommunityPostRepository communityPostRepository;
+    private final DisruptionRepository disruptionRepository;
 
     @Transactional(readOnly = true)
     public List<TransportLineResponse> findAll() {
@@ -43,7 +48,8 @@ public class TransportLineService {
 
     @Transactional
     public TransportLineResponse create(CreateTransportLineRequest request) {
-        City city = cityRepository.findById(UUID.fromString(request.getCityId()))
+        UUID cityId = UuidUtils.parseRequired(request.getCityId(), "city id");
+        City city = cityRepository.findById(cityId)
                 .orElseThrow(() -> new ResourceNotFoundException("City not found with id: " + request.getCityId()));
 
         validateUniqueCompany(city.getId(), request.getCompany(), null);
@@ -118,7 +124,7 @@ public class TransportLineService {
         if (!StringUtils.hasText(operatorId)) {
             return null;
         }
-        UUID targetId = UUID.fromString(operatorId.trim());
+        UUID targetId = UuidUtils.parseRequired(operatorId, "operator id");
         if (currentOperatorId != null && targetId.equals(currentOperatorId)) {
             return currentOperator;
         }
@@ -135,6 +141,8 @@ public class TransportLineService {
         if (!transportLineRepository.existsById(id)) {
             throw new ResourceNotFoundException("Transport line not found with id: " + id);
         }
+        communityPostRepository.detachRoutesByLineId(id);
+        disruptionRepository.deleteByRouteTransportLineId(id);
         transportLineRepository.deleteById(id);
     }
 }

@@ -1,6 +1,6 @@
 import { Route as RouteIcon, ChevronLeft, ChevronRight, AlertCircle, RefreshCw, MapPin } from "lucide-react";
 import { RouteCard } from "./RouteCard";
-import { useRoutes } from "../../contexts/RouteContext";
+import { useRouteCatalog } from "../../contexts/RouteContext";
 
 export function RouteCarousel({
   routes = [],
@@ -14,7 +14,7 @@ export function RouteCarousel({
   carouselRef,
   onScroll,
 }) {
-  const { currentCity } = useRoutes();
+  const { currentCity } = useRouteCatalog();
   const cityName = currentCity?.name || "Ica";
 
   const getCategoryTitle = () => {

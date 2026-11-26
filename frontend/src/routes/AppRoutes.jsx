@@ -1,7 +1,6 @@
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useParams } from 'react-router-dom';
 import { CitizenLayout } from '../layouts/CitizenLayout';
-import { AdminLayout } from '../layouts/AdminLayout';
 import { HomePage } from '../pages/citizen/HomePage';
 import { authService } from '../services/authService';
 import { operatorAuthService } from '../services/operatorAuthService';
@@ -44,6 +43,11 @@ const QrRedirectHandler = lazy(() =>
 );
 
 // Lazy-loaded Admin pages
+const AdminLayout = lazy(() =>
+  import('../layouts/AdminLayout').then((m) => ({
+    default: m.AdminLayout,
+  }))
+);
 const AdminLoginPage = lazy(() =>
   import('../pages/admin/AdminLoginPage').then((m) => ({
     default: m.AdminLoginPage,
@@ -159,10 +163,10 @@ function PageLoading() {
   );
 }
 
-function ProtectedAdminRoute({ children }) {
-  // Chequeo local sincrónico (existe + no expirado); la validez real la confirma /me.
+function ProtectedPortalRoute({ auth, loginPath, children }) {
+  // Synchronous local check (token presence); backend /me confirms session validity.
   const [state, setState] = useState(() =>
-    authService.getToken()
+    auth.getToken()
       ? { checking: true, allowed: false }
       : { checking: false, allowed: false },
   );
@@ -170,7 +174,7 @@ function ProtectedAdminRoute({ children }) {
   useEffect(() => {
     if (!state.checking) return;
     let cancelled = false;
-    authService
+    auth
       .me()
       .then(() => {
         if (!cancelled) setState({ checking: false, allowed: true });
@@ -181,60 +185,21 @@ function ProtectedAdminRoute({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [state.checking]);
+  }, [auth, state.checking]);
 
   if (state.checking) {
     return <PageLoading />;
   }
   if (!state.allowed) {
-    return <Navigate to="/admin/login" replace />;
+    return <Navigate to={loginPath} replace />;
   }
   return children;
 }
 
-function AdminLoginRoute({ children }) {
-  // Authenticated admins never see the login form again.
-  if (authService.isAuthenticated()) {
-    return <Navigate to="/admin/overview" replace />;
-  }
-  return children;
-}
-
-function ProtectedOperatorRoute({ children }) {
-  const [state, setState] = useState(() =>
-    operatorAuthService.getToken()
-      ? { checking: true, allowed: false }
-      : { checking: false, allowed: false }
-  );
-
-  useEffect(() => {
-    if (!state.checking) return;
-    let cancelled = false;
-    operatorAuthService
-      .me()
-      .then(() => {
-        if (!cancelled) setState({ checking: false, allowed: true });
-      })
-      .catch(() => {
-        if (!cancelled) setState({ checking: false, allowed: false });
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [state.checking]);
-
-  if (state.checking) {
-    return <PageLoading />;
-  }
-  if (!state.allowed) {
-    return <Navigate to="/operador/login" replace />;
-  }
-  return children;
-}
-
-function OperatorLoginRoute({ children }) {
-  if (operatorAuthService.isAuthenticated()) {
-    return <Navigate to="/operador/overview" replace />;
+function PortalLoginRoute({ auth, homePath, children }) {
+  // Authenticated portal users skip the login form.
+  if (auth.isAuthenticated()) {
+    return <Navigate to={homePath} replace />;
   }
   return children;
 }
@@ -273,13 +238,13 @@ export function AppRoutes() {
           <Route path="/lugares" element={<PlacesPage />} />
         </Route>
 
-        {/* ── Standalone Admin Login (noindex, fuera del layout ciudadano) ─── */}
+        {/* ── Standalone Admin Login (noindex, outside citizen layout) ─────── */}
         <Route
           path="/admin/login"
           element={
-            <AdminLoginRoute>
+            <PortalLoginRoute auth={authService} homePath="/admin/overview">
               <AdminLoginPage />
-            </AdminLoginRoute>
+            </PortalLoginRoute>
           }
         />
 
@@ -287,9 +252,9 @@ export function AppRoutes() {
         <Route
           path="/admin"
           element={
-            <ProtectedAdminRoute>
+            <ProtectedPortalRoute auth={authService} loginPath="/admin/login">
               <AdminLayout />
-            </ProtectedAdminRoute>
+            </ProtectedPortalRoute>
           }
         >
           <Route index element={<Navigate to="/admin/overview" replace />} />
@@ -308,18 +273,18 @@ export function AppRoutes() {
         <Route
           path="/operador/login"
           element={
-            <OperatorLoginRoute>
+            <PortalLoginRoute auth={operatorAuthService} homePath="/operador/overview">
               <OperatorLoginPage />
-            </OperatorLoginRoute>
+            </PortalLoginRoute>
           }
         />
 
         <Route
           path="/operador"
           element={
-            <ProtectedOperatorRoute>
+            <ProtectedPortalRoute auth={operatorAuthService} loginPath="/operador/login">
               <OperatorLayout />
-            </ProtectedOperatorRoute>
+            </ProtectedPortalRoute>
           }
         >
           <Route index element={<Navigate to="/operador/overview" replace />} />

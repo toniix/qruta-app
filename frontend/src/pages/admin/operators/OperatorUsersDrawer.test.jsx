@@ -1,8 +1,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OperatorUsersDrawer } from './OperatorUsersDrawer';
 import { adminOperatorService } from '../../../services/adminOperatorService';
+import { adminKeys } from '../../../lib/queryKeys';
+import {
+  createSharedTestQueryClient,
+  renderWithQueryClient,
+} from '../../../test/queryTestUtils';
 
 vi.mock('../../../services/adminOperatorService', () => ({
   adminOperatorService: {
@@ -27,14 +32,15 @@ const USER = {
   active: true,
 };
 
-function renderDrawer() {
-  return render(
+function renderDrawer({ onChanged = () => {}, ...options } = {}) {
+  return renderWithQueryClient(
     <OperatorUsersDrawer
       open
       operator={OPERATOR}
       onClose={() => {}}
-      onChanged={() => {}}
-    />
+      onChanged={onChanged}
+    />,
+    options,
   );
 }
 
@@ -49,7 +55,10 @@ describe('OperatorUsersDrawer', () => {
 
   it('creates a portal user with the operator id', async () => {
     const user = userEvent.setup();
-    renderDrawer();
+    const onChanged = vi.fn();
+    const sharedQueryClient = createSharedTestQueryClient();
+    const invalidateSpy = vi.spyOn(sharedQueryClient, 'invalidateQueries');
+    renderDrawer({ queryClient: sharedQueryClient, onChanged });
 
     expect(await screen.findByText('ana@expreso.pe')).toBeTruthy();
 
@@ -68,6 +77,13 @@ describe('OperatorUsersDrawer', () => {
         password: 'temporal123',
       })
     );
+    await vi.waitFor(() => {
+      expect(invalidateSpy).toHaveBeenCalledWith({
+        queryKey: adminKeys.operatorUsers('operator-1'),
+      });
+      expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.operators() });
+      expect(onChanged).toHaveBeenCalledTimes(1);
+    });
   });
 
   it('resets a user password', async () => {

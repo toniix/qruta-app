@@ -11,8 +11,6 @@ import java.util.UUID;
 
 public interface OperatorUserRepository extends JpaRepository<OperatorUser, UUID> {
 
-    Optional<OperatorUser> findByEmailIgnoreCase(String email);
-
     boolean existsByEmailIgnoreCase(String email);
 
     boolean existsByEmailIgnoreCaseAndIdNot(String email, UUID id);

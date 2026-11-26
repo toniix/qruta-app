@@ -219,7 +219,7 @@ class OperatorPortalServiceTest {
         UpdateRouteDirectionsRequest request = UpdateRouteDirectionsRequest.builder()
                 .directions(List.of(
                         UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder().direction("IDA").build(),
-                        UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder().direction("REGRESO").build()))
+                        UpdateRouteDirectionsRequest.DirectionUpdateRequest.builder().direction("VUELTA").build()))
                 .build();
         RouteDetailResponse expected = RouteDetailResponse.builder().id(ROUTE_ID).build();
         when(routeRepository.findByIdAndOperatorId(ROUTE_ID, OPERATOR_ID))

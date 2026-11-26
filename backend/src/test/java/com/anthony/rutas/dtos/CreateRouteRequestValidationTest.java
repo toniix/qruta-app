@@ -8,10 +8,12 @@ import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import jakarta.validation.ValidatorFactory;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
@@ -37,6 +39,13 @@ class CreateRouteRequestValidationTest {
     static void setUp() {
         factory = Validation.buildDefaultValidatorFactory();
         validator = factory.getValidator();
+    }
+
+    @AfterAll
+    static void tearDown() {
+        if (factory != null) {
+            factory.close();
+        }
     }
 
     private Set<String> violatedPaths(CreateRouteRequest request) {
@@ -113,5 +122,81 @@ class CreateRouteRequestValidationTest {
         request.getDirections().get(0).getRoutePoints().get(0).setLatitude(null);
 
         assertTrue(violatedPaths(request).contains("directions[0].routePoints[0].latitude"));
+    }
+
+    @Test
+    @DisplayName("Should reject coordinates outside WGS84 range")
+    void shouldRejectOutOfRangeCoordinates() {
+        CreateRouteRequest request = validRequest();
+        request.getDirections().get(0).getRoutePoints().get(0).setLatitude(91.0);
+
+        assertTrue(violatedPaths(request).contains("directions[0].routePoints[0].latitude"));
+    }
+
+    @Test
+    @DisplayName("Should reject duplicate point order inside a direction")
+    void shouldRejectDuplicatePointOrder() {
+        CreateRouteRequest request = validRequest();
+        RouteDirectionRequest direction = request.getDirections().get(0);
+        direction.setRoutePoints(List.of(
+                direction.getRoutePoints().get(0),
+                RoutePointItemRequest.builder().pointOrder(1).latitude(-14.07).longitude(-75.73).build()));
+
+        assertTrue(violatedPaths(request).contains("directions[0].pointOrderUnique"));
+    }
+
+    @Test
+    @DisplayName("Should reject the same stop twice inside a direction")
+    void shouldRejectDuplicateStop() {
+        CreateRouteRequest request = validRequest();
+        RouteDirectionRequest direction = request.getDirections().get(0);
+        direction.setStops(List.of(
+                direction.getStops().get(0),
+                RouteStopItemRequest.builder().stopId(stopId).stopOrder(2).build()));
+
+        assertTrue(violatedPaths(request).contains("directions[0].stopIdUnique"));
+    }
+
+    @Test
+    @DisplayName("Should reject legacy direction values")
+    void shouldRejectLegacyDirectionValue() {
+        CreateRouteRequest request = validRequest();
+        request.getDirections().get(0).setDirection("OUTBOUND");
+
+        assertTrue(violatedPaths(request).contains("directions[0].direction"));
+    }
+
+    @Test
+    @DisplayName("Should reject two directions with the same value")
+    void shouldRejectDuplicateDirectionValue() {
+        CreateRouteRequest request = validRequest();
+        request.setDirections(List.of(
+                request.getDirections().get(0),
+                RouteDirectionRequest.builder().direction("IDA").build()));
+
+        assertTrue(violatedPaths(request).contains("directionValuesUnique"));
+    }
+
+    @Test
+    @DisplayName("Should reject duplicate stop order inside a direction")
+    void shouldRejectDuplicateStopOrder() {
+        CreateRouteRequest request = validRequest();
+        RouteDirectionRequest direction = request.getDirections().get(0);
+        direction.setStops(List.of(
+                direction.getStops().get(0),
+                RouteStopItemRequest.builder().stopId(UUID.randomUUID().toString()).stopOrder(1).build()));
+
+        assertTrue(violatedPaths(request).contains("directions[0].stopOrderUnique"));
+    }
+
+    @Test
+    @DisplayName("Should reject null list elements without throwing NPE")
+    void shouldRejectNullListElementsSafely() {
+        CreateRouteRequest request = validRequest();
+        List<RouteDirectionRequest> directions = new ArrayList<>();
+        directions.add(null);
+        request.setDirections(directions);
+
+        assertFalse(validator.validate(request).isEmpty());
     }
 }

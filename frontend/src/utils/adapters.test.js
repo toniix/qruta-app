@@ -71,6 +71,18 @@ describe('normalizeRoute category', () => {
     expect(route.transportLineName).toBe('Empresa San Jerónimo');
   });
 
+  it('populates transportLineName and transportLineId from RouteDetailResponse transportLine.name', () => {
+    const route = normalizeRoute({
+      id: 'route-3b',
+      code: 'R103B',
+      name: 'Ruta 103B',
+      transportLine: { id: 'line-9', name: 'Empresa Detalle' },
+    });
+
+    expect(route.transportLineId).toBe('line-9');
+    expect(route.transportLineName).toBe('Empresa Detalle');
+  });
+
   it('prefers raw transportLineName over transportLine.company', () => {
     const route = normalizeRoute({
       id: 'route-4',
@@ -81,5 +93,20 @@ describe('normalizeRoute category', () => {
     });
 
     expect(route.transportLineName).toBe('Empresa Principal');
+  });
+
+  it('normalizes legacy OUTBOUND/INBOUND and lowercase directions to IDA/VUELTA', () => {
+    const route = normalizeRoute({
+      id: 'route-5',
+      code: 'R105',
+      name: 'Ruta 105',
+      directions: [
+        { id: 'd1', direction: 'OUTBOUND', stops: [] },
+        { id: 'd2', direction: 'inbound', stops: [] },
+      ],
+    });
+
+    expect(route.directions[0].direction).toBe('IDA');
+    expect(route.directions[1].direction).toBe('VUELTA');
   });
 });

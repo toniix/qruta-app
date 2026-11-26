@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Home, Map, Route, MessageSquare, MapPin } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
-import { useRoutes } from '../../contexts/RouteContext';
+import { useRouteSelection } from '../../contexts/RouteContext';
 import { prefetchRoute, scheduleIdlePrefetch } from '../../utils/routePrefetch';
 
 const NAV_ITEMS = [
@@ -16,7 +16,7 @@ const NAV_ITEMS = [
 export function BottomNav() {
   const location = useLocation();
   const navigate = useNavigate();
-  const { selectedRoute } = useRoutes();
+  const { selectedRoute } = useRouteSelection();
   const [optimisticNav, setOptimisticNav] = useState(null);
   const [prevPath, setPrevPath] = useState(location.pathname);
 

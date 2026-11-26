@@ -89,21 +89,7 @@ public class GtfsService {
     }
 
     public static String slugify(String value) {
-        if (value == null || value.isBlank()) {
-            return "";
-        }
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFD)
-                .replaceAll("\\p{InCombiningDiacriticalMarks}+", "")
-                .toLowerCase(Locale.ROOT)
-                .replaceAll("[^a-z0-9]+", "-")
-                .replaceAll("-+", "-");
-        return normalized.startsWith("-") ? normalized.substring(1) : normalized.endsWith("-")
-                ? normalized.substring(0, normalized.length() - 1)
-                : normalized;
-    }
-
-    public static String toSlug(String value) {
-        return slugify(value);
+        return com.anthony.rutas.utils.SlugUtils.toCitySlug(value);
     }
 
     private CatalogSnapshot loadCatalog(String slug) {
@@ -162,7 +148,7 @@ public class GtfsService {
                 appendCollection(raw, catalog.pointsByDirection().getOrDefault(direction.getId(), List.of()));
             });
         });
-        return Integer.toHexString(raw.toString().hashCode());
+        return com.anthony.rutas.utils.HashUtils.sha256Hex(raw.toString()).substring(0, 16);
     }
 
     private byte[] buildZip(CatalogSnapshot catalog) {
@@ -180,7 +166,7 @@ public class GtfsService {
                 if (directions.isEmpty()) {
                     String routeId = id(route.getId());
                     routeRows.add(routeRow(routeId, route.getCode(), route.getName(), route.getColor()));
-                    trips.add(new TripInfo(routeId, routeId, route.getName(), null, null, List.of()));
+                    trips.add(new TripInfo(routeId, routeId, route.getName(), null, null, null, List.of()));
                     continue;
                 }
                 for (RouteDirection direction : directions) {
@@ -189,7 +175,7 @@ public class GtfsService {
                     routeRows.add(routeRow(routeId, route.getCode(), route.getName() + " - " + headsign, route.getColor()));
                     List<RouteStop> routeStops = catalog.stopsByDirection().getOrDefault(direction.getId(), List.of());
                     trips.add(new TripInfo(id(direction.getId()), routeId, headsign, direction.getId(),
-                            direction.getEstimatedMinutes(), routeStops));
+                            direction.getDirection(), direction.getEstimatedMinutes(), routeStops));
                     shapeRows.addAll(shapeRows(catalog, direction,
                             catalog.pointsByDirection().getOrDefault(direction.getId(), List.of())));
                 }
@@ -231,7 +217,9 @@ public class GtfsService {
     private String tripRows(List<TripInfo> trips) {
         StringBuilder builder = new StringBuilder();
         for (TripInfo trip : trips) {
-            String directionId = trip.directionId() == null ? "" : "0";
+            String directionId = trip.directionId() == null
+                    ? ""
+                    : ("VUELTA".equals(trip.direction()) ? "1" : "0");
             String shapeId = trip.directionId() == null ? "" : id(trip.directionId());
             builder.append(csvRow(trip.routeId(), SERVICE_ID, trip.tripId(), trip.headsign(), directionId, shapeId));
         }
@@ -424,6 +412,6 @@ public class GtfsService {
     }
 
     private record TripInfo(String tripId, String routeId, String headsign, UUID directionId,
-                            Integer estimatedMinutes, List<RouteStop> routeStops) {
+                            String direction, Integer estimatedMinutes, List<RouteStop> routeStops) {
     }
 }

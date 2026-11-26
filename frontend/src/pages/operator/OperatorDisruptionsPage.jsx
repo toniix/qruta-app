@@ -1,19 +1,19 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Plus, Trash2, TriangleAlert } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
 import { AdminDrawer } from '../../components/admin/common/AdminDrawer';
 import { ConfirmDialog } from '../../components/admin/common/ConfirmDialog';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorPortalService } from '../../services/operatorPortalService';
+import { DISRUPTION_TYPES } from '../../utils/disruptionConstants';
+import { formatDateTime } from '../../utils/dateUtils';
 
-export const DISRUPTION_TYPES = [
-  { value: 'DESVIO', label: 'Desvío de ruta' },
-  { value: 'CORTE', label: 'Corte de vía / tránsito' },
-  { value: 'HORARIO', label: 'Cambio de horario' },
-  { value: 'PARADERO', label: 'Paradero inhabilitado' },
-  { value: 'OTRO', label: 'Otro comunicado' },
-];
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 const emptyForm = {
   routeId: '',
@@ -24,45 +24,39 @@ const emptyForm = {
   active: true,
 };
 
-function formatDateTime(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? String(value) : date.toLocaleString('es-AR');
-}
-
 export function OperatorDisruptionsPage() {
   const toast = useAdminToast();
-  const [disruptions, setDisruptions] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
   const [form, setForm] = useState(emptyForm);
-  const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(null);
-  const [deleteLoading, setDeleteLoading] = useState(false);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [disruptionData, routeData] = await Promise.all([
-        operatorPortalService.getDisruptions(),
-        operatorPortalService.getRoutes(),
-      ]);
-      setDisruptions(disruptionData);
-      setRoutes(routeData);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'No se pudieron cargar los desvíos');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const disruptionsQuery = useQuery({
+    queryKey: operatorKeys.disruptions(),
+    queryFn: () => operatorPortalService.getDisruptions(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
 
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const routesQuery = useQuery({
+    queryKey: operatorKeys.routes(),
+    queryFn: () => operatorPortalService.getRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const disruptions = disruptionsQuery.data ?? EMPTY_LIST;
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const loading = disruptionsQuery.isPending || routesQuery.isPending;
+  const firstError = disruptionsQuery.error || routesQuery.error;
+  const error = firstError
+    ? firstError.response?.data?.message || firstError.message || 'No se pudieron cargar los desvíos'
+    : null;
+
+  const handleRetry = () => {
+    void Promise.all([disruptionsQuery.refetch(), routesQuery.refetch()]);
+  };
 
   const openCreate = () => {
     setEditing(null);
@@ -83,55 +77,85 @@ export function OperatorDisruptionsPage() {
     setDrawerOpen(true);
   };
 
-  const handleSave = async (event) => {
+  const saveDisruptionMutation = useMutation({
+    mutationFn: ({ editingId, payload }) =>
+      editingId
+        ? operatorPortalService.updateDisruption(editingId, payload)
+        : operatorPortalService.createDisruption(payload),
+    onSuccess: async (saved, { editingId }) => {
+      if (editingId) {
+        queryClient.setQueryData(operatorKeys.disruptions(), (prev) =>
+          Array.isArray(prev)
+            ? prev.map((item) => (item.id === editingId ? { ...item, ...saved } : item))
+            : prev,
+        );
+        toast.success('Desvío actualizado');
+      } else {
+        queryClient.setQueryData(operatorKeys.disruptions(), (prev) =>
+          Array.isArray(prev) ? [saved, ...prev] : [saved],
+        );
+        toast.success('Desvío creado');
+      }
+      setDrawerOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.disruptions() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || err.message || 'No se pudo guardar el desvío');
+    },
+  });
+
+  const deleteDisruptionMutation = useMutation({
+    mutationFn: (id) => operatorPortalService.deleteDisruption(id),
+    onSuccess: async (_result, id) => {
+      queryClient.setQueryData(operatorKeys.disruptions(), (prev) =>
+        Array.isArray(prev) ? prev.filter((item) => item.id !== id) : prev,
+      );
+      toast.success('Desvío eliminado');
+      setDeleting(null);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.disruptions() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || err.message || 'No se pudo eliminar el desvío');
+    },
+  });
+
+  const handleSave = (event) => {
     event.preventDefault();
-    setSaving(true);
-    try {
-      if (editing) {
-        const updated = await operatorPortalService.updateDisruption(editing.id, {
+    if (editing) {
+      saveDisruptionMutation.mutate({
+        editingId: editing.id,
+        payload: {
           type: form.type,
           description: form.description,
           startsAt: form.startsAt,
           endsAt: form.endsAt || null,
           active: form.active,
-        });
-        setDisruptions((prev) =>
-          prev.map((item) => (item.id === editing.id ? { ...item, ...updated } : item))
-        );
-        toast.success('Desvío actualizado');
-      } else {
-        const created = await operatorPortalService.createDisruption({
+        },
+      });
+    } else {
+      saveDisruptionMutation.mutate({
+        editingId: null,
+        payload: {
           routeId: form.routeId,
           type: form.type,
           description: form.description,
           startsAt: form.startsAt,
           endsAt: form.endsAt || null,
           active: form.active,
-        });
-        setDisruptions((prev) => [created, ...prev]);
-        toast.success('Desvío creado');
-      }
-      setDrawerOpen(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'No se pudo guardar el desvío');
-    } finally {
-      setSaving(false);
+        },
+      });
     }
   };
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     if (!deleting) return;
-    setDeleteLoading(true);
-    try {
-      await operatorPortalService.deleteDisruption(deleting.id);
-      setDisruptions((prev) => prev.filter((item) => item.id !== deleting.id));
-      toast.success('Desvío eliminado');
-      setDeleting(null);
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'No se pudo eliminar el desvío');
-    } finally {
-      setDeleteLoading(false);
-    }
+    deleteDisruptionMutation.mutate(deleting.id);
   };
 
   return (
@@ -154,7 +178,7 @@ export function OperatorDisruptionsPage() {
       {loading ? (
         <OperatorStatePanel loading />
       ) : error ? (
-        <OperatorStatePanel error={error} title="No se pudieron cargar los desvíos" onRetry={load} />
+        <OperatorStatePanel error={error} title="No se pudieron cargar los desvíos" onRetry={handleRetry} />
       ) : disruptions.length === 0 ? (
         <OperatorStatePanel
           title="No hay desvíos registrados"
@@ -230,7 +254,7 @@ export function OperatorDisruptionsPage() {
         subtitle="Datos de la alteración del servicio"
         icon={TriangleAlert}
         onSubmit={handleSave}
-        loading={saving}
+        loading={saveDisruptionMutation.isPending}
       >
         {!editing && (
           <div>
@@ -319,7 +343,7 @@ export function OperatorDisruptionsPage() {
         confirmLabel="Eliminar"
         cancelLabel="Cancelar"
         tone="danger"
-        loading={deleteLoading}
+        loading={deleteDisruptionMutation.isPending}
         onCancel={() => setDeleting(null)}
         onConfirm={handleDelete}
       />

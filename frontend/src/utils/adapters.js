@@ -33,6 +33,16 @@ export function normalizeStop(raw) {
 }
 
 /**
+ * Normalizes a direction string to canonical "IDA" or "VUELTA"
+ */
+function normalizeDirectionValue(value) {
+  const upper = String(value || "").trim().toUpperCase();
+  if (upper === "OUTBOUND" || upper === "IDA") return "IDA";
+  if (upper === "INBOUND" || upper === "VUELTA") return "VUELTA";
+  return upper || "IDA";
+}
+
+/**
  * Normalizes a Route Direction entity (Ida / Vuelta)
  */
 export function normalizeRouteDirection(raw) {
@@ -55,7 +65,7 @@ export function normalizeRouteDirection(raw) {
 
   return {
     id: raw.id,
-    direction: raw.direction || "OUTBOUND",
+    direction: normalizeDirectionValue(raw.direction),
     originName: raw.originName || stops[0]?.name || "Origen",
     destinationName: raw.destinationName || stops[stops.length - 1]?.name || "Destino",
     totalDistanceKm: raw.totalDistanceKm != null ? Number(raw.totalDistanceKm) : null,
@@ -107,8 +117,12 @@ export function normalizeRoute(raw) {
     status: raw.status || "ACTIVE",
     schedule: typeof raw.schedule === "string" ? raw.schedule : raw.schedule?.hours || "",
     frequency: typeof raw.frequency === "string" ? raw.frequency : raw.schedule?.frequency || "",
-    transportLineId: raw.transportLineId || null,
-    transportLineName: raw.transportLineName || raw.transportLine?.company || "",
+    transportLineId: raw.transportLineId || raw.transportLine?.id || null,
+    transportLineName:
+      raw.transportLineName ||
+      raw.transportLine?.name ||
+      raw.transportLine?.company ||
+      "",
     cityId: raw.cityId || null,
     cityName: raw.cityName || "",
     keyStops,

@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useId, useMemo, useRef } from 'react';
 import { X, QrCode as QrIcon, Loader2, Sparkles } from 'lucide-react';
-import { generateQrSvg, resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
+import { QrCodeSvg } from '../../common/QrCodeSvg';
+import { resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 
 // Stable identities for default props. Storing them at module scope keeps the
 // initialization effect from re-running on every render when a consumer omits
@@ -51,6 +52,11 @@ export function QrFormModal({
   });
 
   const [errors, setErrors] = useState({});
+  const dialogRef = useRef(null);
+  const titleId = useId();
+  const labelErrorId = useId();
+  const cityErrorId = useId();
+  const targetErrorId = useId();
 
   // Initialize once per open cycle. Later prop updates (e.g. data finishing its
   // load while the modal is open) must not wipe what the admin already typed.
@@ -82,6 +88,26 @@ export function QrFormModal({
   // lists stay available, preserving operator behaviour.
   const routesForPicker = cityFilterEnabled ? routesInCity : routes;
   const stopsForPicker = cityFilterEnabled ? stopsInCity : stops;
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const dialog = dialogRef.current;
+    if (!dialog) return undefined;
+
+    const previousActive = document.activeElement;
+    if (!dialog.open) {
+      dialog.showModal();
+    }
+
+    return () => {
+      if (dialog.open) {
+        dialog.close();
+      }
+      if (previousActive instanceof HTMLElement && previousActive.isConnected) {
+        previousActive.focus();
+      }
+    };
+  }, [open]);
 
   useEffect(() => {
     if (!open) {
@@ -158,6 +184,22 @@ export function QrFormModal({
 
   if (!open) return null;
 
+  const handleDialogCancel = (event) => {
+    event.preventDefault();
+    if (!saving) {
+      onClose();
+    }
+  };
+
+  const handleBackdropClick = (event) => {
+    if (typeof HTMLDialogElement !== 'undefined' && 'closedBy' in HTMLDialogElement.prototype) {
+      return;
+    }
+    if (event.target === dialogRef.current && !saving) {
+      onClose();
+    }
+  };
+
   const handleCityChange = (nextCityId) => {
     setFormData((prev) => ({
       ...prev,
@@ -211,22 +253,28 @@ export function QrFormModal({
     });
   };
 
-  // Generate live preview preview URL
+  // Generate live preview URL
   const previewSlug = initialData?.code || 'PREVIEW';
   const previewUrl = resolveAbsoluteQrUrl(initialData || previewSlug);
-  const previewSvg = generateQrSvg(previewUrl, { margin: 1 });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm overflow-y-auto">
-      <div className="relative w-full max-w-2xl rounded-2xl bg-white shadow-2xl overflow-hidden border border-slate-200">
+    <dialog
+      ref={dialogRef}
+      aria-labelledby={titleId}
+      closedby={saving ? 'none' : 'any'}
+      onCancel={handleDialogCancel}
+      onClick={handleBackdropClick}
+      className="m-auto w-[calc(100%-2rem)] max-w-2xl overflow-visible bg-transparent p-0 backdrop:bg-slate-900/60 backdrop:backdrop-blur-sm"
+    >
+      <div className="max-h-[calc(100dvh-2rem)] overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl">
         {/* Header */}
-        <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4">
           <div className="flex items-center gap-2">
             <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-50 text-blue-600">
-              <QrIcon className="h-4 w-4" />
+              <QrIcon className="h-4 w-4" aria-hidden="true" />
             </span>
             <div>
-              <h3 className="text-sm font-bold text-slate-900">
+              <h3 id={titleId} className="text-sm font-bold text-slate-900">
                 {initialData ? 'Editar Código QR' : 'Crear Código QR Inteligente'}
               </h3>
               <p className="text-[11px] text-slate-500">
@@ -237,29 +285,39 @@ export function QrFormModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition"
+            disabled={saving}
+            aria-label="Cerrar"
+            className="rounded-lg p-1.5 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600 disabled:opacity-40"
           >
-            <X className="h-4 w-4" />
+            <X className="h-4 w-4" aria-hidden="true" />
           </button>
         </div>
 
         {/* Form Body */}
         <form onSubmit={handleSubmit} className="p-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
             {/* Left 2 cols: inputs */}
-            <div className="md:col-span-2 space-y-4">
+            <div className="space-y-4 md:col-span-2">
               <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">
-                  Etiqueta / Nombre <span className="text-rose-500">*</span>
+                <label htmlFor="qr-label" className="mb-1 block text-xs font-bold text-slate-700">
+                  Etiqueta / Nombre <span className="text-rose-500" aria-hidden="true">*</span>
                 </label>
                 <input
+                  id="qr-label"
+                  name="label"
                   type="text"
                   value={formData.label}
                   onChange={(e) => setFormData({ ...formData, label: e.target.value })}
                   placeholder="Ej. Afiche Paradero Plaza Bolognesi"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                  aria-invalid={Boolean(errors.label)}
+                  aria-describedby={errors.label ? labelErrorId : undefined}
+                  className="w-full rounded-xl border border-slate-200 px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                 />
-                {errors.label && <p className="mt-1 text-[11px] text-rose-500">{errors.label}</p>}
+                {errors.label && (
+                  <p id={labelErrorId} role="alert" className="mt-1 text-[11px] text-rose-500">
+                    {errors.label}
+                  </p>
+                )}
               </div>
 
               {/* City scoping — must be chosen before picking a target */}
@@ -267,16 +325,19 @@ export function QrFormModal({
                 <div>
                   <label
                     htmlFor="qr-city"
-                    className="block text-xs font-bold text-slate-700 mb-1"
+                    className="mb-1 block text-xs font-bold text-slate-700"
                   >
                     Ciudad{' '}
-                    {requiresTarget && <span className="text-rose-500">*</span>}
+                    {requiresTarget && <span className="text-rose-500" aria-hidden="true">*</span>}
                   </label>
                   <select
                     id="qr-city"
+                    name="cityId"
                     value={formData.cityId}
                     onChange={(e) => handleCityChange(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                    aria-invalid={Boolean(errors.cityId)}
+                    aria-describedby={errors.cityId ? cityErrorId : undefined}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                   >
                     <option value="">Seleccione una ciudad...</option>
                     {cities.map((city) => (
@@ -286,7 +347,7 @@ export function QrFormModal({
                     ))}
                   </select>
                   {errors.cityId ? (
-                    <p className="mt-1 text-[11px] text-rose-500">
+                    <p id={cityErrorId} role="alert" className="mt-1 text-[11px] text-rose-500">
                       {errors.cityId}
                     </p>
                   ) : (
@@ -302,15 +363,16 @@ export function QrFormModal({
                 <div>
                   <label
                     htmlFor="qr-target-type"
-                    className="block text-xs font-bold text-slate-700 mb-1"
+                    className="mb-1 block text-xs font-bold text-slate-700"
                   >
-                    Tipo de Destino <span className="text-rose-500">*</span>
+                    Tipo de Destino <span className="text-rose-500" aria-hidden="true">*</span>
                   </label>
                   <select
                     id="qr-target-type"
+                    name="targetType"
                     value={formData.targetType}
                     onChange={(e) => handleTargetTypeChange(e.target.value)}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                   >
                     <option value="ROUTE">Ruta específica</option>
                     <option value="STOP">Paradero específico</option>
@@ -324,16 +386,19 @@ export function QrFormModal({
                   <div>
                     <label
                       htmlFor="qr-target-route"
-                      className="block text-xs font-bold text-slate-700 mb-1"
+                      className="mb-1 block text-xs font-bold text-slate-700"
                     >
-                      Seleccionar Ruta <span className="text-rose-500">*</span>
+                      Seleccionar Ruta <span className="text-rose-500" aria-hidden="true">*</span>
                     </label>
                     <select
                       id="qr-target-route"
+                      name="targetId"
                       value={formData.targetId}
                       disabled={cityFilterEnabled && !formData.cityId}
                       onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                      aria-invalid={Boolean(errors.targetId)}
+                      aria-describedby={errors.targetId ? targetErrorId : undefined}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     >
                       <option value="">Seleccione una ruta...</option>
                       {routesForPicker.map((r) => (
@@ -343,7 +408,9 @@ export function QrFormModal({
                       ))}
                     </select>
                     {errors.targetId ? (
-                      <p className="mt-1 text-[11px] text-rose-500">{errors.targetId}</p>
+                      <p id={targetErrorId} role="alert" className="mt-1 text-[11px] text-rose-500">
+                        {errors.targetId}
+                      </p>
                     ) : (
                       cityFilterEnabled &&
                       formData.cityId &&
@@ -360,16 +427,19 @@ export function QrFormModal({
                   <div>
                     <label
                       htmlFor="qr-target-stop"
-                      className="block text-xs font-bold text-slate-700 mb-1"
+                      className="mb-1 block text-xs font-bold text-slate-700"
                     >
-                      Seleccionar Paradero <span className="text-rose-500">*</span>
+                      Seleccionar Paradero <span className="text-rose-500" aria-hidden="true">*</span>
                     </label>
                     <select
                       id="qr-target-stop"
+                      name="targetId"
                       value={formData.targetId}
                       disabled={cityFilterEnabled && !formData.cityId}
                       onChange={(e) => setFormData({ ...formData, targetId: e.target.value })}
-                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
+                      aria-invalid={Boolean(errors.targetId)}
+                      aria-describedby={errors.targetId ? targetErrorId : undefined}
+                      className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20 disabled:cursor-not-allowed disabled:bg-slate-50 disabled:text-slate-400"
                     >
                       <option value="">Seleccione un paradero...</option>
                       {stopsForPicker.map((s) => (
@@ -379,7 +449,9 @@ export function QrFormModal({
                       ))}
                     </select>
                     {errors.targetId ? (
-                      <p className="mt-1 text-[11px] text-rose-500">{errors.targetId}</p>
+                      <p id={targetErrorId} role="alert" className="mt-1 text-[11px] text-rose-500">
+                        {errors.targetId}
+                      </p>
                     ) : (
                       cityFilterEnabled &&
                       formData.cityId &&
@@ -396,13 +468,18 @@ export function QrFormModal({
               {/* Operator assignment (Admin only) */}
               {!isOperator && operators.length > 0 && (
                 <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">
+                  <label
+                    htmlFor="qr-operator"
+                    className="mb-1 block text-xs font-bold text-slate-700"
+                  >
                     Operador Asignado (Opcional)
                   </label>
                   <select
+                    id="qr-operator"
+                    name="operatorId"
                     value={formData.operatorId}
                     onChange={(e) => setFormData({ ...formData, operatorId: e.target.value })}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-600"
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs text-slate-900 focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                   >
                     <option value="">Ninguno (Administración Global QRuta)</option>
                     {operators.map((op) => (
@@ -415,14 +492,21 @@ export function QrFormModal({
               )}
 
               {/* Campaign attribution */}
-              <div className="pt-2 border-t border-slate-100">
-                <p className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2">
+              <div className="border-t border-slate-100 pt-2">
+                <p className="mb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400">
                   Atribución y Campaña (Opcional)
                 </p>
                 <div className="grid grid-cols-3 gap-2">
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Fuente</label>
+                    <label
+                      htmlFor="qr-campaign-source"
+                      className="mb-0.5 block text-[11px] font-medium text-slate-600"
+                    >
+                      Fuente
+                    </label>
                     <input
+                      id="qr-campaign-source"
+                      name="campaignSource"
                       type="text"
                       value={formData.campaignSource}
                       onChange={(e) => setFormData({ ...formData, campaignSource: e.target.value })}
@@ -431,8 +515,15 @@ export function QrFormModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Soporte</label>
+                    <label
+                      htmlFor="qr-campaign-medium"
+                      className="mb-0.5 block text-[11px] font-medium text-slate-600"
+                    >
+                      Soporte
+                    </label>
                     <input
+                      id="qr-campaign-medium"
+                      name="campaignMedium"
                       type="text"
                       value={formData.campaignMedium}
                       onChange={(e) => setFormData({ ...formData, campaignMedium: e.target.value })}
@@ -441,8 +532,15 @@ export function QrFormModal({
                     />
                   </div>
                   <div>
-                    <label className="block text-[11px] font-medium text-slate-600 mb-0.5">Campaña</label>
+                    <label
+                      htmlFor="qr-campaign-name"
+                      className="mb-0.5 block text-[11px] font-medium text-slate-600"
+                    >
+                      Campaña
+                    </label>
                     <input
+                      id="qr-campaign-name"
+                      name="campaignName"
                       type="text"
                       value={formData.campaignName}
                       onChange={(e) => setFormData({ ...formData, campaignName: e.target.value })}
@@ -455,45 +553,52 @@ export function QrFormModal({
             </div>
 
             {/* Right col: Live preview */}
-            <div className="flex flex-col items-center justify-center p-4 bg-slate-50 rounded-2xl border border-slate-200 text-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-2 flex items-center gap-1">
-                <Sparkles className="h-3 w-3 text-amber-500" />
+            <div className="flex flex-col items-center justify-center rounded-2xl border border-slate-200 bg-slate-50 p-4 text-center">
+              <span className="mb-2 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                <Sparkles className="h-3 w-3 text-amber-500" aria-hidden="true" />
                 Vista Previa
               </span>
-              <div
-                className="w-36 h-36 bg-white p-2 rounded-xl border border-slate-200 shadow-sm flex items-center justify-center mb-3"
-                dangerouslySetInnerHTML={{ __html: previewSvg }}
-              />
-              <p className="text-[11px] font-bold text-slate-800 line-clamp-1">
+              <div className="mb-3 flex h-36 w-36 items-center justify-center rounded-xl border border-slate-200 bg-white p-2 shadow-sm">
+                <QrCodeSvg
+                  value={previewUrl}
+                  margin={1}
+                  label={
+                    formData.label
+                      ? `Vista previa de código QR para ${formData.label}`
+                      : 'Vista previa de código QR'
+                  }
+                />
+              </div>
+              <p className="line-clamp-1 text-[11px] font-bold text-slate-800">
                 {formData.label || 'Nombre del QR'}
               </p>
-              <p className="text-[10px] text-blue-600 mt-0.5 font-mono">
+              <p className="mt-0.5 font-mono text-[10px] text-blue-600">
                 /q/{previewSlug}
               </p>
             </div>
           </div>
 
           {/* Footer Actions */}
-          <div className="mt-6 flex items-center justify-center gap-2.5 pt-4 border-t border-slate-100">
+          <div className="mt-6 flex items-center justify-center gap-2.5 border-t border-slate-100 pt-4">
             <button
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 hover:bg-slate-50 transition"
+              className="rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-600 transition hover:bg-slate-50"
             >
               Cancelar
             </button>
             <button
               type="submit"
               disabled={saving}
-              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white hover:bg-blue-700 shadow-sm transition disabled:opacity-50"
+              className="inline-flex items-center gap-1.5 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
             >
-              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+              {saving ? <Loader2 className="h-3.5 w-3.5 animate-spin" aria-hidden="true" /> : null}
               <span>{initialData ? 'Guardar Cambios' : 'Generar QR'}</span>
             </button>
           </div>
         </form>
       </div>
-    </div>
+    </dialog>
   );
 }

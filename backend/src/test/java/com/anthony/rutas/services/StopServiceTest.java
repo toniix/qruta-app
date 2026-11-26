@@ -3,6 +3,9 @@ package com.anthony.rutas.services;
 import com.anthony.rutas.dtos.request.CreateStopRequest;
 import com.anthony.rutas.dtos.response.StopResponse;
 import com.anthony.rutas.entities.City;
+import com.anthony.rutas.entities.Route;
+import com.anthony.rutas.entities.RouteDirection;
+import com.anthony.rutas.entities.RouteStop;
 import com.anthony.rutas.entities.Stop;
 import com.anthony.rutas.exceptions.BadRequestException;
 import com.anthony.rutas.exceptions.ConflictException;
@@ -17,9 +20,11 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.locationtech.jts.geom.Coordinate;
 import org.locationtech.jts.geom.GeometryFactory;
+import org.locationtech.jts.geom.PrecisionModel;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
+import org.mockito.Spy;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.mock.web.MockMultipartFile;
 
@@ -35,7 +40,7 @@ import static org.mockito.Mockito.*;
 @ExtendWith(MockitoExtension.class)
 class StopServiceTest {
 
-    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory();
+    private static final GeometryFactory GEOMETRY_FACTORY = new GeometryFactory(new PrecisionModel(), 4326);
 
     @Mock
     private StopRepository stopRepository;
@@ -49,6 +54,8 @@ class StopServiceTest {
     private SupabaseStorageService storageService;
     @Mock
     private ImageProcessingService imageProcessingService;
+    @Spy
+    private GeometryFactory geometryFactory = GEOMETRY_FACTORY;
 
     @InjectMocks
     private StopService stopService;
@@ -69,6 +76,53 @@ class StopServiceTest {
                 .name("Paradero")
                 .location(GEOMETRY_FACTORY.createPoint(new Coordinate(-75.72, -14.06)))
                 .build();
+    }
+
+    private void mockRoutesForStop(UUID stopId, Stop stop, String... directionValues) {
+        Route route = Route.builder().id(UUID.randomUUID()).code("R1").name("Ruta 1").build();
+        List<RouteStop> routeStops = java.util.Arrays.stream(directionValues)
+                .map(value -> RouteStop.builder()
+                        .direction(RouteDirection.builder().route(route).direction(value).build())
+                        .stop(stop)
+                        .stopOrder(1)
+                        .build())
+                .toList();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(routeStopRepository.findWithDirectionAndRouteByStopId(stopId)).thenReturn(routeStops);
+    }
+
+    @Test
+    @DisplayName("Derives IDA label for a one-way outbound route")
+    void shouldDeriveIdaLabel() {
+        UUID stopId = UUID.randomUUID();
+        mockRoutesForStop(stopId, stopWithLocation(stopId), "IDA");
+
+        var result = stopService.findRoutesByStop(stopId);
+
+        assertEquals(1, result.size());
+        assertEquals("IDA", result.get(0).getDirectionLabel());
+    }
+
+    @Test
+    @DisplayName("Derives VUELTA label for a one-way inbound route")
+    void shouldDeriveVueltaLabel() {
+        UUID stopId = UUID.randomUUID();
+        mockRoutesForStop(stopId, stopWithLocation(stopId), "VUELTA");
+
+        var result = stopService.findRoutesByStop(stopId);
+
+        assertEquals("VUELTA", result.get(0).getDirectionLabel());
+    }
+
+    @Test
+    @DisplayName("Derives IDA Y VUELTA when both directions serve the stop")
+    void shouldDeriveBothLabel() {
+        UUID stopId = UUID.randomUUID();
+        mockRoutesForStop(stopId, stopWithLocation(stopId), "IDA", "VUELTA");
+
+        var result = stopService.findRoutesByStop(stopId);
+
+        assertEquals("IDA Y VUELTA", result.get(0).getDirectionLabel());
     }
 
     @Test
@@ -381,6 +435,22 @@ class StopServiceTest {
         assertThrows(ResourceNotFoundException.class, () -> stopService.delete(stopId));
 
         verifyNoInteractions(qrCodeRepository);
+        verify(stopRepository, never()).deleteById(any(UUID.class));
+    }
+
+    @Test
+    @DisplayName("delete rejects a stop currently used in route stops")
+    void deleteRejectsStopUsedInRouteStops() {
+        UUID stopId = UUID.randomUUID();
+        when(stopRepository.existsById(stopId)).thenReturn(true);
+        when(qrCodeRepository.countByTargetTypeAndTargetIdAndStatusIn(
+                eq("STOP"), eq(stopId), eq(List.of("ACTIVE", "PAUSED")))).thenReturn(0L);
+        when(routeStopRepository.countByStopId(stopId)).thenReturn(3L);
+
+        ConflictException error = assertThrows(ConflictException.class, () -> stopService.delete(stopId));
+
+        assertTrue(error.getMessage().contains("3 route stops"));
+        assertTrue(error.getMessage().contains("Remove it from those routes first"));
         verify(stopRepository, never()).deleteById(any(UUID.class));
     }
 }

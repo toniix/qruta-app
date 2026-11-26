@@ -1,9 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OperatorListPage } from './OperatorListPage';
 import { ToastProvider } from '../../../components/admin/common/ToastContext';
 import { adminOperatorService } from '../../../services/adminOperatorService';
+import { adminKeys } from '../../../lib/queryKeys';
+import {
+  createSharedTestQueryClient,
+  renderWithQueryClient,
+} from '../../../test/queryTestUtils';
 
 vi.mock('../../../services/adminOperatorService', () => ({
   adminOperatorService: {
@@ -69,11 +74,12 @@ const OPERATORS = [
   },
 ];
 
-function renderPage() {
-  return render(
+function renderPage(options) {
+  return renderWithQueryClient(
     <ToastProvider>
       <OperatorListPage />
-    </ToastProvider>
+    </ToastProvider>,
+    options,
   );
 }
 
@@ -103,7 +109,9 @@ describe('OperatorListPage', () => {
 
   it('reactivates an inactive operator through the warning confirmation', async () => {
     const user = userEvent.setup();
-    renderPage();
+    const sharedQueryClient = createSharedTestQueryClient();
+    const invalidateSpy = vi.spyOn(sharedQueryClient, 'invalidateQueries');
+    renderPage({ queryClient: sharedQueryClient });
 
     await user.click(await screen.findByRole('button', { name: 'Reactivar Transportes Pisco' }));
 
@@ -115,6 +123,9 @@ describe('OperatorListPage', () => {
     await vi.waitFor(() =>
       expect(adminOperatorService.setOperatorActive).toHaveBeenCalledWith('operator-2', true)
     );
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.operators() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.lines() });
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: adminKeys.overview() });
   });
 
   it('opens the nested user manager for an operator', async () => {

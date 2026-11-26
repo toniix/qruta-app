@@ -4,3 +4,5 @@ openspec
 .codegraph
 odd
 docs*
+node_modules
+*.log

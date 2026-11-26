@@ -214,7 +214,9 @@ class TransportLineCompanyCanonicalFlowTest {
 
         lenient().when(passwordEncoder.encode(any())).thenReturn("hashed-secret");
 
-        transportLineService = new TransportLineService(transportLineRepository, cityRepository, operatorRepository);
+        transportLineService = new TransportLineService(
+                transportLineRepository, cityRepository, operatorRepository,
+                communityPostRepository, disruptionRepository);
         adminOperatorService = new AdminOperatorService(
                 operatorRepository,
                 operatorUserRepository,

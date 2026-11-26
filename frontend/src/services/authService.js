@@ -1,51 +1,40 @@
-import { adminClient } from './apiClient';
-
-const TOKEN_KEY = 'rutasya_admin_token';
-const ADMIN_USER_KEY = 'rutasya_admin_user';
-
-function decodePayload(token) {
-  try {
-    const base64 = token.split('.')[1].replace(/-/g, '+').replace(/_/g, '/');
-    return JSON.parse(atob(base64));
-  } catch {
-    return null;
-  }
-}
-
-function isExpired(token) {
-  const payload = decodePayload(token);
-  if (!payload?.exp) return false;
-  return payload.exp * 1000 <= Date.now();
-}
+import { adminClient, ADMIN_TOKEN_KEY, ADMIN_USER_KEY } from './apiClient';
+import { isJwtExpired } from '../utils/jwtUtils';
 
 export const authService = {
   async login(email, password) {
     const response = await adminClient.post('/auth/admin/login', { email, password });
     const { token, email: returnedEmail, role } = response.data;
     const userRole = role || 'ROLE_ADMIN';
-    localStorage.setItem(TOKEN_KEY, token);
+    localStorage.setItem(ADMIN_TOKEN_KEY, token);
     localStorage.setItem(ADMIN_USER_KEY, JSON.stringify({ email: returnedEmail, role: userRole }));
     return { token, user: { email: returnedEmail, role: userRole } };
   },
 
   logout() {
-    localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(ADMIN_TOKEN_KEY);
     localStorage.removeItem(ADMIN_USER_KEY);
   },
 
   getToken() {
-    return localStorage.getItem(TOKEN_KEY);
+    return localStorage.getItem(ADMIN_TOKEN_KEY);
   },
 
   getCurrentUser() {
-    const user = localStorage.getItem(ADMIN_USER_KEY);
-    return user ? JSON.parse(user) : null;
+    const raw = localStorage.getItem(ADMIN_USER_KEY);
+    if (!raw) return null;
+    try {
+      return JSON.parse(raw);
+    } catch {
+      this.logout();
+      return null;
+    }
   },
 
   isAuthenticated() {
-    const token = localStorage.getItem(TOKEN_KEY);
+    const token = localStorage.getItem(ADMIN_TOKEN_KEY);
     if (!token) return false;
-    if (isExpired(token)) {
+    if (isJwtExpired(token)) {
       this.logout();
       return false;
     }

@@ -18,7 +18,9 @@ vi.mock('react-router-dom', async () => {
 const routeState = vi.hoisted(() => ({ current: {} }));
 
 vi.mock('../../contexts/RouteContext', () => ({
-  useRoutes: () => routeState.current,
+  useRouteCatalog: () => routeState.current,
+  useRouteSelection: () => routeState.current,
+  useRouteGps: () => routeState.current,
 }));
 
 vi.mock('../../services/routeService', () => ({
