@@ -1,10 +1,16 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { Building2, Loader2 } from 'lucide-react';
 import { AdminDrawer } from '../../../components/admin/common/AdminDrawer';
 import { FieldError } from '../../../components/common/FieldError';
 import { operatorSchema, validateWith } from '../../../schemas';
 import { cityService } from '../../../services/cityService';
 import { adminLineService } from '../../../services/adminLineService';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_CITIES = [];
+const EMPTY_LINES = [];
 
 const EMPTY_FORM = {
   transportLineId: '',
@@ -18,7 +24,7 @@ const EMPTY_FORM = {
   active: true,
 };
 
-function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = false }) {
+function OperatorFormDrawerContent({ open, onClose, initialData, onSubmit, loading = false }) {
   const isEdit = Boolean(initialData?.id);
   const [form, setForm] = useState(() => ({
     ...EMPTY_FORM,
@@ -28,30 +34,27 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
     plan: initialData?.plan || 'PRO',
     active: initialData?.active ?? true,
   }));
-  const [cities, setCities] = useState([]);
-  const [lines, setLines] = useState([]);
   const [errors, setErrors] = useState({});
-  const [loadingData, setLoadingData] = useState(true);
 
-  useEffect(() => {
-    let cancelled = false;
-    Promise.all([
-      cityService.getAdminCities().catch(() => []),
-      adminLineService.getAllLines().catch(() => []),
-    ])
-      .then(([citiesData, linesData]) => {
-        if (!cancelled) {
-          setCities(Array.isArray(citiesData) ? citiesData : []);
-          setLines(Array.isArray(linesData) ? linesData : []);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoadingData(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, []);
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    enabled: Boolean(open),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const linesQuery = useQuery({
+    queryKey: adminKeys.lines(),
+    queryFn: () => adminLineService.getAllLines(),
+    enabled: Boolean(open),
+    staleTime: STALE_TIMES.CATALOG,
+    select: (data) => (Array.isArray(data) ? data : []),
+  });
+
+  const cities = citiesQuery.data ?? EMPTY_CITIES;
+  const lines = linesQuery.data ?? EMPTY_LINES;
+  const loadingData = citiesQuery.isPending || linesQuery.isPending;
 
   const update = (patch, field) => {
     setForm((f) => ({ ...f, ...patch }));
@@ -277,7 +280,7 @@ function OperatorFormDrawerContent({ onClose, initialData, onSubmit, loading = f
 
 export function OperatorFormDrawer({ open, ...props }) {
   if (!open) return null;
-  return <OperatorFormDrawerContent {...props} />;
+  return <OperatorFormDrawerContent open={open} {...props} />;
 }
 
 export default OperatorFormDrawer;

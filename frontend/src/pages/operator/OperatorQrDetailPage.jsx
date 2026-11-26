@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import {
   ArrowLeft,
@@ -16,16 +17,26 @@ import { resolveAbsoluteQrUrl } from '../../utils/qrGenerator';
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
 import { useQrDetail } from '../../hooks/useQrDetail';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 
 const INITIAL_CATALOGS = {
   routes: [],
   stops: [],
 };
 
-async function loadOperatorQrCatalogs() {
+async function loadOperatorQrCatalogs(queryClient) {
   const [routesData, stopsData] = await Promise.all([
-    operatorPortalService.getRoutes(),
-    operatorPortalService.getStops(),
+    queryClient.fetchQuery({
+      queryKey: operatorKeys.routes(),
+      queryFn: () => operatorPortalService.getRoutes(),
+      staleTime: STALE_TIMES.OPERATIONAL,
+    }),
+    queryClient.fetchQuery({
+      queryKey: operatorKeys.stops(),
+      queryFn: () => operatorPortalService.getStops(),
+      staleTime: STALE_TIMES.OPERATIONAL,
+    }),
   ]);
 
   return {
@@ -38,6 +49,11 @@ export function OperatorQrDetailPage() {
   const { id } = useParams();
   const toast = useAdminToast();
   const { copied, copy } = useCopyToClipboard();
+
+  const detailQueryKey = useMemo(() => operatorKeys.qrDetail(id), [id]);
+  const statsQueryKey = useMemo(() => operatorKeys.qrStats(id), [id]);
+  const listQueryKey = useMemo(() => operatorKeys.qrCodes(), []);
+
   const {
     qr,
     stats,
@@ -53,6 +69,9 @@ export function OperatorQrDetailPage() {
   } = useQrDetail({
     id,
     service: operatorQrCodeService,
+    detailQueryKey,
+    statsQueryKey,
+    listQueryKey,
     loadCatalogs: loadOperatorQrCatalogs,
     initialCatalogs: INITIAL_CATALOGS,
     toast,

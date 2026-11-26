@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import {
   ArrowLeft,
   Printer,
@@ -25,6 +26,8 @@ import { resolveAbsoluteQrUrl } from '../../../utils/qrGenerator';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
 import { useQrDetail } from '../../../hooks/useQrDetail';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
 
 const INITIAL_CATALOGS = {
   routes: [],
@@ -34,14 +37,34 @@ const INITIAL_CATALOGS = {
   lines: [],
 };
 
-async function loadAdminQrCatalogs() {
+async function loadAdminQrCatalogs(queryClient) {
   const [routesData, stopsData, operatorsData, citiesData, linesData] =
     await Promise.all([
-      adminRouteService.getAllRoutes(),
-      adminStopService.getAllStops(),
-      adminOperatorService.getAllOperators(),
-      cityService.getAdminCities(),
-      adminLineService.getAllLines(),
+      queryClient.fetchQuery({
+        queryKey: adminKeys.routes(),
+        queryFn: () => adminRouteService.getAllRoutes(),
+        staleTime: STALE_TIMES.OPERATIONAL,
+      }),
+      queryClient.fetchQuery({
+        queryKey: adminKeys.stops(),
+        queryFn: () => adminStopService.getAllStops(),
+        staleTime: STALE_TIMES.OPERATIONAL,
+      }),
+      queryClient.fetchQuery({
+        queryKey: adminKeys.operators(),
+        queryFn: () => adminOperatorService.getAllOperators(),
+        staleTime: STALE_TIMES.CATALOG,
+      }),
+      queryClient.fetchQuery({
+        queryKey: adminKeys.cities(),
+        queryFn: () => cityService.getAdminCities(),
+        staleTime: STALE_TIMES.CATALOG,
+      }),
+      queryClient.fetchQuery({
+        queryKey: adminKeys.lines(),
+        queryFn: () => adminLineService.getAllLines(),
+        staleTime: STALE_TIMES.CATALOG,
+      }),
     ]);
 
   return {
@@ -57,14 +80,18 @@ export function AdminQrDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useAdminToast();
+  const queryClient = useQueryClient();
   const { copied, copy } = useCopyToClipboard();
+
+  const detailQueryKey = useMemo(() => adminKeys.qrDetail(id), [id]);
+  const statsQueryKey = useMemo(() => adminKeys.qrStats(id), [id]);
+  const listQueryKey = useMemo(() => adminKeys.qrCodes(), []);
+
   const {
     qr,
-    setQr,
     stats,
     loading,
     saving,
-    setSaving,
     printModalOpen,
     setPrintModalOpen,
     editModalOpen,
@@ -75,6 +102,9 @@ export function AdminQrDetailPage() {
   } = useQrDetail({
     id,
     service: adminQrCodeService,
+    detailQueryKey,
+    statsQueryKey,
+    listQueryKey,
     loadCatalogs: loadAdminQrCatalogs,
     initialCatalogs: INITIAL_CATALOGS,
     toast,
@@ -89,32 +119,48 @@ export function AdminQrDetailPage() {
     void copy(url);
   };
 
-  const handleDelete = async () => {
-    setSaving(true);
-    try {
-      await adminQrCodeService.delete(id);
+  const deleteMutation = useMutation({
+    mutationFn: () => adminQrCodeService.delete(id),
+    onSuccess: async () => {
       setDeleteConfirm(false);
       toast.success('Código QR eliminado exitosamente.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrDetail(id) }),
+      ]);
       navigate('/admin/qr-codes');
-    } catch (err) {
+    },
+    onError: (err) => {
       console.error('Error eliminando QR:', err);
       toast.error(err.response?.data?.message || 'Error al eliminar el código QR.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleToggleStatus = async (newStatus) => {
-    try {
-      const updated = await adminQrCodeService.update(qr.id, { status: newStatus });
-      setQr(updated);
+  const toggleStatusMutation = useMutation({
+    mutationFn: (newStatus) => adminQrCodeService.update(qr.id, { status: newStatus }),
+    onSuccess: async (updated, newStatus) => {
+      queryClient.setQueryData(adminKeys.qrDetail(id), updated);
       toast.success(`Código QR marcado como ${newStatus}.`);
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrDetail(id) }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error actualizando estado:', err);
       toast.error('Error al actualizar el estado del código QR.');
-    } finally {
+    },
+    onSettled: () => {
       setStatusConfirm(null);
-    }
+    },
+  });
+
+  const handleDelete = () => {
+    deleteMutation.mutate();
+  };
+
+  const handleToggleStatus = (newStatus) => {
+    toggleStatusMutation.mutate(newStatus);
   };
 
   if (loading) {
@@ -419,6 +465,7 @@ export function AdminQrDetailPage() {
         description={statusConfirm?.description}
         confirmLabel="Confirmar"
         tone="warning"
+        loading={toggleStatusMutation.isPending}
         onConfirm={() => handleToggleStatus(statusConfirm.newStatus)}
         onCancel={() => setStatusConfirm(null)}
       />
@@ -429,7 +476,7 @@ export function AdminQrDetailPage() {
         description={`¿Eliminar definitivamente el código QR "${qr.label}"? Sus eventos de escaneo se conservarán.`}
         confirmLabel="Eliminar Código"
         tone="danger"
-        loading={saving}
+        loading={deleteMutation.isPending}
         onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm(false)}
       />

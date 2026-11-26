@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   QrCode as QrIcon,
   Printer,
@@ -26,39 +27,15 @@ import { adminLineService } from '../../../services/adminLineService';
 import { cityService } from '../../../services/cityService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
 import { useCopyToClipboard } from '../../../hooks/useCopyToClipboard';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
 
-async function fetchAdminQrListData() {
-  const [codes, routesData, stopsData, opsData, citiesData, linesData] =
-    await Promise.all([
-      adminQrCodeService.getAll().catch(() => []),
-      adminRouteService.getAllRoutes().catch(() => []),
-      adminStopService.getAllStops().catch(() => []),
-      adminOperatorService.getAllOperators().catch(() => []),
-      cityService.getAdminCities().catch(() => []),
-      adminLineService.getAllLines().catch(() => []),
-    ]);
-
-  return {
-    qrCodes: Array.isArray(codes) ? codes : [],
-    routes: Array.isArray(routesData) ? routesData : [],
-    stops: Array.isArray(stopsData) ? stopsData : [],
-    operators: Array.isArray(opsData) ? opsData : [],
-    cities: Array.isArray(citiesData) ? citiesData : [],
-    lines: Array.isArray(linesData) ? linesData : [],
-  };
-}
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 export function AdminQrListPage() {
   const toast = useAdminToast();
-  const [qrCodes, setQrCodes] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [stops, setStops] = useState([]);
-  const [operators, setOperators] = useState([]);
-  // Cities scope the target picker; lines are needed because a route inherits
-  // its city from its transport line (the admin route DTO carries no cityId).
-  const [cities, setCities] = useState([]);
-  const [lines, setLines] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -68,60 +45,93 @@ export function AdminQrListPage() {
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingQr, setEditingQr] = useState(null);
-  const [saving, setSaving] = useState(false);
   const [printModalQr, setPrintModalQr] = useState(null);
   const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, description }
   const [deleteConfirm, setDeleteConfirm] = useState(null); // { id, label }
 
-  const applyListData = useCallback((data) => {
-    setQrCodes(data.qrCodes);
-    setRoutes(data.routes);
-    setStops(data.stops);
-    setOperators(data.operators);
-    setCities(data.cities);
-    setLines(data.lines);
-  }, []);
+  const qrCodesQuery = useQuery({
+    queryKey: adminKeys.qrCodes(),
+    queryFn: () => adminQrCodeService.getAll(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchAdminQrListData();
-      applyListData(data);
-    } catch (err) {
-      console.error('Error cargando códigos QR:', err);
-      toast.error('Error al cargar la lista de códigos QR.');
-    } finally {
-      setLoading(false);
-    }
-  }, [applyListData, toast]);
+  const routesQuery = useQuery({
+    queryKey: adminKeys.routes(),
+    queryFn: () => adminRouteService.getAllRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const stopsQuery = useQuery({
+    queryKey: adminKeys.stops(),
+    queryFn: () => adminStopService.getAllStops(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const operatorsQuery = useQuery({
+    queryKey: adminKeys.operators(),
+    queryFn: () => adminOperatorService.getAllOperators(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  // Cities scope the target picker; lines are needed because a route inherits
+  // its city from its transport line (the admin route DTO carries no cityId).
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  const linesQuery = useQuery({
+    queryKey: adminKeys.lines(),
+    queryFn: () => adminLineService.getAllLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  const qrCodes = qrCodesQuery.data ?? EMPTY_LIST;
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const stops = stopsQuery.data ?? EMPTY_LIST;
+  const operators = operatorsQuery.data ?? EMPTY_LIST;
+  const cities = citiesQuery.data ?? EMPTY_LIST;
+  const lines = linesQuery.data ?? EMPTY_LIST;
+
+  const isFetching =
+    qrCodesQuery.isFetching ||
+    routesQuery.isFetching ||
+    stopsQuery.isFetching ||
+    operatorsQuery.isFetching ||
+    citiesQuery.isFetching ||
+    linesQuery.isFetching;
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadInitial() {
-      try {
-        const data = await fetchAdminQrListData();
-        if (!cancelled) {
-          applyListData(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Error cargando códigos QR:', err);
-          toast.error('Error al cargar la lista de códigos QR.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (
+      qrCodesQuery.isError &&
+      qrCodesQuery.errorUpdatedAt > 0 &&
+      qrCodesQuery.errorUpdatedAt !== lastErrorAtRef.current
+    ) {
+      lastErrorAtRef.current = qrCodesQuery.errorUpdatedAt;
+      console.error('Error cargando códigos QR:', qrCodesQuery.error);
+      toast.error('Error al cargar la lista de códigos QR.');
     }
+  }, [qrCodesQuery.isError, qrCodesQuery.error, qrCodesQuery.errorUpdatedAt, toast]);
 
-    loadInitial();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [applyListData, toast]);
+  const handleRefresh = () => {
+    Promise.all([
+      qrCodesQuery.refetch(),
+      routesQuery.refetch(),
+      stopsQuery.refetch(),
+      operatorsQuery.refetch(),
+      citiesQuery.refetch(),
+      linesQuery.refetch(),
+    ]);
+  };
 
   // Filtered QR codes
   const filteredCodes = useMemo(() => {
@@ -137,72 +147,108 @@ export function AdminQrListPage() {
     });
   }, [qrCodes, searchQuery, filterStatus, filterType]);
 
-  const handleCreate = async (formData) => {
-    setSaving(true);
-    try {
-      const created = await adminQrCodeService.create(formData);
-      setQrCodes((prev) => [created, ...prev]);
+  const createQrMutation = useMutation({
+    mutationFn: (formData) => adminQrCodeService.create(formData),
+    onSuccess: async (created) => {
+      queryClient.setQueryData(adminKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? [created, ...prev] : [created],
+      );
       setCreateModalOpen(false);
       // Surface the freshly created QR right away so the admin can download or
       // print it without having to hunt for it in the list.
       setPrintModalQr(created);
       toast.success('Código QR creado exitosamente.');
-    } catch (err) {
+      await queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() });
+    },
+    onError: (err) => {
       console.error('Error creando QR:', err);
       toast.error(err.response?.data?.message || 'Error al crear el código QR.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleEdit = async (formData) => {
-    const qrId = editingQr?.id;
-    if (!qrId) return;
-
-    setSaving(true);
-    try {
-      const updated = await adminQrCodeService.update(qrId, formData);
-      setQrCodes((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  const editQrMutation = useMutation({
+    mutationFn: ({ id, formData }) => adminQrCodeService.update(id, formData),
+    onSuccess: async (updated, { id }) => {
+      queryClient.setQueryData(adminKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev,
+      );
+      queryClient.setQueryData(adminKeys.qrDetail(id), updated);
       setEditingQr(null);
       toast.success('Código QR actualizado exitosamente.');
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrDetail(id) }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error actualizando QR:', err);
       toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleDelete = async () => {
-    const qrId = deleteConfirm?.id;
-    if (!qrId) return;
-
-    setSaving(true);
-    try {
-      await adminQrCodeService.delete(qrId);
-      setQrCodes((prev) => prev.filter((c) => c.id !== qrId));
+  const deleteQrMutation = useMutation({
+    mutationFn: (qrId) => adminQrCodeService.delete(qrId),
+    onSuccess: async (_result, qrId) => {
+      queryClient.setQueryData(adminKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? prev.filter((c) => c.id !== qrId) : prev,
+      );
       setDeleteConfirm(null);
       toast.success('Código QR eliminado exitosamente.');
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrDetail(qrId) }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error eliminando QR:', err);
       toast.error(err.response?.data?.message || 'Error al eliminar el código QR.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleToggleStatus = async (qr, newStatus) => {
-    try {
-      const updated = await adminQrCodeService.update(qr.id, { status: newStatus });
-      setQrCodes(qrCodes.map((c) => (c.id === updated.id ? updated : c)));
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ qr, newStatus }) => adminQrCodeService.update(qr.id, { status: newStatus }),
+    onSuccess: async (updated, { qr, newStatus }) => {
+      queryClient.setQueryData(adminKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev,
+      );
+      queryClient.setQueryData(adminKeys.qrDetail(qr.id), updated);
       toast.success(`Código QR marcado como ${newStatus}.`);
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: adminKeys.qrDetail(qr.id) }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error actualizando estado:', err);
       toast.error('Error al actualizar el estado del código QR.');
-    } finally {
+    },
+    onSettled: () => {
       setStatusConfirm(null);
-    }
+    },
+  });
+
+  const handleCreate = (formData) => {
+    createQrMutation.mutate(formData);
   };
+
+  const handleEdit = (formData) => {
+    const qrId = editingQr?.id;
+    if (!qrId) return;
+    editQrMutation.mutate({ id: qrId, formData });
+  };
+
+  const handleDelete = () => {
+    const qrId = deleteConfirm?.id;
+    if (!qrId) return;
+    deleteQrMutation.mutate(qrId);
+  };
+
+  const handleToggleStatus = (qr, newStatus) => {
+    toggleStatusMutation.mutate({ qr, newStatus });
+  };
+
+  const saving =
+    createQrMutation.isPending || editQrMutation.isPending || deleteQrMutation.isPending;
 
   const { copiedKey: copiedId, copy } = useCopyToClipboard();
   const handleCopyUrl = (qr) => {
@@ -385,11 +431,11 @@ export function AdminQrListPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={handleRefresh}
+          disabled={isFetching}
           className="inline-flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3.5 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition shadow-sm self-start sm:self-center"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar</span>
         </button>
       </div>
@@ -429,7 +475,7 @@ export function AdminQrListPage() {
       <AdminDataTable
         columns={columns}
         data={filteredCodes}
-        loading={loading}
+        loading={qrCodesQuery.isPending}
         emptyMessage="No se encontraron códigos QR."
       />
 
@@ -476,6 +522,7 @@ export function AdminQrListPage() {
         description={statusConfirm?.description}
         confirmLabel="Pausar Código"
         tone="warning"
+        loading={toggleStatusMutation.isPending}
         onConfirm={() => handleToggleStatus(statusConfirm.qr, statusConfirm.newStatus)}
         onCancel={() => setStatusConfirm(null)}
       />
@@ -487,7 +534,7 @@ export function AdminQrListPage() {
         description={`¿Eliminar definitivamente el código QR "${deleteConfirm?.label}"? Sus eventos de escaneo se conservarán.`}
         confirmLabel="Eliminar Código"
         tone="danger"
-        loading={saving}
+        loading={deleteQrMutation.isPending}
         onConfirm={handleDelete}
         onCancel={() => setDeleteConfirm(null)}
       />

@@ -1,4 +1,5 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useEffect, useRef } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import {
   Route,
   Bus,
@@ -21,86 +22,121 @@ import { cityService } from '../../../services/cityService';
 import { communityService } from '../../../services/communityService';
 import { adminQrCodeService } from '../../../services/qrCodeService';
 import { useAdminToast } from '../../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../../lib/queryClient';
+import { adminKeys } from '../../../lib/queryKeys';
+
+const EMPTY_LIST = [];
+
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 export function AdminOverviewPage() {
   const navigate = useNavigate();
   const toast = useAdminToast();
-  const [loading, setLoading] = useState(true);
-  const [data, setData] = useState({
-    routes: [],
-    lines: [],
-    stops: [],
-    cities: [],
-    community: [],
-    qrCodes: [],
+
+  const routesQuery = useQuery({
+    queryKey: adminKeys.routes(),
+    queryFn: () => adminRouteService.getAllRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
   });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const [routes, lines, stops, cities, community, qrCodes] = await Promise.all([
-        adminRouteService.getAllRoutes().catch(() => []),
-        adminLineService.getAllLines().catch(() => []),
-        adminStopService.getAllStops().catch(() => []),
-        cityService.getAdminCities().catch(() => []),
-        communityService.getAdminPosts().catch(() => []),
-        adminQrCodeService.getAll().catch(() => []),
-      ]);
+  const linesQuery = useQuery({
+    queryKey: adminKeys.lines(),
+    queryFn: () => adminLineService.getAllLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
 
-      setData({
-        routes: Array.isArray(routes) ? routes : [],
-        lines: Array.isArray(lines) ? lines : [],
-        stops: Array.isArray(stops) ? stops : [],
-        cities: Array.isArray(cities) ? cities : [],
-        community: Array.isArray(community) ? community : [],
-        qrCodes: Array.isArray(qrCodes) ? qrCodes : [],
-      });
-    } catch (err) {
-      console.error('Error cargando métricas:', err);
-      toast.error('Error al cargar métricas del sistema.');
-    } finally {
-      setLoading(false);
-    }
-  }, [toast]);
+  const stopsQuery = useQuery({
+    queryKey: adminKeys.stops(),
+    queryFn: () => adminStopService.getAllStops(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const citiesQuery = useQuery({
+    queryKey: adminKeys.cities(),
+    queryFn: () => cityService.getAdminCities(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  const communityQuery = useQuery({
+    queryKey: adminKeys.communityPosts(),
+    queryFn: () => communityService.getAdminPosts(),
+    staleTime: STALE_TIMES.METRICS,
+    select: selectArray,
+  });
+
+  const qrCodesQuery = useQuery({
+    queryKey: adminKeys.qrCodes(),
+    queryFn: () => adminQrCodeService.getAll(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const lines = linesQuery.data ?? EMPTY_LIST;
+  const stops = stopsQuery.data ?? EMPTY_LIST;
+  const cities = citiesQuery.data ?? EMPTY_LIST;
+  const community = communityQuery.data ?? EMPTY_LIST;
+  const qrCodes = qrCodesQuery.data ?? EMPTY_LIST;
+
+  const isFetching =
+    routesQuery.isFetching ||
+    linesQuery.isFetching ||
+    stopsQuery.isFetching ||
+    citiesQuery.isFetching ||
+    communityQuery.isFetching ||
+    qrCodesQuery.isFetching;
+
+  const hasError =
+    routesQuery.isError ||
+    linesQuery.isError ||
+    stopsQuery.isError ||
+    citiesQuery.isError ||
+    communityQuery.isError ||
+    qrCodesQuery.isError;
+
+  const latestErrorAt = Math.max(
+    routesQuery.errorUpdatedAt,
+    linesQuery.errorUpdatedAt,
+    stopsQuery.errorUpdatedAt,
+    citiesQuery.errorUpdatedAt,
+    communityQuery.errorUpdatedAt,
+    qrCodesQuery.errorUpdatedAt,
+  );
+
+  const firstError =
+    routesQuery.error ||
+    linesQuery.error ||
+    stopsQuery.error ||
+    citiesQuery.error ||
+    communityQuery.error ||
+    qrCodesQuery.error;
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    let isMounted = true;
-    (async () => {
-      try {
-        const [routes, lines, stops, cities, community, qrCodes] = await Promise.all([
-          adminRouteService.getAllRoutes().catch(() => []),
-          adminLineService.getAllLines().catch(() => []),
-          adminStopService.getAllStops().catch(() => []),
-          cityService.getAdminCities().catch(() => []),
-          communityService.getAdminPosts().catch(() => []),
-          adminQrCodeService.getAll().catch(() => []),
-        ]);
+    if (hasError && latestErrorAt > 0 && latestErrorAt !== lastErrorAtRef.current) {
+      lastErrorAtRef.current = latestErrorAt;
+      console.error('Error cargando métricas:', firstError);
+      toast.error('Error al cargar métricas del sistema.');
+    }
+  }, [hasError, latestErrorAt, firstError, toast]);
 
-        if (isMounted) {
-          setData({
-            routes: Array.isArray(routes) ? routes : [],
-            lines: Array.isArray(lines) ? lines : [],
-            stops: Array.isArray(stops) ? stops : [],
-            cities: Array.isArray(cities) ? cities : [],
-            community: Array.isArray(community) ? community : [],
-            qrCodes: Array.isArray(qrCodes) ? qrCodes : [],
-          });
-          setLoading(false);
-        }
-      } catch (err) {
-        if (isMounted) {
-          console.error('Error cargando métricas:', err);
-          toast.error('Error al cargar métricas del sistema.');
-          setLoading(false);
-        }
-      }
-    })();
-    return () => {
-      isMounted = false;
-    };
-  }, [toast]);
+  const handleRefresh = () => {
+    Promise.all([
+      routesQuery.refetch(),
+      linesQuery.refetch(),
+      stopsQuery.refetch(),
+      citiesQuery.refetch(),
+      communityQuery.refetch(),
+      qrCodesQuery.refetch(),
+    ]);
+  };
 
-  const recentRoutes = data.routes.slice(0, 6);
+  const recentRoutes = routes.slice(0, 6);
 
   return (
     <div className="space-y-6">
@@ -125,11 +161,11 @@ export function AdminOverviewPage() {
 
         <button
           type="button"
-          onClick={loadData}
-          disabled={loading}
+          onClick={handleRefresh}
+          disabled={isFetching}
           className="inline-flex items-center gap-2 rounded-xl bg-white/10 hover:bg-white/20 px-3.5 py-2 text-xs font-semibold backdrop-blur-sm transition self-start sm:self-center"
         >
-          <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+          <RefreshCw className={`h-4 w-4 ${isFetching ? 'animate-spin' : ''}`} />
           <span>Actualizar datos</span>
         </button>
       </div>
@@ -138,7 +174,7 @@ export function AdminOverviewPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-4">
         <MetricCard
           title="Rutas Activas"
-          value={loading ? '...' : data.routes.length}
+          value={routesQuery.isPending ? '...' : routes.length}
           subtitle="Redes urbanas e interurbanas"
           icon={Route}
           colorScheme="blue"
@@ -147,7 +183,7 @@ export function AdminOverviewPage() {
 
         <MetricCard
           title="Líneas de Transporte"
-          value={loading ? '...' : data.lines.length}
+          value={linesQuery.isPending ? '...' : lines.length}
           subtitle="Empresas y consorcios"
           icon={Bus}
           colorScheme="emerald"
@@ -156,7 +192,7 @@ export function AdminOverviewPage() {
 
         <MetricCard
           title="Paraderos"
-          value={loading ? '...' : data.stops.length}
+          value={stopsQuery.isPending ? '...' : stops.length}
           subtitle="Puntos de abordaje"
           icon={MapPin}
           colorScheme="purple"
@@ -165,7 +201,7 @@ export function AdminOverviewPage() {
 
         <MetricCard
           title="Ciudades"
-          value={loading ? '...' : data.cities.length}
+          value={citiesQuery.isPending ? '...' : cities.length}
           subtitle="Zonas de cobertura"
           icon={Building2}
           colorScheme="amber"
@@ -174,7 +210,7 @@ export function AdminOverviewPage() {
 
         <MetricCard
           title="Comunidad"
-          value={loading ? '...' : data.community.length}
+          value={communityQuery.isPending ? '...' : community.length}
           subtitle="Reportes y alertas"
           icon={MessageSquare}
           colorScheme="rose"
@@ -183,7 +219,7 @@ export function AdminOverviewPage() {
 
         <MetricCard
           title="Códigos QR"
-          value={loading ? '...' : (data.qrCodes?.length || 0)}
+          value={qrCodesQuery.isPending ? '...' : qrCodes.length}
           subtitle="Smart QR físicos"
           icon={QrCode}
           colorScheme="blue"
@@ -301,7 +337,7 @@ export function AdminOverviewPage() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
-                  {loading ? (
+                  {routesQuery.isPending ? (
                     Array.from({ length: 4 }).map((_, i) => (
                       <tr key={i} className="animate-pulse">
                         <td className="px-3 py-3">
@@ -355,7 +391,7 @@ export function AdminOverviewPage() {
           </div>
 
           <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between text-xs text-slate-500">
-            <span>Total: {data.routes.length} rutas en el sistema</span>
+            <span>Total: {routes.length} rutas en el sistema</span>
             <Link to="/admin/rutas" className="font-semibold text-blue-600 hover:underline">
               Ir al listado completo →
             </Link>
