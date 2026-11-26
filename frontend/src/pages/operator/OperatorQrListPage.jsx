@@ -1,5 +1,6 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   QrCode as QrIcon,
   Plus,
@@ -21,27 +22,15 @@ import { operatorQrCodeService } from '../../services/qrCodeService';
 import { operatorPortalService } from '../../services/operatorPortalService';
 import { useAdminToast } from '../../hooks/useAdminToast';
 import { useCopyToClipboard } from '../../hooks/useCopyToClipboard';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 
-async function fetchOperatorQrListData() {
-  const [codes, routesData, stopsData] = await Promise.all([
-    operatorQrCodeService.getAll().catch(() => []),
-    operatorPortalService.getRoutes().catch(() => []),
-    operatorPortalService.getStops().catch(() => []),
-  ]);
-
-  return {
-    qrCodes: Array.isArray(codes) ? codes : [],
-    routes: Array.isArray(routesData) ? routesData : [],
-    stops: Array.isArray(stopsData) ? stopsData : [],
-  };
-}
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 export function OperatorQrListPage() {
   const toast = useAdminToast();
-  const [qrCodes, setQrCodes] = useState([]);
-  const [routes, setRoutes] = useState([]);
-  const [stops, setStops] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
 
   // Filters
   const [searchQuery, setSearchQuery] = useState('');
@@ -50,56 +39,57 @@ export function OperatorQrListPage() {
   // Modals state
   const [createModalOpen, setCreateModalOpen] = useState(false);
   const [editingQr, setEditingQr] = useState(null);
-  const [saving, setSaving] = useState(false);
   const [printModalQr, setPrintModalQr] = useState(null);
   const [statusConfirm, setStatusConfirm] = useState(null); // { qr, newStatus, description }
 
-  const applyListData = useCallback((data) => {
-    setQrCodes(data.qrCodes);
-    setRoutes(data.routes);
-    setStops(data.stops);
-  }, []);
+  const qrCodesQuery = useQuery({
+    queryKey: operatorKeys.qrCodes(),
+    queryFn: () => operatorQrCodeService.getAll(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    try {
-      const data = await fetchOperatorQrListData();
-      applyListData(data);
-    } catch (err) {
-      console.error('Error cargando QR del operador:', err);
-      toast.error('Error al cargar códigos QR.');
-    } finally {
-      setLoading(false);
-    }
-  }, [applyListData, toast]);
+  const routesQuery = useQuery({
+    queryKey: operatorKeys.routes(),
+    queryFn: () => operatorPortalService.getRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const stopsQuery = useQuery({
+    queryKey: operatorKeys.stops(),
+    queryFn: () => operatorPortalService.getStops(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
+
+  const qrCodes = qrCodesQuery.data ?? EMPTY_LIST;
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const stops = stopsQuery.data ?? EMPTY_LIST;
+  const loading = qrCodesQuery.isPending;
+  const isFetching = qrCodesQuery.isFetching || routesQuery.isFetching || stopsQuery.isFetching;
+
+  const lastErrorAtRef = useRef(0);
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function loadInitial() {
-      try {
-        const data = await fetchOperatorQrListData();
-        if (!cancelled) {
-          applyListData(data);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          console.error('Error cargando QR del operador:', err);
-          toast.error('Error al cargar códigos QR.');
-        }
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
+    if (
+      qrCodesQuery.isError &&
+      qrCodesQuery.errorUpdatedAt > 0 &&
+      qrCodesQuery.errorUpdatedAt !== lastErrorAtRef.current
+    ) {
+      lastErrorAtRef.current = qrCodesQuery.errorUpdatedAt;
+      console.error('Error cargando QR del operador:', qrCodesQuery.error);
+      toast.error('Error al cargar códigos QR.');
     }
+  }, [qrCodesQuery.isError, qrCodesQuery.error, qrCodesQuery.errorUpdatedAt, toast]);
 
-    loadInitial();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [applyListData, toast]);
+  const loadData = () => {
+    void Promise.all([
+      qrCodesQuery.refetch(),
+      routesQuery.refetch(),
+      stopsQuery.refetch(),
+    ]);
+  };
 
   const filteredCodes = useMemo(() => {
     return qrCodes.filter((qr) => {
@@ -112,54 +102,82 @@ export function OperatorQrListPage() {
     });
   }, [qrCodes, searchQuery, filterStatus]);
 
-  const handleCreate = async (formData) => {
-    setSaving(true);
-    try {
-      const created = await operatorQrCodeService.create(formData);
-      setQrCodes((prev) => [created, ...prev]);
+  const createQrMutation = useMutation({
+    mutationFn: (formData) => operatorQrCodeService.create(formData),
+    onSuccess: async (created) => {
+      queryClient.setQueryData(operatorKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? [created, ...prev] : [created],
+      );
       setCreateModalOpen(false);
       // Surface the freshly created QR right away so the operator can download
       // or print it without having to hunt for it in the list.
       setPrintModalQr(created);
       toast.success('Código QR creado exitosamente.');
-    } catch (err) {
+      await queryClient.invalidateQueries({ queryKey: operatorKeys.qrCodes() });
+    },
+    onError: (err) => {
       console.error('Error creando QR:', err);
       toast.error(err.response?.data?.message || 'Error al crear el código QR.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleEdit = async (formData) => {
-    const qrId = editingQr?.id;
-    if (!qrId) return;
-
-    setSaving(true);
-    try {
-      const updated = await operatorQrCodeService.update(qrId, formData);
-      setQrCodes((prev) => prev.map((c) => (c.id === updated.id ? updated : c)));
+  const editQrMutation = useMutation({
+    mutationFn: ({ id, formData }) => operatorQrCodeService.update(id, formData),
+    onSuccess: async (updated, { id }) => {
+      queryClient.setQueryData(operatorKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev,
+      );
+      queryClient.setQueryData(operatorKeys.qrDetail(id), updated);
       setEditingQr(null);
       toast.success('Código QR actualizado exitosamente.');
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.qrDetail(id) }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error actualizando QR:', err);
       toast.error(err.response?.data?.message || 'Error al actualizar el código QR.');
-    } finally {
-      setSaving(false);
-    }
-  };
+    },
+  });
 
-  const handleToggleStatus = async (qr, newStatus) => {
-    try {
-      const updated = await operatorQrCodeService.update(qr.id, { status: newStatus });
-      setQrCodes(qrCodes.map((c) => (c.id === updated.id ? updated : c)));
+  const toggleStatusMutation = useMutation({
+    mutationFn: ({ qr, newStatus }) => operatorQrCodeService.update(qr.id, { status: newStatus }),
+    onSuccess: async (updated, { qr, newStatus }) => {
+      queryClient.setQueryData(operatorKeys.qrCodes(), (prev) =>
+        Array.isArray(prev) ? prev.map((c) => (c.id === updated.id ? updated : c)) : prev,
+      );
+      queryClient.setQueryData(operatorKeys.qrDetail(qr.id), updated);
       toast.success(`Código QR marcado como ${newStatus}.`);
-    } catch (err) {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.qrCodes() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.qrDetail(qr.id) }),
+      ]);
+    },
+    onError: (err) => {
       console.error('Error actualizando estado:', err);
       toast.error('Error al actualizar el estado del código QR.');
-    } finally {
+    },
+    onSettled: () => {
       setStatusConfirm(null);
-    }
+    },
+  });
+
+  const handleCreate = (formData) => {
+    createQrMutation.mutate(formData);
   };
+
+  const handleEdit = (formData) => {
+    const qrId = editingQr?.id;
+    if (!qrId) return;
+    editQrMutation.mutate({ id: qrId, formData });
+  };
+
+  const handleToggleStatus = (qr, newStatus) => {
+    toggleStatusMutation.mutate({ qr, newStatus });
+  };
+
+  const saving = createQrMutation.isPending || editQrMutation.isPending;
 
   const { copiedKey: copiedId, copy } = useCopyToClipboard();
   const handleCopyUrl = (qr) => {
@@ -177,10 +195,10 @@ export function OperatorQrListPage() {
             <button
               type="button"
               onClick={loadData}
-              disabled={loading}
+              disabled={isFetching}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
             >
-              <RefreshCw className={`h-3.5 w-3.5 ${loading ? 'animate-spin' : ''}`} />
+              <RefreshCw className={`h-3.5 w-3.5 ${isFetching ? 'animate-spin' : ''}`} />
               <span>Actualizar</span>
             </button>
             <button
@@ -394,6 +412,7 @@ export function OperatorQrListPage() {
         description={statusConfirm?.description}
         confirmLabel="Confirmar"
         tone="warning"
+        loading={toggleStatusMutation.isPending}
         onConfirm={() => handleToggleStatus(statusConfirm.qr, statusConfirm.newStatus)}
         onCancel={() => setStatusConfirm(null)}
       />

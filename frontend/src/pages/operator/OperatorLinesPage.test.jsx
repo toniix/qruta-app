@@ -1,9 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { OperatorLinesPage } from './OperatorLinesPage';
 import { ToastProvider } from '../../components/admin/common/ToastContext';
 import { operatorPortalService } from '../../services/operatorPortalService';
+import { renderWithQueryClient } from '../../test/queryTestUtils';
 
 vi.mock('../../services/operatorPortalService', () => ({
   operatorPortalService: {
@@ -34,7 +35,7 @@ const SAMPLE_LINES = [
 ];
 
 function renderPage() {
-  return render(
+  return renderWithQueryClient(
     <ToastProvider>
       <OperatorLinesPage />
     </ToastProvider>

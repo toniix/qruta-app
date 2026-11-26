@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Pencil, Route as RouteIcon } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
@@ -7,42 +8,56 @@ import { StatusBadge } from '../../components/admin/common/StatusBadge';
 import { RouteFormDrawer } from '../admin/routes/RouteFormDrawer';
 import { RouteDirectionEditorModal } from '../../components/admin/map/RouteDirectionEditorModal';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorPortalService } from '../../services/operatorPortalService';
+
+const EMPTY_LIST = [];
+const selectArray = (data) => (Array.isArray(data) ? data : []);
 
 export function OperatorRoutesPage() {
   const toast = useAdminToast();
-  const [routes, setRoutes] = useState([]);
-  const [lines, setLines] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [lineFilter, setLineFilter] = useState('');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [editing, setEditing] = useState(null);
-  const [saving, setSaving] = useState(false);
   const [directionEditorOpen, setDirectionEditorOpen] = useState(false);
   const [directionEditing, setDirectionEditing] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const [routeData, lineData] = await Promise.all([
-        operatorPortalService.getRoutes(),
-        operatorPortalService.getLines(),
-      ]);
-      setRoutes(routeData);
-      setLines(lineData);
-    } catch (err) {
-      setError(err.response?.data?.message || err.message || 'No se pudieron cargar las rutas');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const routesQuery = useQuery({
+    queryKey: operatorKeys.routes(),
+    queryFn: () => operatorPortalService.getRoutes(),
+    staleTime: STALE_TIMES.OPERATIONAL,
+    select: selectArray,
+  });
 
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const linesQuery = useQuery({
+    queryKey: operatorKeys.lines(),
+    queryFn: () => operatorPortalService.getLines(),
+    staleTime: STALE_TIMES.CATALOG,
+    select: selectArray,
+  });
+
+  const routes = routesQuery.data ?? EMPTY_LIST;
+  const lines = linesQuery.data ?? EMPTY_LIST;
+  const loading = routesQuery.isPending || linesQuery.isPending;
+  const firstError = routesQuery.error || linesQuery.error;
+  const error = firstError
+    ? firstError.response?.data?.message || firstError.message || 'No se pudieron cargar las rutas'
+    : null;
+
+  const handleRetry = () => {
+    void Promise.all([routesQuery.refetch(), linesQuery.refetch()]);
+  };
+
+  const handleDirectionsSaved = () => {
+    void Promise.all([
+      queryClient.invalidateQueries({ queryKey: operatorKeys.routes() }),
+      queryClient.invalidateQueries({ queryKey: operatorKeys.stops() }),
+      queryClient.invalidateQueries({ queryKey: operatorKeys.overview() }),
+    ]);
+  };
 
   const filteredRoutes = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -63,28 +78,39 @@ export function OperatorRoutesPage() {
     setDirectionEditorOpen(true);
   };
 
-  const handleSubmit = async (values) => {
+  const updateRouteMutation = useMutation({
+    mutationFn: ({ id, data }) => operatorPortalService.updateRoute(id, data),
+    onSuccess: async (updated, { id }) => {
+      queryClient.setQueryData(operatorKeys.routes(), (prev) =>
+        Array.isArray(prev)
+          ? prev.map((route) => (route.id === id ? { ...route, ...updated } : route))
+          : prev,
+      );
+      toast.success('Ruta actualizada');
+      setDrawerOpen(false);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: operatorKeys.routes() }),
+        queryClient.invalidateQueries({ queryKey: operatorKeys.overview() }),
+      ]);
+    },
+    onError: (err) => {
+      toast.error(err.response?.data?.message || err.message || 'No se pudo actualizar la ruta');
+    },
+  });
+
+  const handleSubmit = (values) => {
     if (!editing) return;
-    setSaving(true);
-    try {
-      const updated = await operatorPortalService.updateRoute(editing.id, {
+    updateRouteMutation.mutate({
+      id: editing.id,
+      data: {
         name: values.name,
         code: values.code,
         category: values.category,
         color: values.color,
         description: values.description,
         status: values.status,
-      });
-      setRoutes((prev) =>
-        prev.map((route) => (route.id === editing.id ? { ...route, ...updated } : route))
-      );
-      toast.success('Ruta actualizada');
-      setDrawerOpen(false);
-    } catch (err) {
-      toast.error(err.response?.data?.message || err.message || 'No se pudo actualizar la ruta');
-    } finally {
-      setSaving(false);
-    }
+      },
+    });
   };
 
   return (
@@ -97,7 +123,7 @@ export function OperatorRoutesPage() {
       {loading ? (
         <OperatorStatePanel loading />
       ) : error ? (
-        <OperatorStatePanel error={error} title="No se pudieron cargar las rutas" onRetry={load} />
+        <OperatorStatePanel error={error} title="No se pudieron cargar las rutas" onRetry={handleRetry} />
       ) : routes.length === 0 ? (
         <OperatorStatePanel
           title="No hay rutas asignadas"
@@ -198,7 +224,7 @@ export function OperatorRoutesPage() {
         lines={lines}
         cities={[]}
         onSubmit={handleSubmit}
-        loading={saving}
+        loading={updateRouteMutation.isPending}
       />
 
       <RouteDirectionEditorModal
@@ -206,7 +232,7 @@ export function OperatorRoutesPage() {
         onClose={() => setDirectionEditorOpen(false)}
         route={directionEditing}
         cities={[]}
-        onSaved={load}
+        onSaved={handleDirectionsSaved}
         routeService={operatorPortalService}
         stopService={operatorPortalService}
         allowQuickCreate={false}

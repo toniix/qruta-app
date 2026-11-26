@@ -1,8 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, screen, waitFor } from '@testing-library/react';
 import { OperatorSubscriptionPage } from './OperatorSubscriptionPage';
 import { operatorAuthService } from '../../services/operatorAuthService';
 import { operatorPortalService } from '../../services/operatorPortalService';
+import { renderWithQueryClient } from '../../test/queryTestUtils';
 
 vi.mock('../../services/operatorPortalService', () => ({
   operatorPortalService: {
@@ -59,7 +60,7 @@ describe('OperatorSubscriptionPage', () => {
       ],
     });
 
-    render(<OperatorSubscriptionPage />);
+    renderWithQueryClient(<OperatorSubscriptionPage />);
 
     await waitFor(() => {
       expect(screen.getByText(/Vencida \(PAST_DUE\)/)).toBeInTheDocument();
@@ -83,7 +84,7 @@ describe('OperatorSubscriptionPage', () => {
       status: 'PENDING',
     });
 
-    render(<OperatorSubscriptionPage />);
+    renderWithQueryClient(<OperatorSubscriptionPage />);
 
     const payButton = await screen.findByRole('button', { name: /pagar ahora/i });
     await waitFor(() => expect(payButton).toBeEnabled());
@@ -121,7 +122,7 @@ describe('OperatorSubscriptionPage', () => {
         status: 'PENDING',
       });
 
-      const { unmount } = render(<OperatorSubscriptionPage />);
+      const { unmount } = renderWithQueryClient(<OperatorSubscriptionPage />);
 
       const payButton = await screen.findByRole('button', { name: /pagar ahora/i });
       await waitFor(() => expect(payButton).toBeEnabled());

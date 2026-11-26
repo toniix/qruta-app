@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import { OperatorQrListPage } from './OperatorQrListPage';
 import { operatorQrCodeService } from '../../services/qrCodeService';
 import { operatorPortalService } from '../../services/operatorPortalService';
+import { renderWithQueryClient } from '../../test/queryTestUtils';
 
 const { toastMock } = vi.hoisted(() => ({
   toastMock: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
@@ -52,7 +53,7 @@ describe('OperatorQrListPage', () => {
   });
 
   it('renders operator QR list and title', async () => {
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <OperatorQrListPage />
       </MemoryRouter>
@@ -72,7 +73,7 @@ describe('OperatorQrListPage', () => {
 
   it('opens creation modal on clicking button', async () => {
     const user = userEvent.setup();
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <OperatorQrListPage />
       </MemoryRouter>
@@ -95,7 +96,7 @@ describe('OperatorQrListPage', () => {
       label: 'QR Bus 101 Actualizado',
     });
 
-    render(
+    renderWithQueryClient(
       <MemoryRouter>
         <OperatorQrListPage />
       </MemoryRouter>

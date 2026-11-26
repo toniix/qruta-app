@@ -1,8 +1,11 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { CreditCard, Loader2, TriangleAlert } from 'lucide-react';
 import { OperatorPageHeader } from '../../components/operator/OperatorPageHeader';
 import { OperatorStatePanel } from '../../components/operator/OperatorStatePanel';
 import { useAdminToast } from '../../hooks/useAdminToast';
+import { STALE_TIMES } from '../../lib/queryClient';
+import { operatorKeys } from '../../lib/queryKeys';
 import { operatorAuthService } from '../../services/operatorAuthService';
 import { operatorPortalService } from '../../services/operatorPortalService';
 import { formatDateTime } from '../../utils/dateUtils';
@@ -55,40 +58,39 @@ function Detail({ label, value }) {
 
 export function OperatorSubscriptionPage() {
   const toast = useAdminToast();
+  const queryClient = useQueryClient();
   const [user] = useState(() => operatorAuthService.getCurrentUser());
-  const [subscription, setSubscription] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [creatingCheckout, setCreatingCheckout] = useState(false);
   const [checkoutUrl, setCheckoutUrl] = useState(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    setCheckoutUrl(null);
-    try {
-      setSubscription(await operatorPortalService.getSubscription());
-    } catch (err) {
-      if (err.response?.status !== 404) {
-        setError(err.response?.data?.message || err.message || 'No se pudo cargar la suscripción');
+  const subscriptionQuery = useQuery({
+    queryKey: operatorKeys.subscription(),
+    queryFn: async () => {
+      try {
+        return await operatorPortalService.getSubscription();
+      } catch (err) {
+        if (err?.response?.status === 404) return null;
+        throw err;
       }
-      setSubscription(null);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    },
+    staleTime: STALE_TIMES.OPERATIONAL,
+  });
 
-  useEffect(() => {
-    void Promise.resolve().then(load);
-  }, [load]);
+  const subscription = subscriptionQuery.data ?? null;
+  const loading = subscriptionQuery.isPending;
+  const error = subscriptionQuery.isError
+    ? subscriptionQuery.error?.response?.data?.message ||
+      subscriptionQuery.error?.message ||
+      'No se pudo cargar la suscripción'
+    : null;
 
-  const handleCheckout = async () => {
-    setCreatingCheckout(true);
-    try {
-      const checkout = await operatorPortalService.createCheckout({
-        plan: subscription?.plan || 'PRO',
-        method: 'QR',
-      });
+  const handleRetry = () => {
+    setCheckoutUrl(null);
+    void subscriptionQuery.refetch();
+  };
+
+  const checkoutMutation = useMutation({
+    mutationFn: (payload) => operatorPortalService.createCheckout(payload),
+    onSuccess: async (checkout) => {
       if (checkout?.checkoutUrl) {
         if (!isSafeHttpsUrl(checkout.checkoutUrl)) {
           toast.error('El enlace de pago recibido no es válido.');
@@ -101,13 +103,21 @@ export function OperatorSubscriptionPage() {
       } else {
         toast.success('Solicitud de pago creada');
       }
-    } catch (err) {
+      await queryClient.invalidateQueries({ queryKey: operatorKeys.subscription() });
+    },
+    onError: (err) => {
       toast.error(err.response?.data?.message || err.message || 'No se pudo iniciar el pago');
-    } finally {
-      setCreatingCheckout(false);
-    }
+    },
+  });
+
+  const handleCheckout = () => {
+    checkoutMutation.mutate({
+      plan: subscription?.plan || 'PRO',
+      method: 'QR',
+    });
   };
 
+  const creatingCheckout = checkoutMutation.isPending;
   const status = String(subscription?.status || '').toUpperCase();
   const statusLabel = STATUS_LABELS[status] || status || 'Sin estado';
   const periods = Array.isArray(subscription?.periods) ? subscription.periods : [];
@@ -122,7 +132,7 @@ export function OperatorSubscriptionPage() {
           <button
             type="button"
             onClick={handleCheckout}
-            disabled={creatingCheckout || loading || error}
+            disabled={creatingCheckout || loading || Boolean(error)}
             className="inline-flex items-center gap-1.5 rounded-xl bg-slate-900 px-3 py-2 text-xs font-bold text-white hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
           >
             {creatingCheckout ? (
@@ -145,7 +155,7 @@ export function OperatorSubscriptionPage() {
       {loading ? (
         <OperatorStatePanel loading />
       ) : error ? (
-        <OperatorStatePanel error={error} title="No se pudo cargar la suscripción" onRetry={load} />
+        <OperatorStatePanel error={error} title="No se pudo cargar la suscripción" onRetry={handleRetry} />
       ) : !subscription ? (
         <OperatorStatePanel
           title="Sin datos de suscripción"
