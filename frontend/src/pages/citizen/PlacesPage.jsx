@@ -113,7 +113,7 @@ export function PlacesPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
+      <div className="flex-1 overflow-y-auto hide-scrollbar p-5 space-y-4 max-w-xl mx-auto w-full pb-28">
         {activeTab === "lugares" ? (
           places.length === 0 ? (
             <div className="bg-white rounded-xl p-8 text-center border border-slate-200/80 shadow-card space-y-3 animate-fade-in">
@@ -236,7 +236,7 @@ export function PlacesPage() {
             </div>
           ))
         )}
-      </main>
+      </div>
     </div>
   );
 }

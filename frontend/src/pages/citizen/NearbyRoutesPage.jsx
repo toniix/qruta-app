@@ -119,7 +119,7 @@ export function NearbyRoutesPage() {
       </div>
 
       {/* ── Main Content Container ─────────────────────────────────────── */}
-      <main className="flex-1 p-5 max-w-lg mx-auto w-full space-y-6">
+      <div className="flex-1 p-5 max-w-lg mx-auto w-full space-y-6">
         {/* ── Mini-Map Preview Card ───────────────────────────────────────── */}
         <div
           onClick={() => navigate('/mapa')}
@@ -344,7 +344,7 @@ export function NearbyRoutesPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {/* Stop Routes Modal on Stop Click */}
       {selectedStopModal && (

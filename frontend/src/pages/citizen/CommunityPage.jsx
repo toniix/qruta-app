@@ -878,7 +878,7 @@ export function CommunityPage() {
       </header>
 
       {/* ── Feed Content ────────────────────────────────────────────────── */}
-      <main
+      <div
         className="flex-1 overflow-y-auto hide-scrollbar p-4 sm:p-5 space-y-4 max-w-2xl mx-auto w-full pb-28"
         aria-live="polite"
         aria-busy={loading}
@@ -1034,7 +1034,7 @@ export function CommunityPage() {
             )}
           </>
         )}
-      </main>
+      </div>
 
       <ComposeModal
         open={showComposeModal}

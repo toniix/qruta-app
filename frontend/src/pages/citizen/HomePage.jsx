@@ -353,7 +353,7 @@ export function HomePage() {
       )}
 
       {/* ── Main Content ─────────────────────────────────────────────── */}
-      <main className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-7">
+      <div className="flex-1 overflow-y-auto hide-scrollbar px-4 sm:px-6 pt-5 pb-24 z-0 space-y-7">
         {/* ── Continúa explorando: recents + favorites, compact one-liner ── */}
         {(recentSearches.length > 0 || favorites.length > 0) && (
           <section aria-label="Continúa explorando" className="space-y-2">
@@ -632,7 +632,7 @@ export function HomePage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
     </div>
   );
 }

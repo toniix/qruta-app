@@ -144,44 +144,37 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
     <div ref={containerRef} className="w-full space-y-2.5 pointer-events-auto">
       {/* ── Collapsed vs Expanded Search Card ───────────────────────────── */}
       {!isExpanded ? (
-        /* Collapsed Pill — a real button that opens the search sheet */
-        <button
-          type="button"
-          onClick={() => setIsExpanded(true)}
-          className="relative w-full bg-white rounded-full shadow-raised flex items-center px-3.5 py-2.5 border border-slate-200/90 cursor-pointer transition-all hover:border-slate-300 text-left group"
-        >
-          <img
-            src="/qruta-symbol.svg"
-            alt="QRuta"
-            className="w-7 h-7 mr-2.5 shrink-0 group-hover:scale-105 transition-transform"
-          />
-          <span className="flex-1 text-slate-800 text-sm font-medium">
-            {searchQuery || "¿A dónde quieres ir?"}
-          </span>
+        /* Collapsed Pill — sibling buttons avoid invalid nested interactive controls */
+        <div className="relative w-full bg-white rounded-full shadow-raised flex items-center px-3.5 py-2 border border-slate-200/90 transition-all hover:border-slate-300">
+          <button
+            type="button"
+            onClick={() => setIsExpanded(true)}
+            className="flex flex-1 min-w-0 items-center py-0.5 cursor-pointer text-left group rounded-full"
+          >
+            <img
+              src="/qruta-symbol.svg"
+              alt="QRuta"
+              className="w-7 h-7 mr-2.5 shrink-0 group-hover:scale-105 transition-transform"
+            />
+            <span className="flex-1 truncate text-slate-800 text-sm font-medium">
+              {searchQuery || "¿A dónde quieres ir?"}
+            </span>
+            {!searchQuery && (
+              <span className="text-xs font-black text-brand-navy bg-brand-lime px-3 py-1 rounded-full shadow-2xs ml-2 shrink-0">
+                Buscar
+              </span>
+            )}
+          </button>
 
-          {searchQuery ? (
-            <span
-              role="button"
-              tabIndex={0}
-              onClick={(e) => {
-                e.stopPropagation();
-                handleClear(e);
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.stopPropagation();
-                  handleClear(e);
-                }
-              }}
-              className="p-1 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors ml-2"
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={handleClear}
+              className="p-1 rounded-full text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors ml-2 cursor-pointer shrink-0"
               aria-label="Limpiar búsqueda"
             >
-              <X className="w-4 h-4" />
-            </span>
-          ) : (
-            <span className="text-xs font-black text-brand-navy bg-brand-lime px-3 py-1 rounded-full shadow-2xs ml-2">
-              Buscar
-            </span>
+              <X className="w-4 h-4" aria-hidden="true" />
+            </button>
           )}
 
           {onPickDestination && (
@@ -190,29 +183,18 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
                 aria-hidden="true"
                 className="w-px h-5 bg-slate-200 ml-2 shrink-0"
               />
-              <span
-                role="button"
-                tabIndex={0}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onPickDestination();
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === " ") {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onPickDestination();
-                  }
-                }}
-                className="ml-2 w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0"
+              <button
+                type="button"
+                onClick={onPickDestination}
+                className="ml-2 w-7 h-7 rounded-full bg-slate-900 text-white flex items-center justify-center hover:bg-slate-700 transition-colors shrink-0 cursor-pointer"
                 title="Elegir destino en el mapa"
                 aria-label="Elegir destino en el mapa"
               >
-                <MapPinned className="w-4 h-4" />
-              </span>
+                <MapPinned className="w-4 h-4" aria-hidden="true" />
+              </button>
             </>
           )}
-        </button>
+        </div>
       ) : (
         /* Expanded Dual Input Card (Origen + Destino + Swap) */
         <div className="bg-white rounded-2xl p-4 border border-slate-100/90 shadow-raised relative space-y-3 animate-slide-in-top">
@@ -272,14 +254,17 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
 
           {/* Origin Row */}
           <div className="flex items-center gap-3 pr-10">
-            <Target className="w-4.5 h-4.5 text-brand-primary shrink-0" />
+            <Target className="w-4.5 h-4.5 text-brand-primary shrink-0" aria-hidden="true" />
             <input
+              id="searchbar-origin"
+              name="origin"
               type="text"
               value={origin}
               onChange={(e) => {
                 setCustomOrigin(e.target.value);
               }}
               placeholder="Punto de partida"
+              aria-label="Punto de partida"
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
             />
           </div>
@@ -289,12 +274,15 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
 
           {/* Destination Row */}
           <div className="flex items-center gap-3 pr-10">
-            <MapPin className="w-4.5 h-4.5 text-red-500 shrink-0" />
+            <MapPin className="w-4.5 h-4.5 text-red-500 shrink-0" aria-hidden="true" />
             <input
-              type="text"
+              id="searchbar-destination"
+              name="destination"
+              type="search"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="¿A dónde vas?"
+              aria-label="¿A dónde vas?"
               autoFocus
               className="w-full bg-transparent text-xs sm:text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
             />
@@ -302,9 +290,10 @@ export function SearchBar({ onPickDestination = null, onSearchActiveChange = nul
               <button
                 type="button"
                 onClick={handleClear}
+                aria-label="Limpiar búsqueda"
                 className="p-1 rounded-full text-slate-400 hover:text-slate-600"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-3.5 h-3.5" aria-hidden="true" />
               </button>
             )}
           </div>

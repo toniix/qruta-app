@@ -74,6 +74,7 @@ export function ComposeModal({
             </label>
             <input
               id="community-alias"
+              name="alias"
               ref={firstFieldRef}
               type="text"
               required
@@ -132,6 +133,7 @@ export function ComposeModal({
             </label>
             <select
               id="community-route"
+              name="routeId"
               value={formRouteId}
               onChange={(e) => setFormRouteId(e.target.value)}
               className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-900 focus:border-brand-primary outline-none"
@@ -159,6 +161,7 @@ export function ComposeModal({
             </div>
             <textarea
               id="community-content"
+              name="content"
               rows={4}
               required
               minLength={4}
@@ -275,6 +278,7 @@ export function AliasModal({
         </label>
         <input
           id="community-temp-alias"
+          name="tempAlias"
           ref={inputRef}
           type="text"
           required

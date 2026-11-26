@@ -526,7 +526,7 @@ export function SearchPage() {
       </header>
 
       {/* ── Main Content Container ─────────────────────────────────────── */}
-      <main
+      <div
         ref={mainContainerRef}
         className="flex-1 min-h-0 overflow-y-auto hide-scrollbar p-4 sm:p-5 max-w-lg mx-auto w-full space-y-4 sm:space-y-5"
       >
@@ -548,8 +548,10 @@ export function SearchPage() {
 
           {/* Origin Row */}
           <div className="flex items-center gap-3 pr-12">
-            <Target className="w-5 h-5 text-brand-primary-green shrink-0" />
+            <Target className="w-5 h-5 text-brand-primary-green shrink-0" aria-hidden="true" />
             <input
+              id="search-origin"
+              name="origin"
               type="text"
               value={origin}
               onChange={(e) => {
@@ -557,6 +559,7 @@ export function SearchPage() {
                 setOrigin(e.target.value);
               }}
               placeholder="Punto de partida"
+              aria-label="Punto de partida"
               className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
             />
           </div>
@@ -566,12 +569,15 @@ export function SearchPage() {
 
           {/* Destination Row */}
           <div className="flex items-center gap-3 pr-12">
-            <MapPin className="w-5 h-5 text-rose-500 shrink-0" />
+            <MapPin className="w-5 h-5 text-rose-500 shrink-0" aria-hidden="true" />
             <input
-              type="text"
+              id="search-destination"
+              name="destination"
+              type="search"
               value={destination}
               onChange={handleDestinationChange}
               placeholder="¿A dónde vas? Busca en todas las ciudades…"
+              aria-label="¿A dónde vas? Busca en todas las ciudades"
               autoFocus
               className="w-full bg-transparent text-sm font-semibold text-slate-800 placeholder-slate-400 focus:outline-none"
             />
@@ -894,7 +900,7 @@ export function SearchPage() {
             )}
           </div>
         )}
-      </main>
+      </div>
     </div>
   );
 }
