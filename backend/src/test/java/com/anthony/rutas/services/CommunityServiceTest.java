@@ -14,6 +14,7 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -45,6 +46,9 @@ class CommunityServiceTest {
 
     @Mock
     private CityRepository cityRepository;
+
+    @Mock
+    private DisruptionRepository disruptionRepository;
 
     @InjectMocks
     private CommunityService communityService;
@@ -399,13 +403,15 @@ class CommunityServiceTest {
     class DeleteOwnTests {
 
         @Test
-        @DisplayName("Author can delete their own post")
+        @DisplayName("Author can delete their own post and detaches linked disruptions first")
         void deleteOwnPostSuccess() {
             when(postRepository.findById(postId)).thenReturn(Optional.of(samplePost));
 
             communityService.deleteOwnPost(postId, deviceA);
 
-            verify(postRepository).delete(samplePost);
+            InOrder inOrder = inOrder(disruptionRepository, postRepository);
+            inOrder.verify(disruptionRepository).detachCommunityPost(postId);
+            inOrder.verify(postRepository).delete(samplePost);
         }
 
         @Test
@@ -416,6 +422,7 @@ class CommunityServiceTest {
             BadRequestException ex = assertThrows(BadRequestException.class,
                     () -> communityService.deleteOwnPost(postId, deviceB));
             assertTrue(ex.getMessage().contains("Solo puedes eliminar tus propias publicaciones"));
+            verify(disruptionRepository, never()).detachCommunityPost(any());
             verify(postRepository, never()).delete(any());
         }
 
@@ -426,6 +433,7 @@ class CommunityServiceTest {
 
             assertThrows(ResourceNotFoundException.class,
                     () -> communityService.deleteOwnPost(postId, deviceA));
+            verify(disruptionRepository, never()).detachCommunityPost(any());
         }
 
         @Test
@@ -445,6 +453,34 @@ class CommunityServiceTest {
 
             verify(commentRepository).delete(comment);
             verify(postRepository).adjustCommentsCount(postId, -1);
+        }
+    }
+
+    @Nested
+    @DisplayName("adminDeletePost tests")
+    class AdminDeletePostTests {
+
+        @Test
+        @DisplayName("Admin detaches linked disruptions before deleting a community post")
+        void adminDeletePostDetachesDisruptionsBeforeDeleting() {
+            when(postRepository.findById(postId)).thenReturn(Optional.of(samplePost));
+
+            communityService.adminDeletePost(postId);
+
+            InOrder inOrder = inOrder(disruptionRepository, postRepository);
+            inOrder.verify(disruptionRepository).detachCommunityPost(postId);
+            inOrder.verify(postRepository).delete(samplePost);
+        }
+
+        @Test
+        @DisplayName("Throws ResourceNotFoundException when admin deletes a missing post")
+        void adminDeletePostNotFound() {
+            when(postRepository.findById(postId)).thenReturn(Optional.empty());
+
+            assertThrows(ResourceNotFoundException.class,
+                    () -> communityService.adminDeletePost(postId));
+            verify(disruptionRepository, never()).detachCommunityPost(any());
+            verify(postRepository, never()).delete(any());
         }
     }
 }

@@ -2,6 +2,8 @@ package com.anthony.rutas.entities;
 
 import jakarta.persistence.*;
 import lombok.*;
+import org.hibernate.annotations.OnDelete;
+import org.hibernate.annotations.OnDeleteAction;
 
 import java.time.LocalDateTime;
 import java.util.UUID;
@@ -44,7 +46,11 @@ public class Disruption {
     private boolean active = true;
 
     @OneToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "community_post_id")
+    @JoinColumn(
+            name = "community_post_id",
+            foreignKey = @ForeignKey(name = "fk_disruptions_community_post")
+    )
+    @OnDelete(action = OnDeleteAction.SET_NULL)
     private CommunityPost communityPost;
 
     @Column(name = "created_at", nullable = false, updatable = false)

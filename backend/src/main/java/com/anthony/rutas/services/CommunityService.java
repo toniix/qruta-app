@@ -32,6 +32,7 @@ public class CommunityService {
     private final CommunityPostLikeRepository likeRepository;
     private final RouteRepository routeRepository;
     private final CityRepository cityRepository;
+    private final DisruptionRepository disruptionRepository;
 
     private static final int MAX_POSTS_LIMIT = 60;
     private static final long COOLDOWN_MS = 8_000L;
@@ -200,6 +201,7 @@ public class CommunityService {
             throw new BadRequestException("Solo puedes eliminar tus propias publicaciones");
         }
 
+        disruptionRepository.detachCommunityPost(postId);
         postRepository.delete(post);
     }
 
@@ -307,6 +309,7 @@ public class CommunityService {
     public void adminDeletePost(UUID postId) {
         CommunityPost post = postRepository.findById(postId)
                 .orElseThrow(() -> new ResourceNotFoundException("Publicación no encontrada con ID: " + postId));
+        disruptionRepository.detachCommunityPost(postId);
         postRepository.delete(post);
     }
 
