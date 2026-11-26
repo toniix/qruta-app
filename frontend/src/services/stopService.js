@@ -51,12 +51,17 @@ export const stopService = {
    * Encuentra paraderos cercanos a coordenadas GPS
    * POST /api/stops/nearby
    */
-  async getNearbyStops(latitude, longitude, radiusMeters = 1000) {
-    const response = await apiClient.post("/stops/nearby", {
+  async getNearbyStops(latitude, longitude, radiusMeters = 1000, options = {}) {
+    const payload = {
       latitude,
       longitude,
       radiusMeters,
-    });
+    };
+    const response = options?.signal
+      ? await apiClient.post("/stops/nearby", payload, {
+          signal: options.signal,
+        })
+      : await apiClient.post("/stops/nearby", payload);
     const list = Array.isArray(response.data) ? response.data : [];
     return list.map(normalizeStop).filter(Boolean);
   },

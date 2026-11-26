@@ -1,8 +1,10 @@
 import { apiClient } from './apiClient';
 
 export const cityService = {
-  async getAllCities() {
-    const response = await apiClient.get('/cities');
+  async getAllCities(options = {}) {
+    const response = options?.signal
+      ? await apiClient.get('/cities', { signal: options.signal })
+      : await apiClient.get('/cities');
     return response.data;
   },
 
