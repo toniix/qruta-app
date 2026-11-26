@@ -824,15 +824,15 @@ INSERT INTO data_access_logs (id, api_key_id, endpoint, city_slug, status_code, 
 -- ===========================================================================
 -- QR INTELIGENTES
 -- ===========================================================================
-INSERT INTO qr_codes (id, code, label, target_type, target_id, campaign_source, campaign_medium, campaign_name, status, operator_id) VALUES
-('13000000-0000-4000-8000-000000000001', 'QR-ICA-0001', 'Plaza de Armas de Ica',  'STOP',  '30000000-0000-4000-8000-000000000015', 'demo', 'qr', 'Centro Ica',     'ACTIVE', 'b0000000-0000-4000-8000-000000000001'),
-('13000000-0000-4000-8000-000000000002', 'QR-ICA-0002', 'Ruta ICA-01 Huacachina', 'ROUTE', '40000000-0000-4000-8000-000000000008', 'demo', 'qr', 'Huacachina',     'ACTIVE', 'b0000000-0000-4000-8000-000000000001'),
-('13000000-0000-4000-8000-000000000003', 'QR-ICA-0003', 'UNICA Ciudad Universitaria', 'STOP', '30000000-0000-4000-8000-000000000019', 'demo', 'qr', 'Campaña UNICA', 'PAUSED', 'b0000000-0000-4000-8000-000000000001'),
-('13000000-0000-4000-8000-000000000004', 'QR-HYO-0001', 'Plaza Huamanmarca', 'STOP', '30000000-0000-4000-8000-000000000051', 'demo', 'qr', 'Centro Huancayo', 'ACTIVE', 'b0000000-0000-4000-8000-000000000002'),
-('13000000-0000-4000-8000-000000000005', 'QR-HYO-0002', 'Ruta HYO-01 Chilca', 'ROUTE', '40000000-0000-4000-8000-000000000033', 'demo', 'qr', 'Troncal Huancayo', 'ACTIVE', 'b0000000-0000-4000-8000-000000000002'),
-('13000000-0000-4000-8000-000000000006', 'QR-LIM-0001', 'Parque Kennedy', 'STOP', '30000000-0000-4000-8000-000000000006', 'demo', 'qr', 'Miraflores', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003'),
-('13000000-0000-4000-8000-000000000007', 'QR-LIM-0002', 'Ruta LIMA-01', 'ROUTE', '40000000-0000-4000-8000-000000000001', 'demo', 'qr', 'Corredor Lima', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003'),
-('13000000-0000-4000-8000-000000000008', 'QR-LIM-0003', 'Home', 'HOME', NULL, 'demo', 'qr', 'Portal QRuta', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003');
+INSERT INTO qr_codes (id, code, label, target_type, target_id, campaign_source, campaign_medium, campaign_name, status, operator_id, created_at, updated_at) VALUES
+('13000000-0000-4000-8000-000000000001', 'QR-ICA-0001', 'Plaza de Armas de Ica',  'STOP',  '30000000-0000-4000-8000-000000000015', 'demo', 'qr', 'Centro Ica',     'ACTIVE', 'b0000000-0000-4000-8000-000000000001', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000002', 'QR-ICA-0002', 'Ruta ICA-01 Huacachina', 'ROUTE', '40000000-0000-4000-8000-000000000008', 'demo', 'qr', 'Huacachina',     'ACTIVE', 'b0000000-0000-4000-8000-000000000001', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000003', 'QR-ICA-0003', 'UNICA Ciudad Universitaria', 'STOP', '30000000-0000-4000-8000-000000000019', 'demo', 'qr', 'Campaña UNICA', 'PAUSED', 'b0000000-0000-4000-8000-000000000001', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000004', 'QR-HYO-0001', 'Plaza Huamanmarca', 'STOP', '30000000-0000-4000-8000-000000000051', 'demo', 'qr', 'Centro Huancayo', 'ACTIVE', 'b0000000-0000-4000-8000-000000000002', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000005', 'QR-HYO-0002', 'Ruta HYO-01 Chilca', 'ROUTE', '40000000-0000-4000-8000-000000000033', 'demo', 'qr', 'Troncal Huancayo', 'ACTIVE', 'b0000000-0000-4000-8000-000000000002', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000006', 'QR-LIM-0001', 'Parque Kennedy', 'STOP', '30000000-0000-4000-8000-000000000006', 'demo', 'qr', 'Miraflores', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000007', 'QR-LIM-0002', 'Ruta LIMA-01', 'ROUTE', '40000000-0000-4000-8000-000000000001', 'demo', 'qr', 'Corredor Lima', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003', NOW(), NOW()),
+('13000000-0000-4000-8000-000000000008', 'QR-LIM-0003', 'Home', 'HOME', NULL, 'demo', 'qr', 'Portal QRuta', 'ACTIVE', 'b0000000-0000-4000-8000-000000000003', NOW(), NOW());
 
 -- ===========================================================================
 -- COMUNICADOS OFICIALES Y DISRUPCIONES (V10)
