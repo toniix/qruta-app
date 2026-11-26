@@ -1,7 +1,7 @@
-export function FieldError({ message, className = '' }) {
+export function FieldError({ id, message, className = '' }) {
   if (!message) return null;
   return (
-    <p role="alert" className={`mt-1 text-[11px] font-semibold text-rose-600 ${className}`}>
+    <p id={id} role="alert" className={`mt-1 text-[11px] font-semibold text-rose-600 ${className}`}>
       {message}
     </p>
   );

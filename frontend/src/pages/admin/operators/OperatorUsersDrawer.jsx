@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useId } from 'react';
 import {
   Users,
   Edit2,
@@ -50,6 +50,11 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
   const [errors, setErrors] = useState({});
   const [saving, setSaving] = useState(false);
   const [actionError, setActionError] = useState('');
+
+  const emailErrorId = useId();
+  const fullNameErrorId = useId();
+  const roleErrorId = useId();
+  const passwordErrorId = useId();
 
   const operatorId = operator?.id;
 
@@ -219,11 +224,15 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
       title={`Usuarios · ${operator?.name || 'Operador'}`}
       subtitle="Cuentas con acceso al portal del operador"
       icon={Users}
+      loading={saving}
       maxWidth="max-w-3xl"
       footer={footer}
     >
       {actionError && (
-        <p className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700">
+        <p
+          role="alert"
+          className="rounded-xl border border-rose-200 bg-rose-50 px-4 py-2.5 text-xs font-semibold text-rose-700"
+        >
           {actionError}
         </p>
       )}
@@ -235,52 +244,84 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
           {panel.mode !== 'reset' && (
             <>
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Correo electrónico <span className="text-rose-500">*</span>
+                <label
+                  htmlFor="operator-user-email"
+                  className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-600"
+                >
+                  Correo electrónico <span className="text-rose-500" aria-hidden="true">*</span>
                 </label>
                 <input
+                  id="operator-user-email"
+                  name="email"
                   type="email"
+                  inputMode="email"
+                  autoComplete="username"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  autoCorrect="off"
                   value={form.email}
                   onChange={(e) => update({ email: e.target.value }, 'email')}
                   placeholder="usuario@empresa.pe"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  aria-invalid={Boolean(errors.email)}
+                  aria-describedby={errors.email ? emailErrorId : undefined}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                 />
-                <FieldError message={errors.email} />
+                <FieldError id={emailErrorId} message={errors.email} />
               </div>
 
               <div>
-                <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                  Nombre completo <span className="text-rose-500">*</span>
+                <label
+                  htmlFor="operator-user-full-name"
+                  className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-600"
+                >
+                  Nombre completo <span className="text-rose-500" aria-hidden="true">*</span>
                 </label>
                 <input
+                  id="operator-user-full-name"
+                  name="fullName"
                   type="text"
+                  autoComplete="name"
                   value={form.fullName}
                   onChange={(e) => update({ fullName: e.target.value }, 'fullName')}
                   placeholder="Ej: Ana Owner"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                  aria-invalid={Boolean(errors.fullName)}
+                  aria-describedby={errors.fullName ? fullNameErrorId : undefined}
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                 />
-                <FieldError message={errors.fullName} />
+                <FieldError id={fullNameErrorId} message={errors.fullName} />
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
+                  <label
+                    htmlFor="operator-user-role"
+                    className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-600"
+                  >
                     Rol
                   </label>
                   <select
+                    id="operator-user-role"
+                    name="role"
                     value={form.role}
                     onChange={(e) => update({ role: e.target.value }, 'role')}
-                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                    aria-invalid={Boolean(errors.role)}
+                    aria-describedby={errors.role ? roleErrorId : undefined}
+                    className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
                   >
                     <option value="OWNER">OWNER</option>
                     <option value="EDITOR">EDITOR</option>
                   </select>
-                  <FieldError message={errors.role} />
+                  <FieldError id={roleErrorId} message={errors.role} />
                 </div>
 
                 {panel.mode === 'edit' && (
-                  <label className="flex items-center gap-2.5 self-end rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 cursor-pointer">
+                  <label
+                    htmlFor="operator-user-active"
+                    className="flex items-center gap-2.5 self-end rounded-xl border border-slate-200 bg-slate-50/60 px-4 py-2.5 cursor-pointer"
+                  >
                     <input
+                      id="operator-user-active"
+                      name="active"
                       type="checkbox"
                       checked={Boolean(form.active)}
                       onChange={(e) => update({ active: e.target.checked }, 'active')}
@@ -295,33 +336,51 @@ function OperatorUsersDrawerContent({ operator, onClose, onChanged }) {
 
           {panel.mode === 'create' && (
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Contraseña provisional <span className="text-rose-500">*</span>
+              <label
+                htmlFor="operator-user-create-password"
+                className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-600"
+              >
+                Contraseña provisional <span className="text-rose-500" aria-hidden="true">*</span>
               </label>
               <input
+                id="operator-user-create-password"
+                name="new-password"
                 type="password"
+                autoComplete="new-password"
+                minLength={8}
                 value={form.password}
                 onChange={(e) => update({ password: e.target.value }, 'password')}
                 placeholder="Mínimo 8 caracteres"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={errors.password ? passwordErrorId : undefined}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
               />
-              <FieldError message={errors.password} />
+              <FieldError id={passwordErrorId} message={errors.password} />
             </div>
           )}
 
           {panel.mode === 'reset' && (
             <div>
-              <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 mb-1.5">
-                Nueva contraseña <span className="text-rose-500">*</span>
+              <label
+                htmlFor="operator-user-reset-password"
+                className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-600"
+              >
+                Nueva contraseña <span className="text-rose-500" aria-hidden="true">*</span>
               </label>
               <input
+                id="operator-user-reset-password"
+                name="new-password"
                 type="password"
+                autoComplete="new-password"
+                minLength={8}
                 value={form.password}
                 onChange={(e) => update({ password: e.target.value }, 'password')}
                 placeholder="Mínimo 8 caracteres"
-                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                aria-invalid={Boolean(errors.password)}
+                aria-describedby={errors.password ? passwordErrorId : undefined}
+                className="w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-xs text-slate-800 transition focus:border-blue-600 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-blue-600 focus-visible:ring-2 focus-visible:ring-blue-500/20"
               />
-              <FieldError message={errors.password} />
+              <FieldError id={passwordErrorId} message={errors.password} />
             </div>
           )}
         </form>

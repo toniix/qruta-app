@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useId, useState, useMemo } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -23,6 +23,7 @@ export function AdminDataTable({
   caption,
   rowKey = 'id',
 }) {
+  const pageSizeId = useId();
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(initialPageSize);
   const [sortConfig, setSortConfig] = useState({ key: null, direction: 'asc' });
@@ -42,7 +43,7 @@ export function AdminDataTable({
 
   const sortedData = useMemo(() => {
     if (!sortConfig.key) return data;
-    const sorted = [...data].sort((a, b) => {
+    return data.toSorted((a, b) => {
       let aVal = a[sortConfig.key];
       let bVal = b[sortConfig.key];
 
@@ -58,7 +59,6 @@ export function AdminDataTable({
       if (aVal > bVal) return sortConfig.direction === 'asc' ? 1 : -1;
       return 0;
     });
-    return sorted;
   }, [data, sortConfig]);
 
   const totalPages = Math.max(1, Math.ceil(sortedData.length / pageSize));
@@ -81,12 +81,20 @@ export function AdminDataTable({
             <tr>
               {columns.map((col) => {
                 const isSorted = sortConfig.key === col.key;
-                const canSort = col.sortable !== false && col.key;
+                const canSort = col.sortable !== false && Boolean(col.key);
+                const ariaSort = canSort
+                  ? isSorted
+                    ? sortConfig.direction === 'asc'
+                      ? 'ascending'
+                      : 'descending'
+                    : 'none'
+                  : undefined;
 
                 return (
                   <th
                     key={col.key || col.label}
                     scope="col"
+                    aria-sort={ariaSort}
                     style={{ width: col.width }}
                     className={`px-4 py-3 whitespace-nowrap ${
                       col.align === 'right'
@@ -94,33 +102,46 @@ export function AdminDataTable({
                         : col.align === 'center'
                         ? 'text-center'
                         : 'text-left'
-                    } ${canSort ? 'cursor-pointer select-none hover:text-slate-900 transition-colors' : ''}`}
-                    onClick={() => canSort && handleSort(col.key)}
+                    }`}
                   >
-                    <div
-                      className={`inline-flex items-center gap-1.5 ${
-                        col.align === 'right'
-                          ? 'justify-end'
-                          : col.align === 'center'
-                          ? 'justify-center'
-                          : 'justify-start'
-                      }`}
-                    >
-                      <span>{col.label}</span>
-                      {canSort && (
-                        <span className="text-slate-400">
+                    {canSort ? (
+                      <button
+                        type="button"
+                        onClick={() => handleSort(col.key)}
+                        className={`inline-flex min-h-6 items-center gap-1.5 rounded-md font-bold uppercase tracking-wider text-slate-500 transition-colors hover:text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 ${
+                          col.align === 'right'
+                            ? 'justify-end'
+                            : col.align === 'center'
+                            ? 'justify-center'
+                            : 'justify-start'
+                        }`}
+                      >
+                        <span>{col.label}</span>
+                        <span className="text-slate-400" aria-hidden="true">
                           {isSorted ? (
                             sortConfig.direction === 'asc' ? (
-                              <ArrowUp className="h-3 w-3 text-blue-600" />
+                              <ArrowUp className="h-3 w-3 text-blue-600" aria-hidden="true" />
                             ) : (
-                              <ArrowDown className="h-3 w-3 text-blue-600" />
+                              <ArrowDown className="h-3 w-3 text-blue-600" aria-hidden="true" />
                             )
                           ) : (
-                            <ArrowUpDown className="h-3 w-3 opacity-40 hover:opacity-100" />
+                            <ArrowUpDown className="h-3 w-3 opacity-40" aria-hidden="true" />
                           )}
                         </span>
-                      )}
-                    </div>
+                      </button>
+                    ) : (
+                      <div
+                        className={`inline-flex items-center gap-1.5 ${
+                          col.align === 'right'
+                            ? 'justify-end'
+                            : col.align === 'center'
+                            ? 'justify-center'
+                            : 'justify-start'
+                        }`}
+                      >
+                        <span>{col.label}</span>
+                      </div>
+                    )}
                   </th>
                 );
               })}
@@ -200,14 +221,17 @@ export function AdminDataTable({
               <strong className="font-semibold text-slate-900">{sortedData.length}</strong> registros
             </span>
             <div className="hidden sm:flex items-center gap-1 ml-4 border-l border-slate-200 pl-4">
-              <span className="text-slate-500">Filas:</span>
+              <label htmlFor={pageSizeId} className="text-slate-500">
+                Filas:
+              </label>
               <select
+                id={pageSizeId}
                 value={pageSize}
                 onChange={(e) => {
                   setPageSize(Number(e.target.value));
                   setCurrentPage(1);
                 }}
-                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus:outline-none focus:ring-1 focus:ring-blue-500"
+                className="rounded-lg border border-slate-200 bg-white px-2 py-1 text-xs text-slate-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600"
               >
                 <option value={5}>5</option>
                 <option value={10}>10</option>
